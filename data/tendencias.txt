@@ -1,0 +1,24 @@
+# FUENTE DE VERDAD DEL NEGOCIO: TENDENCIAS Y LÍNEAS ESTRATÉGICAS B2B
+
+## 1. Comercio Electrónico & Ventas Digitales (E-Commerce B2B)
+- Soluciones de comercio conversacional y agentes de soporte/ventas 24/7.
+- Logística de última milla inteligente, optimización de operaciones y seguimiento en tiempo real.
+- Pasarelas de pago, facturación digital y prevención de fraudes con machine learning.
+- Automatización de catálogos e inventarios en tiempo real para plataformas empresariales.
+
+## 2. Analítica de Datos, Inteligencia Artificial & Productividad (AI & Analytics)
+- Plataformas de analítica web, métricas de rendimiento y business intelligence en tiempo real.
+- Asistentes inteligentes y copilotos de IA para flujos de trabajo profesionales y llamadas.
+- Observabilidad de datos, monitoreo de infraestructura y detección de anomalías operativas.
+- Herramientas colaborativas de gestión del conocimiento y optimización de productividad corporativa.
+
+## 3. Tecnologías de la Información & Software Empresarial (TI & B2B SaaS)
+- Automatización de procesos de negocio (BPA / RPA) combinando modelos de lenguaje (LLMs) y pipelines de datos.
+- Arquitecturas de microservicios, APIs y conectores empresariales para sincronización de sistemas.
+- Ciberseguridad proactiva, protección de credenciales y auditoría de accesos.
+- Herramientas SaaS para gestión de clientes, prospección autónoma y retención de usuarios.
+
+## Criterios de Evaluación Comercial
+- Nivel de viabilidad de adopción en mercados emergentes y empresas de servicios/tecnología.
+- Retorno de inversión (ROI) estimado inferior a 6 meses.
+- Compatibilidad técnica con ecosistemas modernos de software y facilidad de integración.

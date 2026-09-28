@@ -1,0 +1,35 @@
+# Entornos virtuales
+venv/
+.venv/
+env/
+ENV/
+
+# Variables de entorno y secretos
+.env
+.env.local
+*.env
+
+# Caché y archivos compilados
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Base de datos SQLite local
+data/*.db
+data/*.db-wal
+data/*.db-shm
+
+# Archivos temporales generados por Playwright / Visual Engine
+temp_*.png
+temp_card.png
+temp_chart.png
+temp_favs.png
+test_output/
+
+# Logs del sistema
+*.log
+
+# Editores y entornos
+.vscode/
+.idea/
