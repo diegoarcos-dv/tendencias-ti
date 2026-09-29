@@ -356,9 +356,16 @@
     display:flex;
     align-items:center;
     justify-content:space-between;
-    padding-top:10px;
+    margin-top:12px;
+    padding-top:6px;
     font-size:12px;
     color:var(--text-muted);
+  }
+  .stack-panel[style*="none"] ~ .footer-meta,
+  .stack-panel[style*="none"] + .footer-meta {
+    margin-top:auto;
+    border-top:1px solid var(--border);
+    padding-top:12px;
   }
 </style>
 </head>
@@ -456,11 +463,11 @@
           <span class="stack-tag stable">Consolidado</span>
         </div>
       </div>
+    </div>
 
-      <div class="footer-meta">
-        <span>Radar de Inteligencia Comercial · TI</span>
-        <span data-field="footer-date">Actualizado hoy, 09:14</span>
-      </div>
+    <div class="footer-meta">
+      <span>Radar de Inteligencia Comercial · TI</span>
+      <span data-field="footer-date">Actualizado hoy, 09:14</span>
     </div>
 
   </div>

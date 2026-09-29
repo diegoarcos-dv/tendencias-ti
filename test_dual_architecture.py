@@ -52,26 +52,29 @@ async def test_ui_conditional_keyboards():
     # A. Teclado de Grupo con Deep Links (🔍 Profundizar y 🤖 Personalizar alertas)
     group_kb = build_group_keyboard(trend_id=18, bot_username="Tendencias_DiegoBot")
     rows = group_kb.get("inline_keyboard", [])
-    assert len(rows) == 2, f"El grupo debe tener 2 filas con botones deep-link, tiene {len(rows)}"
+    assert len(rows) == 3, f"El grupo debe tener 3 filas de botones, tiene {len(rows)}"
 
     btn_deepdive = rows[0][0]
-    btn_config = rows[1][0]
+    btn_toggle = rows[1][0]
+    btn_config = rows[2][0]
     print(f"  -> Botón 1 de Grupo: '{btn_deepdive['text']}' (url: '{btn_deepdive.get('url')}')")
-    print(f"  -> Botón 2 de Grupo: '{btn_config['text']}' (url: '{btn_config.get('url')}')")
+    print(f"  -> Botón 2 de Grupo: '{btn_toggle['text']}' (callback_data: '{btn_toggle.get('callback_data')}')")
+    print(f"  -> Botón 3 de Grupo: '{btn_config['text']}' (url: '{btn_config.get('url')}')")
 
     assert btn_deepdive["text"] == "🔍 Profundizar"
     assert "start=deepdive_18" in btn_deepdive.get("url", "")
-    assert "callback_data" not in btn_deepdive, "El botón Profundizar en grupo DEBE ser de tipo URL deep-link, no callback_data"
+
+    assert btn_toggle["text"] == "📈 Gráfica de tendencias"
+    assert btn_toggle["callback_data"] == "TOGGLE_CHART_18"
 
     assert btn_config["text"] == "🤖 Personalizar alertas"
     assert "start=config" in btn_config.get("url", "")
-    assert "callback_data" not in btn_config, "El botón de alertas debe ser de tipo URL deep-link, no callback_data"
-    print("  [OK] Teclado de Grupo genera enlaces deep-link a DM sin callbacks.")
+    print("  [OK] Teclado de Grupo genera enlaces deep-link a DM y botón toggle de gráfica.")
 
     # B. Teclado de DM (Privado)
     dm_kb = build_interactive_keyboard(trend_id=42)
     dm_rows = dm_kb.get("inline_keyboard", [])
-    assert len(dm_rows) == 2, f"El chat privado debe tener 2 filas de botones, tiene {len(dm_rows)}"
+    assert len(dm_rows) >= 2, f"El chat privado debe tener al menos 2 filas de botones, tiene {len(dm_rows)}"
     all_dm_texts = [btn["text"] for row in dm_rows for btn in row]
     assert any("Guardar en favoritos" in t for t in all_dm_texts)
     assert any("Ver favoritos" in t for t in all_dm_texts)

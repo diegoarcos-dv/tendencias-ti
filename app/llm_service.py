@@ -90,6 +90,7 @@ async def generate_trend_card_data(
     real_metric_label, real_metric_value, real_delta_dir, real_delta_val = extract_real_metrics(trend_data)
 
     system_prompt = (
+        "REGLA DE ORO: DEBES generar toda la respuesta ESTRICTAMENTE EN ESPAÑOL, incluyendo la descripción y el problema que resuelve, sin importar el idioma de los datos originales. Para el campo 'stack_sugerido', debes proporcionar exactamente 3 a 4 tecnologías concretas; prohibido incluir elementos vacíos, genéricos o nulos.\n\n"
         "Eres el Analista Principal de Inteligencia Comercial B2B y Estrategia Tecnológica.\n"
         "Tu misión es evaluar la herramienta tecnológica recibida y redactar un informe ejecutivo en ESPAÑOL, "
         "con FIDELIDAD ABSOLUTA a la propuesta de valor y propósito real del producto provisto por la API.\n\n"
@@ -123,7 +124,7 @@ MARCO DE EVALUACIÓN ESTRATÉGICA:
 {business_context_text[:800]}
 
 INSTRUCCIONES DE RESPUESTA:
-Devuelve un JSON estrictamente válido. El análisis debe coincidir al 100% con la descripción cruda del producto:
+Devuelve un JSON estrictamente válido en ESPAÑOL. El análisis debe coincidir al 100% con la descripción cruda del producto:
 {{
   "sector": "Sector tecnológico real según la descripción del producto (ej. 'Analítica Web & Business Intelligence' o 'Ciberseguridad B2B' o 'Productividad & DevTools')",
   "title": "Nombre de la solución o categoría tecnológica (máx 36 caracteres, enfocado en el servicio o solución tecnológica)",
@@ -136,11 +137,17 @@ Devuelve un JSON estrictamente válido. El análisis debe coincidir al 100% con 
   "delta_direction": "up o down",
   "delta_value": "Crecimiento de demanda (ej. '+35% demanda', '+40% interanual')",
   "summary": "Resumen ejecutivo (240 a 340 caracteres) derivado estrictamente de la funcionalidad real descrita. Explica qué empresas la demandan y qué fricción técnica soluciona. Resalta con <strong>...</strong> la capacidad técnica clave.",
+  "stack_sugerido": [
+    "Nombre de tecnología concreta 1 (ej. Next.js)",
+    "Nombre de tecnología concreta 2 (ej. PostgreSQL)",
+    "Nombre de tecnología concreta 3 (ej. Docker)",
+    "Nombre de tecnología concreta 4 (ej. Redis)"
+  ],
   "stack_list": [
-    {{"name": "Capacidad o módulo técnico 1 basado en la herramienta", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"}},
-    {{"name": "Capacidad o módulo técnico 2", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"}},
-    {{"name": "Capacidad o módulo técnico 3", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"}},
-    {{"name": "Capacidad o módulo técnico 4", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}}
+    {{"name": "Tecnología concreta 1", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"}},
+    {{"name": "Tecnología concreta 2", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"}},
+    {{"name": "Tecnología concreta 3", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"}},
+    {{"name": "Tecnología concreta 4", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}}
   ],
   "footer_date": "Actualizado hoy, 07:00"
 }}
@@ -221,6 +228,17 @@ Devuelve un JSON estrictamente válido. El análisis debe coincidir al 100% con 
     final_card["summary"] = clean_summary
 
     raw_stack = card_json.get("stack_list") or card_json.get("stack")
+    raw_sugerido = card_json.get("stack_sugerido") or []
+    
+    clean_sugerido = []
+    if isinstance(raw_sugerido, list):
+        for s in raw_sugerido:
+            s_name = (s.get("name", "") if isinstance(s, dict) else str(s)).strip()
+            # Eliminar notas de ejemplo como (ej. Next.js) si el LLM las dejó intactas
+            s_name = re.sub(r"\(ej\.?[^\)]*\)", "", s_name).strip()
+            if s_name and not any(d in s_name.lower() for d in ["capacidad o módulo", "tecnología concreta", "tecnología o herramienta", "módulo técnico", "ej."]):
+                clean_sugerido.append(s_name[:36])
+
     normalized_stack = []
     if isinstance(raw_stack, list) and len(raw_stack) > 0:
         for idx, item in enumerate(raw_stack[:4]):
@@ -232,6 +250,11 @@ Devuelve un JSON estrictamente válido. El análisis debe coincidir al 100% con 
                     name = tag_label
                     tag_label = "Nuevo" if idx == 0 else "Escalando"
                 
+                name = re.sub(r"\(ej\.?[^\)]*\)", "", name).strip()
+                # Evitar viñetas vacías o placeholders genéricos del prompt
+                if not name or any(d in name.lower() for d in ["capacidad o módulo", "tecnología concreta", "tecnología o herramienta", "módulo técnico", "ej."]):
+                    continue
+
                 icon_color = item.get("icon_color") or ("violet" if idx == 0 else ("mint" if idx < 3 else "neutral"))
                 tag_class = item.get("tag_class") or ("new" if idx == 0 else ("scaling" if idx < 3 else "stable"))
                 if tag_label not in ["Nuevo", "Escalando", "Consolidado", "Estable"]:
@@ -243,10 +266,29 @@ Devuelve un JSON estrictamente válido. El análisis debe coincidir al 100% con 
                     "tag_class": tag_class,
                     "tag_label": tag_label
                 })
-    if len(normalized_stack) >= 3:
+
+    colors = ["violet", "mint", "mint", "neutral"]
+    classes = ["new", "scaling", "scaling", "stable"]
+    labels = ["Nuevo", "Escalando", "Escalando", "Consolidado"]
+
+    if len(normalized_stack) >= 2:
         final_card["stack_list"] = normalized_stack
+    elif len(clean_sugerido) >= 2:
+        final_card["stack_list"] = [
+            {
+                "name": tech[:36],
+                "icon_color": colors[i] if i < len(colors) else "neutral",
+                "tag_class": classes[i] if i < len(classes) else "stable",
+                "tag_label": labels[i] if i < len(labels) else "Consolidado"
+            }
+            for i, tech in enumerate(clean_sugerido[:4])
+        ]
     else:
         final_card["stack_list"] = fallback["stack_list"]
+
+    final_card["stack_sugerido"] = [
+        item["name"] for item in final_card["stack_list"] if item.get("name")
+    ]
 
     raw_footer = str(card_json.get("footer_date") or "")
     if not raw_footer or "T" in raw_footer or len(raw_footer) > 25 or any(y in raw_footer for y in ["2020", "2021", "2022", "2023", "2024", "2025"]):
@@ -507,3 +549,245 @@ async def generate_deep_dive_report(
         f"• <b>Esquema de Negocio:</b> Modelo SaaS escalable por volumen de uso o asientos, facilitando pruebas de concepto (PoC) rápidas antes de acuerdos Enterprise.\n"
         f"• <b>Ventaja Competitiva en {zona_preferida}:</b> Resuelve directamente puntos de dolor actuales frente a herramientas tradicionales con mayor costo y menor dinamismo.\n"
     )
+
+
+# ============================================================================
+# Clasificador Cognitivo Semántico por Industria
+# ============================================================================
+
+async def classify_user_input(
+    user_text: str,
+    model: Optional[str] = None
+) -> Dict[str, Any]:
+    """Clasificador Cognitivo: Extrae la industria principal mencionada por el usuario utilizando Gemma.
+    Devuelve ESTRICTAMENTE un formato JSON válido con la clave 'industria'. Cero texto conversacional.
+    """
+    cleaned_input = str(user_text or "").strip()
+    if not cleaned_input:
+        return {"industria": "TI & Software B2B"}
+
+    selected_model = model or settings.OLLAMA_MODEL
+
+    system_prompt = (
+        "Analiza el texto del usuario. Extrae la industria principal mencionada. "
+        "Devuelve ESTRICTAMENTE un formato JSON válido con la clave 'industria'. Cero texto conversacional."
+    )
+
+    user_prompt = cleaned_input
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                f"{settings.OLLAMA_BASE_URL}/api/chat",
+                json={
+                    "model": selected_model,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    "stream": False,
+                    "format": "json",
+                    "options": {"temperature": 0.1}
+                }
+            )
+            if resp.status_code == 200:
+                raw_json_str = resp.json().get("message", {}).get("content", "").strip()
+                extracted = _extract_json(raw_json_str)
+                if extracted and "industria" in extracted and extracted["industria"]:
+                    return {"industria": str(extracted["industria"]).strip()}
+    except Exception as e:
+        logger.warning(f"Error en classify_user_input con Ollama ({e}). Usando clasificador determinista.")
+
+    # Fallback heurístico determinista si Ollama no responde o no devuelve JSON válido
+    lower_text = cleaned_input.lower()
+    if any(k in lower_text for k in ["fintech", "banca", "finanzas", "pago", "cripto", "banco"]):
+        return {"industria": "Fintech & Servicios Financieros"}
+    if any(k in lower_text for k in ["salud", "medicina", "health", "farmacia", "hospital", "biotech"]):
+        return {"industria": "Salud & Healthtech"}
+    if any(k in lower_text for k in ["ecommerce", "e-commerce", "comercio", "tienda", "retail", "marketplace"]):
+        return {"industria": "E-Commerce & Retailtech"}
+    if any(k in lower_text for k in ["ciberseguridad", "seguridad", "security", "hacking", "firewall"]):
+        return {"industria": "Ciberseguridad"}
+    if any(k in lower_text for k in ["logistica", "logística", "transporte", "supply chain", "cadena de suministro"]):
+        return {"industria": "Logística & Supply Chain"}
+    if any(k in lower_text for k in ["marketing", "adtech", "publicidad", "ventas", "crm"]):
+        return {"industria": "Marketing & AdTech"}
+    if any(k in lower_text for k in ["saas", "software", "desarrollo", "cloud", "devops", "ia", "inteligencia artificial"]):
+        return {"industria": "TI & Software B2B"}
+
+    clean_words = re.sub(r"[^\w\s]", "", cleaned_input).strip()
+    candidate = clean_words.title() if clean_words else "TI & Software B2B"
+    return {"industria": candidate[:40]}
+
+
+# ============================================================================
+# Validador Cognitivo de Zona Geográfica / Económica (Guardia Semántico)
+# ============================================================================
+
+def _is_gibberish_zone(text: str) -> bool:
+    """Detecta patrones evidentes de letras al azar, groserías o caracteres sin sentido."""
+    cleaned = text.strip()
+    if len(cleaned) < 2 or len(cleaned) > 60:
+        return True
+    lower = cleaned.lower()
+    
+    # Sin vocales en absoluto (a excepción de siglas válidas como 'us', 'uk')
+    vowels = set("aeiouáéíóú")
+    if not any(c in vowels for c in lower) and lower not in ("us", "uk"):
+        return True
+        
+    # Secuencias largas de consonantes al azar (ej. jsjdsjd, dfghjk, qwrty)
+    if re.search(r"[bcdfghjklmnpqrstvwxyz]{4,}", lower) and not any(w in lower for w in ["czech", "deutsch"]):
+        return True
+        
+    # Letras repetidas 3 o más veces consecutivas (ej. jjj, aaaa)
+    if re.search(r"(.)\1{2,}", lower):
+        return True
+        
+    # Groserías o entradas conversacionales irrelevantes
+    invalids = [
+        "mierda", "puta", "tonto", "idiota", "chinga", "verga", "pendejo", "coño",
+        "culiao", "cabron", "asdf", "test", "prueba", "hola", "buenos dias", "nada", "no se"
+    ]
+    if any(inv in lower for inv in invalids):
+        return True
+        
+    return False
+
+
+KNOWN_TECH_ZONES = {
+    "china": "China",
+    "silicon valley": "Silicon Valley",
+    "california": "Silicon Valley",
+    "estados unidos": "Estados Unidos",
+    "eeuu": "Estados Unidos",
+    "ee.uu.": "Estados Unidos",
+    "usa": "Estados Unidos",
+    "us": "Estados Unidos",
+    "mexico": "México",
+    "méxico": "México",
+    "europa": "Europa",
+    "europe": "Europa",
+    "colombia": "Colombia",
+    "global": "Global",
+    "latam": "Latinoamérica",
+    "latinoamerica": "Latinoamérica",
+    "latinoamérica": "Latinoamérica",
+    "america latina": "Latinoamérica",
+    "sudamerica": "Sudamérica",
+    "sudamérica": "Sudamérica",
+    "asia": "Asia",
+    "japon": "Japón",
+    "japón": "Japón",
+    "corea": "Corea del Sur",
+    "corea del sur": "Corea del Sur",
+    "alemania": "Alemania",
+    "espana": "España",
+    "españa": "España",
+    "reino unido": "Reino Unido",
+    "uk": "Reino Unido",
+    "india": "India",
+    "canada": "Canadá",
+    "canadá": "Canadá",
+    "brasil": "Brasil",
+    "brazil": "Brasil",
+    "israel": "Israel",
+    "singapur": "Singapur",
+    "taiwan": "Taiwán",
+    "taiwán": "Taiwán",
+    "francia": "Francia",
+    "italia": "Italia",
+    "australia": "Australia",
+    "chile": "Chile",
+    "argentina": "Argentina",
+    "peru": "Perú",
+    "perú": "Perú",
+}
+
+
+async def validate_zone(
+    text: str,
+    model: Optional[str] = None
+) -> Dict[str, Any]:
+    """Evalúa si el texto del usuario es una región geográfica o económica válida utilizando Gemma.
+    Detecta groserías o letras al azar.
+    Devuelve ESTRICTAMENTE JSON con: {'valido': true/false, 'zona_normalizada': 'Nombre correcto o null', 'razon_rechazo': 'Explicación amable de por qué no es válido'}.
+    """
+    cleaned_input = str(text or "").strip()
+    
+    # 1. Filtro estricto anti-letras al azar (ej. 'jsjdsjd') y texto vacío
+    if _is_gibberish_zone(cleaned_input):
+        return {
+            "valido": False,
+            "zona_normalizada": None,
+            "razon_rechazo": "El texto proporcionado parece ser letras al azar o una entrada no válida. Por favor, escribe un país, continente o región económica real (ej. China, Silicon Valley, Europa, Global)."
+        }
+
+    # 2. Comprobación rápida en diccionario de polos y países tecnológicos reconocidos
+    lower_input = cleaned_input.lower()
+    for k, v in KNOWN_TECH_ZONES.items():
+        if k in lower_input:
+            return {
+                "valido": True,
+                "zona_normalizada": v,
+                "razon_rechazo": ""
+            }
+
+    selected_model = model or settings.OLLAMA_MODEL
+
+    # Prompt oficial solicitado
+    system_prompt = (
+        "Evalúa si el siguiente texto es un país, continente o región económica real. "
+        "Detecta groserías o letras al azar. "
+        "Devuelve ESTRICTAMENTE un JSON con: {'valido': true/false, 'zona_normalizada': 'Nombre correcto o null', 'razon_rechazo': 'Explicación amable de por qué no es válido'}"
+    )
+
+    try:
+        async with httpx.AsyncClient(timeout=25.0) as client:
+            resp = await client.post(
+                f"{settings.OLLAMA_BASE_URL}/api/chat",
+                json={
+                    "model": selected_model,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": cleaned_input}
+                    ],
+                    "stream": False,
+                    "format": "json",
+                    "options": {"temperature": 0.1}
+                }
+            )
+            if resp.status_code == 200:
+                raw_json_str = resp.json().get("message", {}).get("content", "").strip()
+                extracted = _extract_json(raw_json_str)
+                if extracted and "valido" in extracted:
+                    is_val = bool(extracted.get("valido"))
+                    norm_zone = extracted.get("zona_normalizada")
+                    reject_msg = str(extracted.get("razon_rechazo") or "").strip()
+                    
+                    if is_val and norm_zone and str(norm_zone).lower() not in ("null", "none", ""):
+                        # Si Gemma devuelve etiqueta genérica ("País", "Región"), normalizar con el input
+                        clean_norm = str(norm_zone).strip()
+                        if clean_norm.lower() in ("país", "pais", "continente", "región", "region", "región económica", "zona económica"):
+                            clean_norm = cleaned_input.title()
+                        return {
+                            "valido": True,
+                            "zona_normalizada": clean_norm,
+                            "razon_rechazo": ""
+                        }
+                    else:
+                        return {
+                            "valido": False,
+                            "zona_normalizada": None,
+                            "razon_rechazo": reject_msg or "No pudimos reconocer esa región. Por favor, escribe un país o polo tecnológico conocido (ej. China, Silicon Valley, Europa, Global)."
+                        }
+    except Exception as e:
+        logger.warning(f"Error en validate_zone con Ollama ({e}).")
+
+    # Fallback estricto de seguridad:
+    # Si no fue reconocido por Gemma ni está en KNOWN_TECH_ZONES, se RECHAZA categóricamente (prohibido aceptar palabras desconocidas).
+    return {
+        "valido": False,
+        "zona_normalizada": None,
+        "razon_rechazo": "No pudimos reconocer esa región geográfica o económica. Por favor, intenta con un país o mercado reconocido como México, Silicon Valley, China, Europa o Global."
+    }

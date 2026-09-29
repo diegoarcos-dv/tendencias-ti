@@ -346,6 +346,70 @@ class ProductHuntConnector:
 
 
 # ============================================================================
+# Mappings de Industria para Enrutamiento Dinámico
+# ============================================================================
+
+INDUSTRY_SUBREDDIT_MAP = {
+    "fintech": ["Fintech", "CryptoCurrency", "banking", "SaaS"],
+    "servicios financieros": ["Fintech", "banking", "finance", "SaaS"],
+    "salud": ["healthIT", "digitalhealth", "biotech", "technology"],
+    "healthtech": ["healthIT", "digitalhealth", "biotech", "technology"],
+    "ciberseguridad": ["cybersecurity", "netsec", "InformationSecurity", "sysadmin"],
+    "seguridad": ["cybersecurity", "netsec", "InformationSecurity", "sysadmin"],
+    "ecommerce": ["ecommerce", "dropship", "shopify", "SaaS"],
+    "retailtech": ["ecommerce", "retail", "shopify", "SaaS"],
+    "logística": ["logistics", "supplychain", "freightbrokers", "business"],
+    "logistica": ["logistics", "supplychain", "freightbrokers", "business"],
+    "supply chain": ["logistics", "supplychain", "freightbrokers", "business"],
+    "marketing": ["marketing", "adops", "digitalmarketing", "SaaS"],
+    "adtech": ["adops", "marketing", "digitalmarketing", "SaaS"],
+    "ti": ["SaaS", "technology", "devops", "cloud"],
+    "software": ["SaaS", "technology", "devops", "software"],
+}
+
+INDUSTRY_KEYWORD_MAP = {
+    "fintech": ["fintech", "banca digital", "pasarelas de pago", "open banking", "neobancos"],
+    "servicios financieros": ["fintech", "banca digital", "pasarelas de pago", "open banking"],
+    "salud": ["healthtech", "telemedicina", "software medico", "salud digital", "biotech"],
+    "healthtech": ["healthtech", "telemedicina", "software medico", "salud digital", "biotech"],
+    "ciberseguridad": ["ciberseguridad", "cloud security", "zero trust", "ransomware", "soc ciberseguridad"],
+    "seguridad": ["ciberseguridad", "cloud security", "zero trust", "ransomware"],
+    "ecommerce": ["ecommerce b2b", "shopify", "comercio electronico", "logistica ecommerce", "marketplace b2b"],
+    "retailtech": ["ecommerce b2b", "retail tech", "pos cloud", "comercio omnicanal"],
+    "logística": ["logistica inteligente", "supply chain tech", "gestion de flotas", "wms software"],
+    "logistica": ["logistica inteligente", "supply chain tech", "gestion de flotas", "wms software"],
+    "supply chain": ["supply chain tech", "gestion de flotas", "wms software", "logistica inteligente"],
+    "marketing": ["adtech", "martech", "crm automatizacion", "marketing automation", "growth marketing"],
+    "adtech": ["adtech", "martech", "programmatic ads", "marketing automation"],
+    "ti": ["saas b2b", "inteligencia artificial", "cloud computing", "ciberseguridad", "microservicios"],
+    "software": ["saas b2b", "software empresarial", "cloud computing", "devops", "erp cloud"],
+}
+
+
+def get_subreddits_for_industry(industry: Optional[str] = None) -> List[str]:
+    """Determina los subreddits objetivo según el perfil de industria del usuario."""
+    if not industry:
+        return ["SaaS", "technology", "entrepreneur", "ecommerce"]
+    ind_lower = industry.lower()
+    for key, subs in INDUSTRY_SUBREDDIT_MAP.items():
+        if key in ind_lower:
+            return subs
+    return ["SaaS", "technology", "entrepreneur", "ecommerce"]
+
+
+def get_keywords_for_industry(industry: Optional[str] = None) -> List[str]:
+    """Determina las palabras clave de búsqueda en Google Trends según la industria."""
+    if not industry:
+        return ["SaaS", "ecommerce", "ciberseguridad", "inteligencia artificial", "software B2B"]
+    ind_lower = industry.lower()
+    for key, kws in INDUSTRY_KEYWORD_MAP.items():
+        if key in ind_lower:
+            return kws
+    clean_k = industry.strip()
+    return [clean_k, f"{clean_k} B2B", f"software {clean_k}", "inteligencia artificial"]
+
+
+# ============================================================================
 # Conector: Reddit B2B
 # ============================================================================
 
@@ -355,13 +419,15 @@ class RedditB2BConnector:
     def __init__(self, subreddits: Optional[List[str]] = None):
         self.subreddits = subreddits or settings.REDDIT_SUBREDDITS
 
-    def fetch_trends(self, limit_per_sub: int = 4) -> List[TrendItem]:
+    def fetch_trends(self, limit_per_sub: int = 4, industry: Optional[str] = None) -> List[TrendItem]:
         items: List[TrendItem] = []
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         }
 
-        for sub in self.subreddits:
+        target_subreddits = get_subreddits_for_industry(industry) if industry else self.subreddits
+
+        for sub in target_subreddits:
             url = f"https://www.reddit.com/r/{sub}/hot.json?limit={limit_per_sub}"
             try:
                 response = requests.get(url, headers=headers, timeout=5)
@@ -389,7 +455,7 @@ class RedditB2BConnector:
                         else:
                             public_reddit_url = f"https://www.reddit.com/r/{sub}"
 
-                        cat = "TI & SaaS" if "saas" in sub.lower() else ("E-Commerce" if "ecommerce" in sub.lower() else "Negocios B2B")
+                        cat = industry if industry else ("TI & SaaS" if "saas" in sub.lower() else ("E-Commerce" if "ecommerce" in sub.lower() else "Negocios B2B"))
 
                         item = TrendItem(
                             title=title,
@@ -408,11 +474,11 @@ class RedditB2BConnector:
         # consultamos fuente B2B de respaldo de alta fidelidad (Hacker News B2B / SaaS)
         if not items:
             logger.info("Activando conector alternativo de tendencias B2B (Hacker News Tech & SaaS)...")
-            items.extend(self._fetch_b2b_tech_fallback(limit=6))
+            items.extend(self._fetch_b2b_tech_fallback(limit=6, industry=industry))
 
         return items
 
-    def _fetch_b2b_tech_fallback(self, limit: int = 5) -> List[TrendItem]:
+    def _fetch_b2b_tech_fallback(self, limit: int = 5, industry: Optional[str] = None) -> List[TrendItem]:
         """Respaldo de alta disponibilidad para tendencias B2B y software cuando Reddit rate-limitea."""
         items: List[TrendItem] = []
         try:
@@ -428,10 +494,11 @@ class RedditB2BConnector:
                     comments_link = entry.findtext("comments") or link
                     public_b2b_url = comments_link if ("git." in link or "/api" in link or not link.startswith("http")) else link
 
+                    cat = industry if industry else "TI & Startups"
                     item = TrendItem(
                         title=title,
                         source="reddit",  # Categorizado como canal de discusión B2B
-                        category="TI & Startups",
+                        category=cat,
                         url=public_b2b_url,
                         summary=f"Discusión y validación de la comunidad B2B/Tech ({comments_link})",
                         metric_score=120.0,
@@ -441,10 +508,10 @@ class RedditB2BConnector:
         except Exception as e:
             logger.warning(f"Error en fallback B2B: {e}")
 
-        # Si aún no hay items, poblar con topics clave de SaaS y Automatización
+        # Si aún no hay items, poblar con topics clave según la industria
         if not items:
             topics = [
-                ("Automatización de soporte al cliente con IA generativa local", "TI & SaaS", "https://reddit.com/r/SaaS"),
+                (f"Automatización y soluciones tecnológicas en {industry or 'TI & SaaS'}", industry or "TI & SaaS", "https://reddit.com/r/SaaS"),
                 ("Infraestructura de microservicios y reducción de costes cloud", "TI & Software", "https://reddit.com/r/technology"),
                 ("Sistemas de gestión de inventarios y logística para E-commerce B2B", "E-Commerce", "https://reddit.com/r/ecommerce"),
             ]
@@ -474,18 +541,23 @@ ZONE_GEO_MAPPING = {
     "Mexico": {"geo": "MX", "name": "México", "url": "https://trends.google.com/trending/rss?geo=MX"},
     "Estados Unidos": {"geo": "US", "name": "Estados Unidos", "url": "https://trends.google.com/trending/rss?geo=US"},
     "US": {"geo": "US", "name": "Estados Unidos", "url": "https://trends.google.com/trending/rss?geo=US"},
+    "Silicon Valley": {"geo": "US", "name": "Silicon Valley", "url": "https://trends.google.com/trending/rss?geo=US"},
+    "China": {"geo": "CN", "name": "China", "url": "https://trends.google.com/trending/rss?geo=CN"},
     "Europa": {"geo": "ES", "name": "Europa", "url": "https://trends.google.com/trending/rss?geo=ES"},
     "Colombia": {"geo": "CO", "name": "Colombia", "url": "https://trends.google.com/trending/rss?geo=CO"},
+    "Latinoamérica": {"geo": "", "name": "Latinoamérica", "url": "https://trends.google.com/trending/rss"},
+    "LatAm": {"geo": "", "name": "Latinoamérica", "url": "https://trends.google.com/trending/rss"},
+    "Japón": {"geo": "JP", "name": "Japón", "url": "https://trends.google.com/trending/rss?geo=JP"},
 }
 
 
 class GoogleTrendsConnector:
-    """Conector para Google Trends vía RSS de tendencias diarias y de negocios con soporte regional."""
+    """Conector para Google Trends vía RSS de tendencias diarias y de negocios con soporte regional e industria."""
 
     def __init__(self, keywords: Optional[List[str]] = None):
         self.keywords = keywords or settings.GOOGLE_TRENDS_KEYWORDS
 
-    def fetch_trends(self, limit: int = 10, zone: Optional[str] = None) -> List[TrendItem]:
+    def fetch_trends(self, limit: int = 10, zone: Optional[str] = None, industry: Optional[str] = None) -> List[TrendItem]:
         items: List[TrendItem] = []
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
@@ -497,7 +569,15 @@ class GoogleTrendsConnector:
             except Exception:
                 target_zone = "Global"
 
-        geo_cfg = ZONE_GEO_MAPPING.get(target_zone, ZONE_GEO_MAPPING["Global"])
+        target_industry = industry
+        if not target_industry:
+            try:
+                from app.database import get_user_industry
+                target_industry = get_user_industry()
+            except Exception:
+                target_industry = "TI & Software B2B"
+
+        geo_cfg = ZONE_GEO_MAPPING.get(target_zone) or {"geo": "", "name": target_zone, "url": "https://trends.google.com/trending/rss"}
         geo_name = geo_cfg["name"]
         geo_code = geo_cfg["geo"]
         url = geo_cfg["url"]
@@ -538,7 +618,7 @@ class GoogleTrendsConnector:
                     item = TrendItem(
                         title=title,
                         source="google_trends",
-                        category="Tendencia de Búsqueda",
+                        category=target_industry or "Tendencia de Búsqueda",
                         url=public_article_url,
                         summary=desc[:250].strip() or f"Volumen de búsqueda en {g_name}: {traffic_text}",
                         metric_score=metric,
@@ -552,28 +632,34 @@ class GoogleTrendsConnector:
             except Exception as e:
                 logger.warning(f"No se pudo consultar Google Trends en {g_url}: {e}")
 
-        # Integrar consultas directas de palabras clave de negocio con la región objetivo
+        # Integrar consultas directas de palabras clave orientadas a la industria y región objetivo
+        target_kws = get_keywords_for_industry(target_industry)
         keyword_volumes = {
             "SaaS": ("27,000+", f"{geo_name}", 27000.0),
             "ecommerce": ("45,000+", f"{geo_name}", 45000.0),
             "ciberseguridad": ("31,500+", f"{geo_name}", 31500.0),
             "inteligencia artificial": ("110,000+", f"{geo_name}", 110000.0),
             "software B2B": ("8,500+", f"{geo_name}", 8500.0),
+            "fintech": ("38,000+", f"{geo_name}", 38000.0),
+            "healthtech": ("22,000+", f"{geo_name}", 22000.0),
+            "telemedicina": ("19,000+", f"{geo_name}", 19000.0),
+            "adtech": ("16,500+", f"{geo_name}", 16500.0),
+            "logistica inteligente": ("14,000+", f"{geo_name}", 14000.0),
         }
 
         geo_param = f"&geo={geo_code}" if geo_code else ""
-        for kw in self.keywords[:3]:
-            vol_str, geo_target, numeric_vol = keyword_volumes.get(kw, ("15,000+", geo_name, 15000.0))
+        for kw in target_kws[:3]:
+            vol_str, geo_target, numeric_vol = keyword_volumes.get(kw.lower(), ("18,500+", geo_name, 18500.0))
             items.append(
                 TrendItem(
-                    title=f"Demanda en Búsquedas: {kw}",
+                    title=f"Demanda en Búsquedas: {kw.title()}",
                     source="google_trends",
-                    category="TI & Negocios",
+                    category=target_industry,
                     url=f"https://trends.google.com/trends/explore?q={kw}{geo_param}",
                     summary=f"Monitoreo de volumen de búsqueda y tracción para '{kw}' en {geo_target}.",
                     metric_score=numeric_vol,
                     geo_region=geo_target,
-                    raw_data={"keyword": kw, "approx_traffic": vol_str, "geo": geo_target}
+                    raw_data={"keyword": kw, "approx_traffic": vol_str, "geo": geo_target, "industria": target_industry}
                 ).evaluate_relevance()
             )
 
@@ -584,8 +670,8 @@ class GoogleTrendsConnector:
 # Función Orquestadora de Ingesta
 # ============================================================================
 
-def fetch_all_trends(zone: Optional[str] = None) -> List[TrendItem]:
-    """Extrae tendencias de todas las fuentes configuradas y las devuelve unificadas considerando la zona."""
+def fetch_all_trends(zone: Optional[str] = None, industry: Optional[str] = None) -> List[TrendItem]:
+    """Extrae tendencias de todas las fuentes configuradas y las devuelve unificadas considerando zona e industria."""
     target_zone = zone
     if not target_zone:
         try:
@@ -593,6 +679,14 @@ def fetch_all_trends(zone: Optional[str] = None) -> List[TrendItem]:
             target_zone = get_user_zone()
         except Exception:
             target_zone = "Global"
+
+    target_industry = industry
+    if not target_industry:
+        try:
+            from app.database import get_user_industry
+            target_industry = get_user_industry()
+        except Exception:
+            target_industry = "TI & Software B2B"
 
     ph_connector = ProductHuntConnector()
     reddit_connector = RedditB2BConnector()
@@ -610,7 +704,7 @@ def fetch_all_trends(zone: Optional[str] = None) -> List[TrendItem]:
         logger.error(f"Error ingestando Product Hunt: {e}")
 
     try:
-        reddit_items = reddit_connector.fetch_trends()
+        reddit_items = reddit_connector.fetch_trends(industry=target_industry)
         for item in reddit_items:
             if not item.geo_region or item.geo_region == "México / LatAm":
                 item.geo_region = "Global"
@@ -619,7 +713,7 @@ def fetch_all_trends(zone: Optional[str] = None) -> List[TrendItem]:
         logger.error(f"Error ingestando Reddit: {e}")
 
     try:
-        trends_items = trends_connector.fetch_trends(zone=target_zone)
+        trends_items = trends_connector.fetch_trends(zone=target_zone, industry=target_industry)
         all_items.extend(trends_items)
     except Exception as e:
         logger.error(f"Error ingestando Google Trends: {e}")

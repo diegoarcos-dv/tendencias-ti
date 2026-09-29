@@ -63,10 +63,12 @@ def _build_stack_html(stack_items: list) -> str:
     """Genera el HTML interno del panel stack-list a partir de la lista de componentes."""
     parts = []
     for item in stack_items[:4]:
-        name = str(item.get("name", "Componente"))
-        icon_color = str(item.get("icon_color", "violet"))   # violet | mint | neutral
-        tag_class = str(item.get("tag_class", "new"))        # new | scaling | stable
-        tag_label = str(item.get("tag_label", "Nuevo"))
+        name = str(item.get("name", "Componente") if isinstance(item, dict) else item).strip()
+        if not name:
+            continue
+        icon_color = str(item.get("icon_color", "violet") if isinstance(item, dict) else "violet")
+        tag_class = str(item.get("tag_class", "new") if isinstance(item, dict) else "new")
+        tag_label = str(item.get("tag_label", "Nuevo") if isinstance(item, dict) else "Nuevo")
         # Escapado mínimo para prevenir XSS en el innerHTML
         name = name.replace("<", "&lt;").replace(">", "&gt;")
         tag_label = tag_label.replace("<", "&lt;").replace(">", "&gt;")
@@ -144,7 +146,7 @@ async def create_png_card(
         browser = await p.chromium.launch(headless=True)
         page = await browser.new_page(
             viewport={"width": 1080, "height": 1080},
-            device_scale_factor=2,
+            device_scale_factor=1,
         )
 
         # domcontentloaded es suficiente: hemos eliminado todas las peticiones externas
@@ -207,14 +209,58 @@ async def create_png_card(
                 str(data.get("problem_solved", "Automatización de procesos operativos")),
             )
 
-        # stack_list: reemplazar innerHTML completo
-        stack_items = data.get("stack_list", [])
-        if stack_items:
-            stack_html = _build_stack_html(stack_items)
+        # 2. Limpieza de Arreglos (Capa Lógica):
+        data['stack_sugerido'] = [
+            tech.strip() if isinstance(tech, str) else str(tech.get('name', '')).strip()
+            for tech in data.get('stack_sugerido', [])
+            if tech and (tech.strip() if isinstance(tech, str) else str(tech.get('name', '')).strip())
+        ]
+
+        # Limpieza de stack_list evitando cadenas vacías o nulas
+        cleaned_stack = []
+        for item in data.get("stack_list", []):
+            if isinstance(item, dict):
+                item_name = str(item.get("name", "")).strip()
+                if item_name and not any(d in item_name.lower() for d in ["capacidad o módulo", "tecnología concreta", "tecnología o herramienta", "módulo técnico"]):
+                    cleaned_stack.append(item)
+            elif isinstance(item, str) and item.strip():
+                if not any(d in item.lower() for d in ["capacidad o módulo", "tecnología concreta", "tecnología o herramienta", "módulo técnico"]):
+                    cleaned_stack.append({"name": item.strip(), "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"})
+
+        # Si stack_list quedó vacío pero hay elementos válidos en stack_sugerido, regenerarlo
+        if not cleaned_stack and data['stack_sugerido']:
+            colors = ["violet", "mint", "mint", "neutral"]
+            classes = ["new", "scaling", "scaling", "stable"]
+            labels = ["Nuevo", "Escalando", "Escalando", "Consolidado"]
+            for i, tech in enumerate(data['stack_sugerido'][:4]):
+                tname = tech.strip() if isinstance(tech, str) else str(tech.get('name', '')).strip()
+                if tname and not any(d in tname.lower() for d in ["capacidad o módulo", "tecnología concreta", "tecnología o herramienta", "módulo técnico"]):
+                    cleaned_stack.append({
+                        "name": tname[:36],
+                        "icon_color": colors[i] if i < len(colors) else "neutral",
+                        "tag_class": classes[i] if i < len(classes) else "stable",
+                        "tag_label": labels[i] if i < len(labels) else "Consolidado"
+                    })
+
+        data['stack_list'] = cleaned_stack
+
+        # 3. Ocultamiento Dinámico (Capa UI / Playwright):
+        # Si la lista de tecnologías resultante está vacía tras la limpieza, oculta completamente
+        # el contenedor de la sección del stack (display: none) para evitar una caja vacía o viñetas en blanco.
+        if cleaned_stack:
+            stack_html = _build_stack_html(cleaned_stack)
             await page.locator('[data-field="stack-list"]').evaluate(
                 "(el, v) => el.innerHTML = v",
                 stack_html,
             )
+            if await page.locator('.stack-count').count() > 0:
+                await page.locator('.stack-count').evaluate(
+                    "(el, count) => el.textContent = `${count} componentes`",
+                    len(cleaned_stack)
+                )
+        else:
+            if await page.locator('.stack-panel').count() > 0:
+                await page.locator('.stack-panel').evaluate("(el) => el.style.display = 'none'")
 
         await page.locator('[data-field="footer-date"]').evaluate(
             "(el, v) => el.textContent = v",
@@ -258,7 +304,7 @@ async def create_chart_png_card(
         )
         context = await browser.new_context(
             viewport={"width": 1080, "height": 1080},
-            device_scale_factor=2,
+            device_scale_factor=1,
         )
         page = await context.new_page()
         await page.set_content(html_patched, wait_until="domcontentloaded")
@@ -313,7 +359,7 @@ async def create_favorites_png_card(
         )
         context = await browser.new_context(
             viewport={"width": 1080, "height": 1080},
-            device_scale_factor=2,
+            device_scale_factor=1,
         )
         page = await context.new_page()
         await page.set_content(html_patched, wait_until="domcontentloaded")

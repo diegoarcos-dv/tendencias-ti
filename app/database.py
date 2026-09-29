@@ -75,6 +75,7 @@ def init_db(db_path: Optional[str] = None) -> None:
             CREATE TABLE IF NOT EXISTS configuracion_usuario (
                 chat_id         TEXT PRIMARY KEY,
                 zona_preferida  TEXT NOT NULL DEFAULT 'Global',
+                industria       TEXT NOT NULL DEFAULT 'TI & Software B2B',
                 updated_at      TEXT NOT NULL
             );
 
@@ -116,6 +117,8 @@ def init_db(db_path: Optional[str] = None) -> None:
         }
         if "zona_preferida" not in cfg_cols and cfg_cols:
             conn.execute("ALTER TABLE configuracion_usuario ADD COLUMN zona_preferida TEXT NOT NULL DEFAULT 'Global'")
+        if "industria" not in cfg_cols and cfg_cols:
+            conn.execute("ALTER TABLE configuracion_usuario ADD COLUMN industria TEXT NOT NULL DEFAULT 'TI & Software B2B'")
 
 
 def _normalize_url(url: str) -> str:
@@ -362,40 +365,95 @@ def get_daily_history(date: Optional[datetime] = None) -> List[Dict[str, Any]]:
         return [dict(r) for r in rows]
 
 
-def set_user_zone(chat_id: str, zone: str) -> None:
+def set_user_zone(chat_id: str, zone: Optional[str]) -> None:
     """Guarda o actualiza la zona geográfica preferida del usuario en SQLite."""
+    val = str(zone).strip() if zone else ""
     with _get_connection() as conn:
         conn.execute(
             """
-            INSERT INTO configuracion_usuario (chat_id, zona_preferida, updated_at)
-            VALUES (?, ?, ?)
+            INSERT INTO configuracion_usuario (chat_id, zona_preferida, industria, updated_at)
+            VALUES (?, ?, '', ?)
             ON CONFLICT(chat_id) DO UPDATE SET
                 zona_preferida = excluded.zona_preferida,
                 updated_at = excluded.updated_at
             """,
-            (str(chat_id), zone, datetime.utcnow().isoformat())
+            (str(chat_id), val, datetime.utcnow().isoformat())
         )
 
 
-def get_user_zone(chat_id: Optional[str] = None) -> str:
-    """Obtiene la zona geográfica preferida del usuario (o 'Global' por defecto)."""
+def get_user_zone(chat_id: Optional[str] = None, default: Optional[str] = None) -> Optional[str]:
+    """Obtiene la zona geográfica preferida del usuario (None si está vacía)."""
     with _get_connection() as conn:
         if chat_id:
             row = conn.execute(
                 "SELECT zona_preferida FROM configuracion_usuario WHERE chat_id = ?",
                 (str(chat_id),)
             ).fetchone()
-            if row and row["zona_preferida"]:
-                return row["zona_preferida"]
+            if row and row["zona_preferida"] and str(row["zona_preferida"]).strip():
+                return str(row["zona_preferida"]).strip()
+            return default
 
-        # Si no se especificó chat_id o no existe aún, tomar la última guardada
+        # Si no se especificó chat_id o no existe aún, tomar la última guardada no vacía
         row = conn.execute(
-            "SELECT zona_preferida FROM configuracion_usuario ORDER BY updated_at DESC LIMIT 1"
+            "SELECT zona_preferida FROM configuracion_usuario WHERE zona_preferida IS NOT NULL AND zona_preferida != '' ORDER BY updated_at DESC LIMIT 1"
         ).fetchone()
-        if row and row["zona_preferida"]:
-            return row["zona_preferida"]
+        if row and row["zona_preferida"] and str(row["zona_preferida"]).strip():
+            return str(row["zona_preferida"]).strip()
 
-        return "Global"
+        return default or "Global"
+
+
+def set_user_industry(chat_id: str, industry: Optional[str]) -> None:
+    """Guarda o actualiza la industria preferida del usuario en SQLite."""
+    val = str(industry).strip() if industry else ""
+    with _get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO configuracion_usuario (chat_id, zona_preferida, industria, updated_at)
+            VALUES (?, '', ?, ?)
+            ON CONFLICT(chat_id) DO UPDATE SET
+                industria = excluded.industria,
+                updated_at = excluded.updated_at
+            """,
+            (str(chat_id), val, datetime.utcnow().isoformat())
+        )
+
+
+def get_user_industry(chat_id: Optional[str] = None, default: Optional[str] = None) -> Optional[str]:
+    """Obtiene la industria preferida del usuario (None si está vacía)."""
+    with _get_connection() as conn:
+        if chat_id:
+            row = conn.execute(
+                "SELECT industria FROM configuracion_usuario WHERE chat_id = ?",
+                (str(chat_id),)
+            ).fetchone()
+            if row and row["industria"] and str(row["industria"]).strip():
+                return str(row["industria"]).strip()
+            return default
+
+        row = conn.execute(
+            "SELECT industria FROM configuracion_usuario WHERE industria IS NOT NULL AND industria != '' ORDER BY updated_at DESC LIMIT 1"
+        ).fetchone()
+        if row and row["industria"] and str(row["industria"]).strip():
+            return str(row["industria"]).strip()
+
+        return default or "TI & Software B2B"
+
+
+def reset_user_config(chat_id: str) -> None:
+    """Borra zona_preferida e industria del usuario en SQLite para reiniciar el onboarding."""
+    with _get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO configuracion_usuario (chat_id, zona_preferida, industria, updated_at)
+            VALUES (?, '', '', ?)
+            ON CONFLICT(chat_id) DO UPDATE SET
+                zona_preferida = '',
+                industria = '',
+                updated_at = excluded.updated_at
+            """,
+            (str(chat_id), datetime.utcnow().isoformat())
+        )
 
 
 # ============================================================================

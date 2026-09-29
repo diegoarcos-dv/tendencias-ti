@@ -36,6 +36,7 @@ from app.database import (
     get_favorites,
     get_recent_sent_trends,
     get_user_zone,
+    get_user_industry,
     get_user_daily_card_count,
     get_expired_card_messages,
     delete_card_record,
@@ -50,6 +51,7 @@ from app.telegram_bot import (
     start_bot_polling,
     stop_bot_polling,
     process_telegram_update,
+    clear_chart_cache,
 )
 
 logging.basicConfig(
@@ -66,12 +68,16 @@ scheduler = AsyncIOScheduler()
 # Scoring Engine
 # ============================================================================
 
-def select_top_trend(trends: List[TrendItem], days_cooldown: Optional[int] = None) -> Optional[TrendItem]:
+def select_top_trend(
+    trends: List[TrendItem],
+    days_cooldown: Optional[int] = None,
+    industry: Optional[str] = None
+) -> Optional[TrendItem]:
     """Scoring Engine: Selecciona la herramienta o solución técnica 'Top 1' del día.
 
     Aplica:
     1. Filtro estricto anti-duplicados (descarta tendencias ya enviadas en la ventana de cooldown).
-    2. Afinidad temática estricta con la fuente de verdad del negocio.
+    2. Afinidad temática estricta con la fuente de verdad del negocio y perfil de industria.
     3. Especificidad funcional (prioriza herramientas y productos de software concretos).
     4. Nivel de tracción cuantitativa (upvotes, interacciones y volumen de interés).
     """
@@ -95,7 +101,7 @@ def select_top_trend(trends: List[TrendItem], days_cooldown: Optional[int] = Non
     logger.info(
         f"[Scoring Engine] Total recibidas: {len(trends)} | "
         f"Descartadas por historial reciente ({cooldown} días): {skipped_count} | "
-        f"Frescas disponibles: {len(fresh_trends)}"
+        f"Frescas disponibles: {len(fresh_trends)} | Industria: {industry or 'Global/General'}"
     )
 
     if not fresh_trends:
@@ -107,6 +113,14 @@ def select_top_trend(trends: List[TrendItem], days_cooldown: Optional[int] = Non
     def calculate_tool_score(item: TrendItem) -> float:
         # Relevancia con el archivo de negocio
         affinity_score = 5000.0 if item.business_relevant else 0.0
+
+        # Afinidad con la industria personalizada del usuario
+        industry_bonus = 0.0
+        if industry and industry.lower() not in ("global", "ti & software b2b"):
+            ind_words = [w.lower() for w in industry.replace("&", " ").split() if len(w) > 3]
+            item_text = f"{item.title} {item.summary} {item.category}".lower()
+            if any(w in item_text for w in ind_words):
+                industry_bonus = 3000.0
         
         # Ponderación decisiva por especificidad de producto/herramienta de software concreta
         tool_bonus = 0.0
@@ -118,7 +132,7 @@ def select_top_trend(trends: List[TrendItem], days_cooldown: Optional[int] = Non
         # Tracción cuantitativa real
         normalized_traction = min(item.metric_score, 1000.0)
 
-        return affinity_score + tool_bonus + normalized_traction
+        return affinity_score + industry_bonus + tool_bonus + normalized_traction
 
     sorted_trends = sorted(fresh_trends, key=calculate_tool_score, reverse=True)
     top_1 = sorted_trends[0]
@@ -139,6 +153,7 @@ async def run_group_pipeline(chat_id: Optional[str] = None) -> Dict[str, Any]:
     """
     target_chat = chat_id or settings.TELEGRAM_GROUP_CHAT_ID
     start_time = datetime.now()
+    clear_chart_cache()
     logger.info("=" * 60)
     logger.info(f"INICIANDO PIPELINE DE GRUPO (GLOBAL) [{start_time}] -> Chat: {target_chat}")
     logger.info("=" * 60)
@@ -211,17 +226,19 @@ async def run_individual_pipeline(chat_id: Optional[str] = None) -> Dict[str, An
     logger.info("=" * 60)
     logger.info(f"INICIANDO PIPELINE INDIVIDUAL [{start_time}] -> Chat: {target_chat} (Envío {daily_count + 1}/{max_daily})")
     logger.info("=" * 60)
+    clear_chart_cache()
 
-    # 1. Obtener zona preferida del usuario
-    user_zone = get_user_zone(str(target_chat))
-    all_trends = fetch_all_trends(zone=user_zone)
-    top_trend = select_top_trend(all_trends)
+    # 1. Obtener preferencias de zona e industria del usuario
+    user_zone = get_user_zone(str(target_chat)) or "Global"
+    user_industry = get_user_industry(str(target_chat)) or "TI & Software B2B"
+    all_trends = fetch_all_trends(zone=user_zone, industry=user_industry)
+    top_trend = select_top_trend(all_trends, industry=user_industry)
     if not top_trend:
-        logger.error("[Pipeline Individual] No hay tendencias frescas disponibles.")
+        logger.error(f"[Pipeline Individual] No hay tendencias frescas disponibles para {user_industry} en {user_zone}.")
         return {"status": "error", "message": "No fresh trends available"}
 
-    # 2. Análisis con Gemma enfocado en la zona del usuario
-    trend_dict = {**top_trend.model_dump(), "geo_region": user_zone}
+    # 2. Análisis con Gemma enfocado en la zona e industria del usuario
+    trend_dict = {**top_trend.model_dump(), "geo_region": user_zone, "category": user_industry}
     card_data = await generate_trend_card_data(
         trend_data=trend_dict,
         business_context_text=business_context.raw_content
@@ -245,12 +262,13 @@ async def run_individual_pipeline(chat_id: Optional[str] = None) -> Dict[str, An
     )
 
     duration = (datetime.now() - start_time).total_seconds()
-    logger.info(f"PIPELINE INDIVIDUAL COMPLETADO EN {duration:.2f}s")
+    logger.info(f"PIPELINE INDIVIDUAL COMPLETADO EN {duration:.2f}s (Zona: {user_zone} | Industria: {user_industry})")
     return {
         "status": "success",
         "chat_type": "private",
         "chat_id": target_chat,
         "zone": user_zone,
+        "industry": user_industry,
         "trend_id": trend_id,
         "duration_seconds": duration,
         "telegram_result": telegram_result
