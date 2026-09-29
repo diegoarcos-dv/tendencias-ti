@@ -59,8 +59,12 @@ class Settings:
     # Telegram
     TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
     TELEGRAM_CHAT_ID: str = os.getenv("TELEGRAM_CHAT_ID", "")
+    TELEGRAM_GROUP_CHAT_ID: str = os.getenv("TELEGRAM_GROUP_CHAT_ID") or os.getenv("TELEGRAM_PUBLISH_CHAT_ID", "-5320614669")
+    TELEGRAM_BOT_USERNAME: str = os.getenv("TELEGRAM_BOT_USERNAME", "Tendencias_DiegoBot")
     SCHEDULE_TIME: str = os.getenv("SCHEDULE_TIME", "07:00")
     DEDUPLICATION_WINDOW_DAYS: int = int(os.getenv("DEDUPLICATION_WINDOW_DAYS", "30"))
+    USER_DAILY_SEND_LIMIT: int = int(os.getenv("USER_DAILY_SEND_LIMIT", "3"))
+    CARD_TTL_DAYS: int = int(os.getenv("CARD_TTL_DAYS", "7"))
 
 
 settings = Settings()

@@ -27,6 +27,8 @@ from app.database import (
     get_recent_sent_trends,
     get_user_zone,
     set_user_zone,
+    record_sent_card,
+    get_user_daily_card_count,
 )
 from app.visual_engine import create_chart_png_card
 
@@ -48,7 +50,7 @@ def build_interactive_keyboard(
     trend_id: Optional[int] = None,
     source_url: Optional[str] = None
 ) -> Dict[str, Any]:
-    """Genera la estructura del panel interactivo con las 4 opciones solicitadas:
+    """Genera la estructura del panel interactivo para chats privados (DM) con las 4 opciones solicitadas:
     1. ⭐ Guardar en favoritos (callback_data: SAVE_TREND)
     2. 📁 Ver favoritos (callback_data: VIEW_FAVS)
     3. 📈 Gráfica de tendencias (callback_data: GET_CHART)
@@ -68,6 +70,40 @@ def build_interactive_keyboard(
             ]
         ]
     }
+
+
+def build_group_keyboard(bot_username: Optional[str] = None) -> Dict[str, Any]:
+    """Genera el teclado exclusivo para grupos/supergrupos con un ÚNICO botón:
+    '🤖 Personalizar alertas' que apunta al bot privado vía deep link."""
+    username = bot_username or settings.TELEGRAM_BOT_USERNAME or "Tendencias_DiegoBot"
+    clean_username = username.lstrip("@")
+    return {
+        "inline_keyboard": [
+            [
+                {"text": "🤖 Personalizar alertas", "url": f"https://t.me/{clean_username}?start=config"}
+            ]
+        ]
+    }
+
+
+async def delete_telegram_message(chat_id: str, message_id: int) -> bool:
+    """Elimina un mensaje de Telegram utilizando el método deleteMessage de la API oficial."""
+    bot_token, _ = _get_credentials()
+    if not bot_token:
+        return False
+    url = f"https://api.telegram.org/bot{bot_token}/deleteMessage"
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(url, json={"chat_id": str(chat_id), "message_id": int(message_id)})
+            data = resp.json()
+            if resp.status_code == 200 and data.get("ok"):
+                logger.info(f"Mensaje {message_id} en chat {chat_id} eliminado exitosamente.")
+                return True
+            logger.warning(f"No se pudo eliminar mensaje {message_id} en {chat_id}: {data}")
+            return False
+    except Exception as e:
+        logger.error(f"Error llamando a deleteMessage para chat {chat_id}, msg {message_id}: {e}")
+        return False
 
 
 
@@ -164,9 +200,10 @@ async def send_telegram_notification(
     reply_markup: Optional[Dict[str, Any]] = None,
     chat_id: Optional[str] = None,
     parse_mode: Optional[str] = "HTML",
-    reply_to_message_id: Optional[int] = None
+    reply_to_message_id: Optional[int] = None,
+    chat_type: Optional[str] = None
 ) -> Dict[str, Any]:
-    """Envía una imagen (tarjeta PNG) a Telegram con el panel interactivo de 4 botones."""
+    """Envía una imagen (tarjeta PNG) a Telegram con la UI condicional según el entorno (Grupo vs DM)."""
     bot_token, default_chat = _get_credentials()
     target_chat = chat_id or default_chat
 
@@ -185,8 +222,16 @@ async def send_telegram_notification(
         logger.warning(msg)
         return {"success": False, "error": "MISSING_CREDENTIALS", "message": msg}
 
-    # Si no se pasó reply_markup, usar el panel interactivo estándar
-    markup_to_use = reply_markup if reply_markup is not None else build_interactive_keyboard()
+    resolved_chat_type = chat_type or ("group" if str(target_chat).startswith("-") else "private")
+
+    # Si no se pasó reply_markup, usar la UI condicional según el entorno
+    if reply_markup is not None:
+        markup_to_use = reply_markup
+    else:
+        if resolved_chat_type in ("group", "supergroup"):
+            markup_to_use = build_group_keyboard()
+        else:
+            markup_to_use = build_interactive_keyboard()
 
     telegram_url = f"https://api.telegram.org/bot{bot_token}/sendPhoto"
 
@@ -208,7 +253,18 @@ async def send_telegram_notification(
                 response = await client.post(telegram_url, data=data, files=files)
                 res_json = response.json()
                 if response.status_code == 200 and res_json.get("ok"):
-                    logger.info("Imagen enviada exitosamente a Telegram.")
+                    logger.info(f"Imagen enviada exitosamente a Telegram ({resolved_chat_type} {target_chat}).")
+                    sent_msg_id = res_json.get("result", {}).get("message_id")
+                    if sent_msg_id:
+                        try:
+                            record_sent_card(
+                                chat_id=str(target_chat),
+                                message_id=sent_msg_id,
+                                chat_type=resolved_chat_type
+                            )
+                        except Exception as ex_db:
+                            logger.warning(f"No se pudo registrar la tarjeta en registro_tarjetas_enviadas: {ex_db}")
+
                     return {"success": True, "result": res_json}
 
                 logger.error(f"Error en respuesta de Telegram API: {res_json}")
@@ -492,6 +548,12 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
         parts = data.split(":")
         action = parts[0]
         trend_id = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else None
+        chat_type = msg_obj.get("chat", {}).get("type", "private")
+
+        # Regla estricta: en grupos está prohibido mostrar/procesar favoritos o profundizar
+        if chat_type in ("group", "supergroup") and action in ("SAVE_TREND", "save_favorite", "VIEW_FAVS", "view_favorites", "DEEP_DIVE", "deep_dive"):
+            await answer_callback_query(cb_id, text="⚠️ Esta función solo está disponible en chat privado con el bot.", show_alert=True)
+            return
 
         if action in ("SAVE_TREND", "save_favorite"):
             await handle_save_trend(
@@ -510,8 +572,12 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
             await handle_deep_dive(chat_id=user_chat_id, callback_query_id=cb_id, trend_id=trend_id)
         elif action in ("RUN_RADAR", "run_radar"):
             await answer_callback_query(cb_id, text="🚀 Ejecutando radar diario...")
-            from app.main import run_daily_pipeline
-            asyncio.create_task(run_daily_pipeline())
+            if chat_type in ("group", "supergroup"):
+                from app.main import run_group_pipeline
+                asyncio.create_task(run_group_pipeline(chat_id=user_chat_id))
+            else:
+                from app.main import run_individual_pipeline
+                asyncio.create_task(run_individual_pipeline(chat_id=user_chat_id))
         else:
             await answer_callback_query(cb_id, text="Acción recibida.")
         return
@@ -521,20 +587,52 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
         msg = update["message"]
         text = str(msg.get("text", "")).strip()
         user_chat_id = str(msg.get("chat", {}).get("id"))
+        chat_type = msg.get("chat", {}).get("type", "private")
 
         if not text:
             return
 
-        logger.info(f"[Telegram Bot] Mensaje recibido: '{text}' de chat_id={user_chat_id}")
+        logger.info(f"[Telegram Bot] Mensaje recibido: '{text}' de chat_id={user_chat_id} (tipo={chat_type})")
+
+        # Deep link desde el botón '🤖 Personalizar alertas' del grupo
+        if text.startswith("/start config") or text == "/start config":
+            welcome_config = (
+                "👋 <b>¡Bienvenido desde el canal de Tendencias TI!</b>\n\n"
+                "Aquí puedes personalizar tus alertas individuales y configurar tu mercado geográfico preferido."
+            )
+            await send_telegram_message(text=welcome_config, chat_id=user_chat_id)
+            await handle_zone_command(chat_id=user_chat_id)
+            return
 
         if text.startswith("/zona"):
-            await handle_zone_command(chat_id=user_chat_id)
+            if chat_type in ("group", "supergroup"):
+                username = (settings.TELEGRAM_BOT_USERNAME or "Tendencias_DiegoBot").lstrip("@")
+                await send_telegram_message(
+                    text=f"⚙️ Para configurar tu zona personalizada de alertas, inicia un chat privado con el bot: https://t.me/{username}?start=config",
+                    chat_id=user_chat_id
+                )
+            else:
+                await handle_zone_command(chat_id=user_chat_id)
         elif text.startswith("/favoritos"):
-            await handle_view_favorites(chat_id=user_chat_id)
+            if chat_type in ("group", "supergroup"):
+                username = (settings.TELEGRAM_BOT_USERNAME or "Tendencias_DiegoBot").lstrip("@")
+                await send_telegram_message(
+                    text=f"📁 Tus favoritos son privados. Consúltalos en tu chat directo con el bot: https://t.me/{username}?start=config",
+                    chat_id=user_chat_id
+                )
+            else:
+                await handle_view_favorites(chat_id=user_chat_id)
         elif text.startswith("/grafica") or text.startswith("/chart"):
             await handle_get_chart(chat_id=user_chat_id)
         elif text.startswith("/profundizar") or text.startswith("/deepdive"):
-            await handle_deep_dive(chat_id=user_chat_id)
+            if chat_type in ("group", "supergroup"):
+                username = (settings.TELEGRAM_BOT_USERNAME or "Tendencias_DiegoBot").lstrip("@")
+                await send_telegram_message(
+                    text=f"🔍 Para reportes profundos de herramientas, consúltalos en privado: https://t.me/{username}?start=config",
+                    chat_id=user_chat_id
+                )
+            else:
+                await handle_deep_dive(chat_id=user_chat_id)
         elif text.startswith("/start") or text.startswith("/help") or text.startswith("/ayuda"):
             welcome = (
                 "👋 <b>Bienvenido al Agente de Inteligencia Comercial B2B</b>\n\n"
@@ -549,12 +647,20 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
             )
             await send_telegram_message(text=welcome, chat_id=user_chat_id)
         elif text.startswith("/radar") or text.startswith("/hoy"):
-            await send_telegram_message(
-                text="🚀 <i>Ejecutando el radar diario de inteligencia comercial... Te enviaré la tarjeta en un momento.</i>",
-                chat_id=user_chat_id
-            )
-            from app.main import run_daily_pipeline
-            asyncio.create_task(run_daily_pipeline())
+            if chat_type in ("group", "supergroup"):
+                await send_telegram_message(
+                    text="🚀 <i>Ejecutando radar para el grupo (Alcance Global)... Te enviaré la tarjeta en un momento.</i>",
+                    chat_id=user_chat_id
+                )
+                from app.main import run_group_pipeline
+                asyncio.create_task(run_group_pipeline(chat_id=user_chat_id))
+            else:
+                await send_telegram_message(
+                    text="🚀 <i>Ejecutando tu radar diario personalizado... Te enviaré la tarjeta en un momento.</i>",
+                    chat_id=user_chat_id
+                )
+                from app.main import run_individual_pipeline
+                asyncio.create_task(run_individual_pipeline(chat_id=user_chat_id))
 
 
 # ============================================================================

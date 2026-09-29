@@ -77,6 +77,20 @@ def init_db(db_path: Optional[str] = None) -> None:
                 zona_preferida  TEXT NOT NULL DEFAULT 'Global',
                 updated_at      TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS registro_tarjetas_enviadas (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_id     TEXT    NOT NULL,
+                message_id  INTEGER NOT NULL,
+                chat_type   TEXT    NOT NULL DEFAULT 'private',
+                created_at  TEXT    NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_tarjetas_created_at
+                ON registro_tarjetas_enviadas (created_at);
+
+            CREATE INDEX IF NOT EXISTS idx_tarjetas_chat_daily
+                ON registro_tarjetas_enviadas (chat_id, created_at);
         """)
 
         # Migración ligera: asegurar columnas nuevas si la tabla ya existía previamente
@@ -382,4 +396,68 @@ def get_user_zone(chat_id: Optional[str] = None) -> str:
             return row["zona_preferida"]
 
         return "Global"
+
+
+# ============================================================================
+# Registro de Tarjetas Enviadas, Límites Diarios y Caducidad (TTL 7 Días)
+# ============================================================================
+
+def record_sent_card(
+    chat_id: str,
+    message_id: int,
+    chat_type: str = "private",
+    created_at: Optional[datetime] = None
+) -> int:
+    """Registra una tarjeta enviada para seguimiento de límites diarios y caducidad TTL."""
+    now_str = (created_at or datetime.utcnow()).isoformat()
+    with _get_connection() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO registro_tarjetas_enviadas (chat_id, message_id, chat_type, created_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (str(chat_id), int(message_id), str(chat_type), now_str)
+        )
+        return cursor.lastrowid
+
+
+def get_user_daily_card_count(chat_id: str, target_date: Optional[str] = None) -> int:
+    """Retorna la cantidad de tarjetas enviadas hoy (o en target_date 'YYYY-MM-DD') a un chat privado."""
+    day_str = target_date or datetime.utcnow().strftime("%Y-%m-%d")
+    with _get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT COUNT(*) AS total
+            FROM registro_tarjetas_enviadas
+            WHERE chat_id = ? AND created_at LIKE ?
+            """,
+            (str(chat_id), f"{day_str}%")
+        ).fetchone()
+        return int(row["total"]) if row else 0
+
+
+def get_expired_card_messages(days: int = 7) -> List[Dict[str, Any]]:
+    """Retorna los registros de tarjetas enviadas que superan los 'days' días de antigüedad."""
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    cutoff_str = cutoff.isoformat()
+    with _get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, chat_id, message_id, chat_type, created_at
+            FROM registro_tarjetas_enviadas
+            WHERE created_at <= ?
+            ORDER BY created_at ASC
+            """,
+            (cutoff_str,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def delete_card_record(record_id: int) -> None:
+    """Elimina el registro de una tarjeta tras haberse borrado físicamente en Telegram."""
+    with _get_connection() as conn:
+        conn.execute(
+            "DELETE FROM registro_tarjetas_enviadas WHERE id = ?",
+            (int(record_id),)
+        )
 
