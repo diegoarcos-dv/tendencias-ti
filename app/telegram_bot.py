@@ -233,45 +233,53 @@ async def send_telegram_notification(
         else:
             markup_to_use = build_interactive_keyboard()
 
+    candidate_chats = [str(target_chat)]
+    if str(target_chat).startswith("-") and not str(target_chat).startswith("-100"):
+        candidate_chats.append(f"-100{str(target_chat).lstrip('-')}")
+
     telegram_url = f"https://api.telegram.org/bot{bot_token}/sendPhoto"
 
     async with httpx.AsyncClient(timeout=30.0) as client:
-        with open(target_photo, "rb") as img_file:
-            files = {"photo": (target_photo.name, img_file, "image/png")}
-            data: Dict[str, Any] = {
-                "chat_id": target_chat,
-                "reply_markup": json.dumps(markup_to_use)
-            }
-            if final_caption.strip():
-                data["caption"] = final_caption
-                if parse_mode:
-                    data["parse_mode"] = parse_mode
-            if reply_to_message_id:
-                data["reply_to_message_id"] = reply_to_message_id
+        last_error = {}
+        for c_chat in candidate_chats:
+            with open(target_photo, "rb") as img_file:
+                files = {"photo": (target_photo.name, img_file, "image/png")}
+                data: Dict[str, Any] = {
+                    "chat_id": c_chat,
+                    "reply_markup": json.dumps(markup_to_use)
+                }
+                if final_caption.strip():
+                    data["caption"] = final_caption
+                    if parse_mode:
+                        data["parse_mode"] = parse_mode
+                if reply_to_message_id:
+                    data["reply_to_message_id"] = reply_to_message_id
 
-            try:
-                response = await client.post(telegram_url, data=data, files=files)
-                res_json = response.json()
-                if response.status_code == 200 and res_json.get("ok"):
-                    logger.info(f"Imagen enviada exitosamente a Telegram ({resolved_chat_type} {target_chat}).")
-                    sent_msg_id = res_json.get("result", {}).get("message_id")
-                    if sent_msg_id:
-                        try:
-                            record_sent_card(
-                                chat_id=str(target_chat),
-                                message_id=sent_msg_id,
-                                chat_type=resolved_chat_type
-                            )
-                        except Exception as ex_db:
-                            logger.warning(f"No se pudo registrar la tarjeta en registro_tarjetas_enviadas: {ex_db}")
+                try:
+                    response = await client.post(telegram_url, data=data, files=files)
+                    res_json = response.json()
+                    if response.status_code == 200 and res_json.get("ok"):
+                        logger.info(f"Imagen enviada exitosamente a Telegram ({resolved_chat_type} {c_chat}).")
+                        sent_msg_id = res_json.get("result", {}).get("message_id")
+                        if sent_msg_id:
+                            try:
+                                record_sent_card(
+                                    chat_id=str(c_chat),
+                                    message_id=sent_msg_id,
+                                    chat_type=resolved_chat_type
+                                )
+                            except Exception as ex_db:
+                                logger.warning(f"No se pudo registrar la tarjeta en registro_tarjetas_enviadas: {ex_db}")
 
-                    return {"success": True, "result": res_json}
+                        return {"success": True, "result": res_json}
 
-                logger.error(f"Error en respuesta de Telegram API: {res_json}")
-                return {"success": False, "error": res_json}
-            except Exception as e:
-                logger.error(f"Fallo en la conexión con la API de Telegram: {e}")
-                return {"success": False, "error": str(e)}
+                    last_error = res_json
+                except Exception as e:
+                    logger.error(f"Fallo en la conexión con la API de Telegram para chat {c_chat}: {e}")
+                    last_error = {"ok": False, "error": str(e)}
+
+        logger.error(f"Error en respuesta de Telegram API: {last_error}")
+        return {"success": False, "error": last_error}
 
 
 # ============================================================================
