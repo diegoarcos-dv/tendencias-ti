@@ -72,18 +72,33 @@ def build_interactive_keyboard(
     }
 
 
-def build_group_keyboard(bot_username: Optional[str] = None) -> Dict[str, Any]:
-    """Genera el teclado exclusivo para grupos/supergrupos con un ÚNICO botón:
-    '🤖 Personalizar alertas' que apunta al bot privado vía deep link."""
+def build_group_keyboard(
+    trend_id: Optional[Any] = None,
+    bot_username: Optional[str] = None
+) -> Dict[str, Any]:
+    """Genera el teclado exclusivo para grupos/supergrupos con botones de tipo URL deep-link:
+    1. '🔍 Profundizar': Redirige a https://t.me/{BOT_USERNAME}?start=deepdive_{trend_id}
+    2. '🤖 Personalizar alertas': Redirige a https://t.me/{BOT_USERNAME}?start=config
+    """
+    # Si el primer argumento es un string con username en llamadas legadas
+    if isinstance(trend_id, str) and not trend_id.isdigit():
+        bot_username = trend_id
+        trend_id = None
+
     username = bot_username or settings.TELEGRAM_BOT_USERNAME or "Tendencias_DiegoBot"
     clean_username = username.lstrip("@")
-    return {
-        "inline_keyboard": [
-            [
-                {"text": "🤖 Personalizar alertas", "url": f"https://t.me/{clean_username}?start=config"}
-            ]
+    tid_str = str(trend_id) if trend_id is not None else ""
+    deepdive_param = f"deepdive_{tid_str}" if tid_str else "deepdive"
+
+    buttons = [
+        [
+            {"text": "🔍 Profundizar", "url": f"https://t.me/{clean_username}?start={deepdive_param}"}
+        ],
+        [
+            {"text": "🤖 Personalizar alertas", "url": f"https://t.me/{clean_username}?start=config"}
         ]
-    }
+    ]
+    return {"inline_keyboard": buttons}
 
 
 async def delete_telegram_message(chat_id: str, message_id: int) -> bool:
@@ -201,7 +216,8 @@ async def send_telegram_notification(
     chat_id: Optional[str] = None,
     parse_mode: Optional[str] = "HTML",
     reply_to_message_id: Optional[int] = None,
-    chat_type: Optional[str] = None
+    chat_type: Optional[str] = None,
+    trend_id: Optional[int] = None
 ) -> Dict[str, Any]:
     """Envía una imagen (tarjeta PNG) a Telegram con la UI condicional según el entorno (Grupo vs DM)."""
     bot_token, default_chat = _get_credentials()
@@ -229,9 +245,9 @@ async def send_telegram_notification(
         markup_to_use = reply_markup
     else:
         if resolved_chat_type in ("group", "supergroup"):
-            markup_to_use = build_group_keyboard()
+            markup_to_use = build_group_keyboard(trend_id=trend_id)
         else:
-            markup_to_use = build_interactive_keyboard()
+            markup_to_use = build_interactive_keyboard(trend_id=trend_id)
 
     candidate_chats = [str(target_chat)]
     if str(target_chat).startswith("-") and not str(target_chat).startswith("-100"):
@@ -602,7 +618,20 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
 
         logger.info(f"[Telegram Bot] Mensaje recibido: '{text}' de chat_id={user_chat_id} (tipo={chat_type})")
 
-        # Deep link desde el botón '🤖 Personalizar alertas' del grupo
+        # 1. Deep link de Deep Dive desde el botón '🔍 Profundizar' del grupo público
+        if "deepdive_" in text or text.startswith("/start deepdive"):
+            import re
+            m = re.search(r"deepdive_(\d+)", text)
+            target_id = int(m.group(1)) if m else None
+            logger.info(f"[Telegram Bot] Deep-link detectado para Deep Dive con trend_id={target_id} para chat {user_chat_id}")
+            await send_telegram_message(
+                text="🔍 <b>Analizando tecnología con Gemma...</b>\n\n<i>Generando tu auditoría y reporte técnico/comercial en privado...</i>",
+                chat_id=user_chat_id
+            )
+            await handle_deep_dive(chat_id=user_chat_id, trend_id=target_id)
+            return
+
+        # 2. Deep link de configuración desde el botón '🤖 Personalizar alertas' del grupo
         if text.startswith("/start config") or text == "/start config":
             welcome_config = (
                 "👋 <b>¡Bienvenido desde el canal de Tendencias TI!</b>\n\n"

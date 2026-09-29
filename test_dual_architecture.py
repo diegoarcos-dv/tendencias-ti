@@ -49,18 +49,24 @@ from app.config import settings
 async def test_ui_conditional_keyboards():
     print("\n[1/5] Verificando UI condicional según el entorno (Grupo vs. DM)...")
 
-    # A. Teclado de Grupo
-    group_kb = build_group_keyboard(bot_username="Tendencias_DiegoBot")
+    # A. Teclado de Grupo con Deep Links (🔍 Profundizar y 🤖 Personalizar alertas)
+    group_kb = build_group_keyboard(trend_id=18, bot_username="Tendencias_DiegoBot")
     rows = group_kb.get("inline_keyboard", [])
-    assert len(rows) == 1, f"El grupo debe tener exactamente 1 fila, tiene {len(rows)}"
-    assert len(rows[0]) == 1, f"La fila debe tener un ÚNICO botón, tiene {len(rows[0])}"
+    assert len(rows) == 2, f"El grupo debe tener 2 filas con botones deep-link, tiene {len(rows)}"
 
-    group_btn = rows[0][0]
-    print(f"  -> Botón de Grupo: '{group_btn['text']}' (url: '{group_btn.get('url')}')")
-    assert group_btn["text"] == "🤖 Personalizar alertas"
-    assert "start=config" in group_btn.get("url", "")
-    assert "callback_data" not in group_btn, "El botón de grupo debe ser una URL de deep link, no callback"
-    print("  [OK] Teclado de Grupo cumple estrictamente con el botón único de deep link.")
+    btn_deepdive = rows[0][0]
+    btn_config = rows[1][0]
+    print(f"  -> Botón 1 de Grupo: '{btn_deepdive['text']}' (url: '{btn_deepdive.get('url')}')")
+    print(f"  -> Botón 2 de Grupo: '{btn_config['text']}' (url: '{btn_config.get('url')}')")
+
+    assert btn_deepdive["text"] == "🔍 Profundizar"
+    assert "start=deepdive_18" in btn_deepdive.get("url", "")
+    assert "callback_data" not in btn_deepdive, "El botón Profundizar en grupo DEBE ser de tipo URL deep-link, no callback_data"
+
+    assert btn_config["text"] == "🤖 Personalizar alertas"
+    assert "start=config" in btn_config.get("url", "")
+    assert "callback_data" not in btn_config, "El botón de alertas debe ser de tipo URL deep-link, no callback_data"
+    print("  [OK] Teclado de Grupo genera enlaces deep-link a DM sin callbacks.")
 
     # B. Teclado de DM (Privado)
     dm_kb = build_interactive_keyboard(trend_id=42)
@@ -94,7 +100,8 @@ async def test_group_action_blocking():
 
 
 async def test_deep_link_start_config():
-    print("\n[3/5] Verificando deep link '/start config' redirigiendo a /zona...")
+    print("\n[3/5] Verificando deep links en /start ('/start config' y '/start deepdive_18')...")
+    # A. /start config
     update_start_config = {
         "message": {
             "message_id": 9991,
@@ -103,17 +110,27 @@ async def test_deep_link_start_config():
         }
     }
     await process_telegram_update(update_start_config)
-    print("  [OK] Comando '/start config' procesado exitosamente hacia la configuración de zona.")
+
+    # B. /start deepdive_18
+    update_start_deepdive = {
+        "message": {
+            "message_id": 9992,
+            "chat": {"id": "test_dm_user", "type": "private"},
+            "text": "/start deepdive_18"
+        }
+    }
+    await process_telegram_update(update_start_deepdive)
+    print("  [OK] Comandos de deep link '/start config' y '/start deepdive_18' enrutados correctamente a DM.")
 
 
 async def test_daily_send_quota():
     print("\n[4/5] Verificando registro de tarjetas y límite de 3 envíos diarios por usuario...")
-    test_chat = "test_user_quota_99"
+    test_chat = f"test_user_quota_{int(datetime.utcnow().timestamp())}"
     init_db()
 
     # Debe iniciar en 0
     c0 = get_user_daily_card_count(test_chat)
-    assert c0 == 0
+    assert c0 == 0, f"Se esperaba 0 para usuario fresco, obtenido {c0}"
 
     # Simular 3 envíos hoy
     record_sent_card(chat_id=test_chat, message_id=101, chat_type="private")

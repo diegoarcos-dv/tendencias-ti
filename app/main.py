@@ -164,14 +164,15 @@ async def run_group_pipeline(chat_id: Optional[str] = None) -> Dict[str, Any]:
     # 4. Persistencia en SQLite
     trend_id = save_trend(trend_data=top_trend.model_dump(), card_data=card_data)
 
-    # 5. Envío al grupo con ÚNICO botón: "🤖 Personalizar alertas" (deep link)
-    group_markup = build_group_keyboard()
+    # 5. Envío al grupo con botones deep-link hacia el DM ("🔍 Profundizar" y "🤖 Personalizar alertas")
+    group_markup = build_group_keyboard(trend_id=trend_id)
     telegram_result = await send_telegram_notification(
         photo_path=target_png,
         caption="",
         reply_markup=group_markup,
         chat_id=target_chat,
-        chat_type="group"
+        chat_type="group",
+        trend_id=trend_id
     )
 
     duration = (datetime.now() - start_time).total_seconds()
