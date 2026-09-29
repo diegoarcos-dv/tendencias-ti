@@ -72,8 +72,11 @@ def init_db(db_path: Optional[str] = None) -> None:
                 message_id     INTEGER DEFAULT NULL
             );
 
-            CREATE INDEX IF NOT EXISTS idx_guardadas_url_hash
-                ON tendencias_guardadas (url_hash);
+            CREATE TABLE IF NOT EXISTS configuracion_usuario (
+                chat_id         TEXT PRIMARY KEY,
+                zona_preferida  TEXT NOT NULL DEFAULT 'Global',
+                updated_at      TEXT NOT NULL
+            );
         """)
 
         # Migración ligera: asegurar columnas nuevas si la tabla ya existía previamente
@@ -92,6 +95,13 @@ def init_db(db_path: Optional[str] = None) -> None:
         }
         if "message_id" not in guardadas_cols:
             conn.execute("ALTER TABLE tendencias_guardadas ADD COLUMN message_id INTEGER DEFAULT NULL")
+
+        cfg_cols = {
+            col[1]
+            for col in conn.execute("PRAGMA table_info(configuracion_usuario)").fetchall()
+        }
+        if "zona_preferida" not in cfg_cols and cfg_cols:
+            conn.execute("ALTER TABLE configuracion_usuario ADD COLUMN zona_preferida TEXT NOT NULL DEFAULT 'Global'")
 
 
 def _normalize_url(url: str) -> str:
@@ -336,3 +346,40 @@ def get_daily_history(date: Optional[datetime] = None) -> List[Dict[str, Any]]:
             (f"{target}%",),
         ).fetchall()
         return [dict(r) for r in rows]
+
+
+def set_user_zone(chat_id: str, zone: str) -> None:
+    """Guarda o actualiza la zona geográfica preferida del usuario en SQLite."""
+    with _get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO configuracion_usuario (chat_id, zona_preferida, updated_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(chat_id) DO UPDATE SET
+                zona_preferida = excluded.zona_preferida,
+                updated_at = excluded.updated_at
+            """,
+            (str(chat_id), zone, datetime.utcnow().isoformat())
+        )
+
+
+def get_user_zone(chat_id: Optional[str] = None) -> str:
+    """Obtiene la zona geográfica preferida del usuario (o 'Global' por defecto)."""
+    with _get_connection() as conn:
+        if chat_id:
+            row = conn.execute(
+                "SELECT zona_preferida FROM configuracion_usuario WHERE chat_id = ?",
+                (str(chat_id),)
+            ).fetchone()
+            if row and row["zona_preferida"]:
+                return row["zona_preferida"]
+
+        # Si no se especificó chat_id o no existe aún, tomar la última guardada
+        row = conn.execute(
+            "SELECT zona_preferida FROM configuracion_usuario ORDER BY updated_at DESC LIMIT 1"
+        ).fetchone()
+        if row and row["zona_preferida"]:
+            return row["zona_preferida"]
+
+        return "Global"
+

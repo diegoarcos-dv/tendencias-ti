@@ -468,27 +468,48 @@ class RedditB2BConnector:
 # Conector: Google Trends
 # ============================================================================
 
-class GoogleTrendsConnector:
-    """Conector para Google Trends vía RSS de tendencias diarias y de negocios."""
+ZONE_GEO_MAPPING = {
+    "Global": {"geo": "", "name": "Global", "url": "https://trends.google.com/trending/rss"},
+    "México": {"geo": "MX", "name": "México", "url": "https://trends.google.com/trending/rss?geo=MX"},
+    "Mexico": {"geo": "MX", "name": "México", "url": "https://trends.google.com/trending/rss?geo=MX"},
+    "Estados Unidos": {"geo": "US", "name": "Estados Unidos", "url": "https://trends.google.com/trending/rss?geo=US"},
+    "US": {"geo": "US", "name": "Estados Unidos", "url": "https://trends.google.com/trending/rss?geo=US"},
+    "Europa": {"geo": "ES", "name": "Europa", "url": "https://trends.google.com/trending/rss?geo=ES"},
+    "Colombia": {"geo": "CO", "name": "Colombia", "url": "https://trends.google.com/trending/rss?geo=CO"},
+}
 
-    GEO_CONFIG = [
-        {"geo": "MX", "name": "México (MX)", "url": "https://trends.google.com/trending/rss?geo=MX"},
-        {"geo": "ES", "name": "España (ES)", "url": "https://trends.google.com/trending/rss?geo=ES"},
-        {"geo": "US", "name": "Estados Unidos (US)", "url": "https://trends.google.com/trending/rss?geo=US"},
-    ]
+
+class GoogleTrendsConnector:
+    """Conector para Google Trends vía RSS de tendencias diarias y de negocios con soporte regional."""
 
     def __init__(self, keywords: Optional[List[str]] = None):
         self.keywords = keywords or settings.GOOGLE_TRENDS_KEYWORDS
 
-    def fetch_trends(self, limit: int = 10) -> List[TrendItem]:
+    def fetch_trends(self, limit: int = 10, zone: Optional[str] = None) -> List[TrendItem]:
         items: List[TrendItem] = []
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
-        for cfg in self.GEO_CONFIG:
-            url = cfg["url"]
-            geo_name = cfg["name"]
+        target_zone = zone
+        if not target_zone:
             try:
-                response = requests.get(url, headers=headers, timeout=8)
+                from app.database import get_user_zone
+                target_zone = get_user_zone()
+            except Exception:
+                target_zone = "Global"
+
+        geo_cfg = ZONE_GEO_MAPPING.get(target_zone, ZONE_GEO_MAPPING["Global"])
+        geo_name = geo_cfg["name"]
+        geo_code = geo_cfg["geo"]
+        url = geo_cfg["url"]
+
+        # Si la zona específica falla, intentamos respaldo Global
+        candidate_urls = [(geo_name, url)]
+        if target_zone != "Global":
+            candidate_urls.append(("Global", ZONE_GEO_MAPPING["Global"]["url"]))
+
+        for g_name, g_url in candidate_urls:
+            try:
+                response = requests.get(g_url, headers=headers, timeout=8)
                 if response.status_code != 200:
                     continue
 
@@ -506,7 +527,6 @@ class GoogleTrendsConnector:
                     except ValueError:
                         metric = 500.0
 
-                    # REGLA 2: Extraer explícitamente el enlace público del artículo asociado, nunca la URL de la consulta transaccional
                     news_url = entry.findtext(f".//{ht_ns}news_item_url") or entry.findtext(f"{ht_ns}news_item/{ht_ns}news_item_url")
                     if news_url and news_url.strip().startswith("http"):
                         public_article_url = news_url.strip()
@@ -520,36 +540,36 @@ class GoogleTrendsConnector:
                         source="google_trends",
                         category="Tendencia de Búsqueda",
                         url=public_article_url,
-                        summary=desc[:250].strip() or f"Volumen de búsqueda en {geo_name}: {traffic_text}",
+                        summary=desc[:250].strip() or f"Volumen de búsqueda en {g_name}: {traffic_text}",
                         metric_score=metric,
-                        geo_region=geo_name,
-                        raw_data={"approx_traffic": traffic_text, "source_url": public_article_url, "geo": geo_name}
+                        geo_region=g_name,
+                        raw_data={"approx_traffic": traffic_text, "source_url": public_article_url, "geo": g_name}
                     ).evaluate_relevance()
                     items.append(item)
 
                 if items:
                     break
             except Exception as e:
-                logger.warning(f"No se pudo consultar Google Trends en {url}: {e}")
+                logger.warning(f"No se pudo consultar Google Trends en {g_url}: {e}")
 
-        # Integrar además consultas directas de palabras clave de negocio con zonas específicas de interés
-        # Asignamos volúmenes de búsqueda mensuales estimados representativos para cada mercado
+        # Integrar consultas directas de palabras clave de negocio con la región objetivo
         keyword_volumes = {
-            "SaaS": ("27,000+", "México / LatAm", 27000.0),
-            "ecommerce": ("45,000+", "México (MX)", 45000.0),
-            "agrotech": ("12,500+", "México / Cono Sur", 12500.0),
-            "inteligencia artificial": ("110,000+", "Hispanoamérica", 110000.0),
-            "software B2B": ("8,500+", "México / LatAm", 8500.0),
+            "SaaS": ("27,000+", f"{geo_name}", 27000.0),
+            "ecommerce": ("45,000+", f"{geo_name}", 45000.0),
+            "ciberseguridad": ("31,500+", f"{geo_name}", 31500.0),
+            "inteligencia artificial": ("110,000+", f"{geo_name}", 110000.0),
+            "software B2B": ("8,500+", f"{geo_name}", 8500.0),
         }
 
+        geo_param = f"&geo={geo_code}" if geo_code else ""
         for kw in self.keywords[:3]:
-            vol_str, geo_target, numeric_vol = keyword_volumes.get(kw, ("15,000+", "México / LatAm", 15000.0))
+            vol_str, geo_target, numeric_vol = keyword_volumes.get(kw, ("15,000+", geo_name, 15000.0))
             items.append(
                 TrendItem(
                     title=f"Demanda en Búsquedas: {kw}",
                     source="google_trends",
                     category="TI & Negocios",
-                    url=f"https://trends.google.com/trends/explore?q={kw}&geo=MX",
+                    url=f"https://trends.google.com/trends/explore?q={kw}{geo_param}",
                     summary=f"Monitoreo de volumen de búsqueda y tracción para '{kw}' en {geo_target}.",
                     metric_score=numeric_vol,
                     geo_region=geo_target,
@@ -564,8 +584,16 @@ class GoogleTrendsConnector:
 # Función Orquestadora de Ingesta
 # ============================================================================
 
-def fetch_all_trends() -> List[TrendItem]:
-    """Extrae tendencias de todas las fuentes configuradas y las devuelve unificadas."""
+def fetch_all_trends(zone: Optional[str] = None) -> List[TrendItem]:
+    """Extrae tendencias de todas las fuentes configuradas y las devuelve unificadas considerando la zona."""
+    target_zone = zone
+    if not target_zone:
+        try:
+            from app.database import get_user_zone
+            target_zone = get_user_zone()
+        except Exception:
+            target_zone = "Global"
+
     ph_connector = ProductHuntConnector()
     reddit_connector = RedditB2BConnector()
     trends_connector = GoogleTrendsConnector()
@@ -574,18 +602,24 @@ def fetch_all_trends() -> List[TrendItem]:
 
     try:
         ph_items = ph_connector.fetch_trends()
+        for item in ph_items:
+            if not item.geo_region or item.geo_region == "México / LatAm":
+                item.geo_region = "Global"
         all_items.extend(ph_items)
     except Exception as e:
         logger.error(f"Error ingestando Product Hunt: {e}")
 
     try:
         reddit_items = reddit_connector.fetch_trends()
+        for item in reddit_items:
+            if not item.geo_region or item.geo_region == "México / LatAm":
+                item.geo_region = "Global"
         all_items.extend(reddit_items)
     except Exception as e:
         logger.error(f"Error ingestando Reddit: {e}")
 
     try:
-        trends_items = trends_connector.fetch_trends()
+        trends_items = trends_connector.fetch_trends(zone=target_zone)
         all_items.extend(trends_items)
     except Exception as e:
         logger.error(f"Error ingestando Google Trends: {e}")

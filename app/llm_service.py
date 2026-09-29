@@ -77,6 +77,15 @@ async def generate_trend_card_data(
         except Exception:
             business_context_text = ""
 
+    # Determinar zona preferida o región analizada
+    zona_preferida = trend_data.get("geo_region")
+    if not zona_preferida:
+        try:
+            from app.database import get_user_zone
+            zona_preferida = get_user_zone()
+        except Exception:
+            zona_preferida = "Global"
+
     # Obtener métricas reales 100% auditables desde los datos extraídos
     real_metric_label, real_metric_value, real_delta_dir, real_delta_val = extract_real_metrics(trend_data)
 
@@ -96,7 +105,10 @@ async def generate_trend_card_data(
         "- Explica qué tipo de empresas u organizaciones demandan esta solución según la funcionalidad real descrita, y qué problemática o fricción técnica resuelve.\n"
         "- Resalta con <strong>...</strong> la capacidad técnica clave (ej. <strong>automatización de métricas y analítica en tiempo real</strong>).\n\n"
         "3. MÉTRICA DE DEMANDA COMERCIAL (PROHIBIDO VOTOS/UPVOTES):\n"
-        "- Prohibido usar 'votos', 'upvotes', 'estrellas' o 'likes'. Emplea estimaciones de demanda comercial, volumen de búsquedas o crecimiento (ej. '48.2K', '+35% demanda').\n"
+        "- Prohibido usar 'votos', 'upvotes', 'estrellas' o 'likes'. Emplea estimaciones de demanda comercial, volumen de búsquedas o crecimiento (ej. '48.2K', '+35% demanda').\n\n"
+        f"4. ENFOQUE REGIONAL ({zona_preferida}):\n"
+        f"Evalúa la viabilidad y el impacto comercial de la tecnología específicamente para el mercado de {zona_preferida}, "
+        "cruzando los datos con el archivo local de tendencias (data/tendencias.txt).\n"
     )
 
     user_prompt = f"""
@@ -104,7 +116,7 @@ DATOS CRUDOS EXTRAÍDOS DE LA API:
 - Nombre de la herramienta: {trend_data.get('title')}
 - Categoría de la API: {trend_data.get('category')}
 - Descripción cruda / Tagline del producto: {trend_data.get('summary')}
-- Región de mercado: {trend_data.get('geo_region', 'México / LatAm')}
+- Región de mercado objetivo: {zona_preferida}
 - Origen: {trend_data.get('source')}
 
 MARCO DE EVALUACIÓN ESTRATÉGICA:
@@ -398,6 +410,15 @@ async def generate_deep_dive_report(
         except Exception:
             pass
 
+    # Determinar zona preferida o región analizada
+    zona_preferida = trend_data.get("geo_region")
+    if not zona_preferida:
+        try:
+            from app.database import get_user_zone
+            zona_preferida = get_user_zone()
+        except Exception:
+            zona_preferida = "Global"
+
     selected_model = model or settings.OLLAMA_MODEL
 
     system_prompt = (
@@ -409,9 +430,11 @@ async def generate_deep_dive_report(
         "2. JUSTIFICACIÓN EXPLÍCITA CON REGLAS DE NEGOCIO (tendencias.txt): Detalla explícitamente cómo y bajo qué criterios "
         "cruzaste los datos crudos con las líneas estratégicas y reglas de negocio del archivo local 'tendencias' "
         "(Comercio B2B, AI & Analytics, o TI & Software Empresarial; adopción en empresas objetivo y ROI < 6 meses). Demuestra con precisión por qué la herramienta es relevante.\n"
-        "3. DESGLOSE TÉCNICO Y COMERCIAL: Arquitectura de integración, stack tecnológico, monetización B2B y viabilidad.\n"
-        "4. FORMATO: Emplea HTML limpio soportado por Telegram (solamente <b>, <i>, <code>). Estilo ejecutivo, denso y directo.\n"
-        "5. FIDELIDAD: Basa el análisis exclusivamente en el software analizado y su propuesta real. Cero referencias a sectores ajenos (cero ganadería/agricultura)."
+        f"3. ENFOQUE REGIONAL ({zona_preferida}): Analiza la viabilidad, facilidad de adopción, consideraciones operativas y ROI comercial "
+        f"específicamente para las organizaciones y empresas que operan en el mercado de {zona_preferida}.\n"
+        "4. DESGLOSE TÉCNICO Y COMERCIAL: Arquitectura de integración, stack tecnológico, monetización B2B y viabilidad.\n"
+        "5. FORMATO: Emplea HTML limpio soportado por Telegram (solamente <b>, <i>, <code>). Estilo ejecutivo, denso y directo.\n"
+        "6. FIDELIDAD: Basa el análisis exclusivamente en el software analizado y su propuesta real. Cero referencias a sectores ajenos (cero ganadería/agricultura)."
     )
 
     user_prompt = (
@@ -419,6 +442,7 @@ async def generate_deep_dive_report(
         f"📌 TECNOLOGÍA: {title}\n"
         f"🏷️ CATEGORÍA: {category}\n"
         f"🌐 FUENTE: {source}\n"
+        f"🌍 MERCADO REGIONAL OBJETIVO: {zona_preferida}\n"
         f"📊 MÉTRICAS CRUDAS EXTRAÍDAS: {metric_label} = {metric_val} | Delta / Crecimiento = {delta_val} | Score Algorítmico = {score:.1f}\n"
         f"📝 PROPUESTA DE VALOR / RESUMEN: {summary}\n"
         f"⚙️ STACK / COMPONENTES: {stack_names}\n\n"
@@ -426,9 +450,9 @@ async def generate_deep_dive_report(
         f"{business_rules_text}\n\n"
         f"Estructura el reporte en estos 4 apartados obligatorios:\n"
         f"1. 📊 <b>DESGLOSE DE MÉTRICAS DURAS Y CRUDAS EXTRAÍDAS</b>\n"
-        f"2. 🎯 <b>JUSTIFICACIÓN EXPLÍCITA: CRUCE CON REGLAS DE NEGOCIO (tendencias.txt)</b>\n"
+        f"2. 🎯 <b>JUSTIFICACIÓN EXPLÍCITA: CRUCE CON REGLAS DE NEGOCIO (tendencias.txt) & ENFOQUE {zona_preferida.upper()}</b>\n"
         f"3. ⚙️ <b>DESGLOSE TÉCNICO & ARQUITECTURA DE INTEGRACIÓN</b>\n"
-        f"4. 💼 <b>VIABILIDAD COMERCIAL & MONETIZACIÓN B2B</b>"
+        f"4. 💼 <b>VIABILIDAD COMERCIAL & MONETIZACIÓN B2B ({zona_preferida.upper()})</b>"
     )
 
     try:
@@ -452,6 +476,7 @@ async def generate_deep_dive_report(
                         f"🔍 <b>REPORTE DE PROFUNDIZACIÓN & TRANSPARENCIA ANALÍTICA</b>\n"
                         f"📌 <b>Tecnología:</b> {title}\n"
                         f"🏷️ <b>Categoría:</b> {category}\n"
+                        f"🌍 <b>Mercado Objetivo:</b> {zona_preferida}\n"
                         f"🌐 <b>Fuente de Ingesta:</b> {source}\n\n"
                     )
                     return header + content
@@ -463,21 +488,22 @@ async def generate_deep_dive_report(
         f"🔍 <b>REPORTE DE PROFUNDIZACIÓN & TRANSPARENCIA ANALÍTICA</b>\n"
         f"📌 <b>Tecnología:</b> {title}\n"
         f"🏷️ <b>Categoría:</b> {category}\n"
+        f"🌍 <b>Mercado Objetivo:</b> {zona_preferida}\n"
         f"🌐 <b>Fuente de Ingesta:</b> {source}\n\n"
         f"1. 📊 <b>DESGLOSE DE MÉTRICAS DURAS Y CRUDAS EXTRAÍDAS</b>\n"
         f"• <b>Métrica Principal Cruda ({metric_label}):</b> <code>{metric_val}</code>\n"
         f"• <b>Tasa de Variación / Crecimiento:</b> <code>{delta_val}</code>\n"
         f"• <b>Puntaje Algorítmico Ponderado:</b> <code>{score:.1f} pts</code>\n"
         f"• <b>Señal de Tracción:</b> Actividad detectada directamente en los endpoints de {source}. El volumen evidencia un interés activo y orgánico por equipos técnicos y tomadores de decisión.\n\n"
-        f"2. 🎯 <b>JUSTIFICACIÓN EXPLÍCITA: CRUCE CON REGLAS DE NEGOCIO (tendencias.txt)</b>\n"
+        f"2. 🎯 <b>JUSTIFICACIÓN EXPLÍCITA: CRUCE CON REGLAS DE NEGOCIO & ENFOQUE {zona_preferida.upper()}</b>\n"
         f"• <b>Regla de Negocio Aplicada:</b> Se alinea con el pilar de <i>{category}</i> definido en <code>tendencias.txt</code>.\n"
         f"• <b>Criterio de Evaluación:</b> Cumple con los criterios de viabilidad al ofrecer una curva de adopción ágil sin requerir refactorizaciones complejas de infraestructura.\n"
-        f"• <b>Estimación de ROI:</b> Proyectado en menos de 6 meses gracias a la automatización directa de tareas manuales y reducción de fricciones operativas.\n\n"
+        f"• <b>Estimación de ROI:</b> Proyectado en menos de 6 meses para organizaciones en {zona_preferida}, gracias a la automatización de procesos operativos y reducción de tiempos de ciclo.\n\n"
         f"3. ⚙️ <b>DESGLOSE TÉCNICO & ARQUITECTURA DE INTEGRACIÓN</b>\n"
         f"• <b>Stack & Ecosistema:</b> {stack_names}.\n"
         f"• <b>Integración:</b> Arquitectura modular desacoplada mediante APIs RESTful y Webhooks para interoperabilidad inmediata con ERPs y plataformas corporativas.\n"
         f"• <b>Seguridad Empresarial:</b> Protocolos SSO/OAuth2, encriptación en tránsito y reposo, y auditoría de eventos.\n\n"
-        f"4. 💼 <b>VIABILIDAD COMERCIAL & MONETIZACIÓN B2B</b>\n"
+        f"4. 💼 <b>VIABILIDAD COMERCIAL & MONETIZACIÓN B2B ({zona_preferida.upper()})</b>\n"
         f"• <b>Esquema de Negocio:</b> Modelo SaaS escalable por volumen de uso o asientos, facilitando pruebas de concepto (PoC) rápidas antes de acuerdos Enterprise.\n"
-        f"• <b>Ventaja Competitiva:</b> Resuelve directamente puntos de dolor actuales frente a herramientas tradicionales con mayor costo y menor dinamismo.\n"
+        f"• <b>Ventaja Competitiva en {zona_preferida}:</b> Resuelve directamente puntos de dolor actuales frente a herramientas tradicionales con mayor costo y menor dinamismo.\n"
     )

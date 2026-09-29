@@ -157,6 +157,32 @@ async def test_dispatcher_actions():
     await process_telegram_update(update_cmd)
     print("  -> Dispatcher comando /favoritos procesado correctamente [OK]")
 
+    # 6. Simular Comando de texto /zona
+    update_zona_cmd = {
+        "message": {
+            "message_id": 1000,
+            "chat": {"id": "test_chat"},
+            "text": "/zona"
+        }
+    }
+    await process_telegram_update(update_zona_cmd)
+    print("  -> Dispatcher comando /zona procesado correctamente [OK]")
+
+    # 7. Simular Callback SET_ZONE:Mexico
+    update_set_zone = {
+        "callback_query": {
+            "id": "mock_cb_zone",
+            "from": {"id": 12345},
+            "message": {"chat": {"id": "test_chat"}},
+            "data": "SET_ZONE:Mexico"
+        }
+    }
+    await process_telegram_update(update_set_zone)
+    from app.database import get_user_zone
+    saved_zone = get_user_zone("test_chat")
+    assert saved_zone == "Mexico", f"Esperado 'Mexico', obtenido '{saved_zone}'"
+    print(f"  -> Dispatcher SET_ZONE:Mexico persistido en SQLite: '{saved_zone}' [OK]")
+
 
 async def test_deep_dive_report_generation():
     print("\n[5/5] Verificando generación y estructura del reporte profundo con transparencia y métricas...")

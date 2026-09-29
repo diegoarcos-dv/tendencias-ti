@@ -25,6 +25,8 @@ from app.database import (
     get_favorites,
     get_trend_by_id,
     get_recent_sent_trends,
+    get_user_zone,
+    set_user_zone,
 )
 from app.visual_engine import create_chart_png_card
 
@@ -401,6 +403,67 @@ async def handle_deep_dive(
     )
 
 
+async def handle_zone_command(chat_id: str) -> None:
+    """3. Menú de Zona en Telegram: Despliega un teclado interactivo con opciones de región."""
+    current_zone = get_user_zone(chat_id)
+    zone_options = [
+        ("🌎 Global", "Global"),
+        ("🇲🇽 México", "Mexico"),
+        ("🇺🇸 Estados Unidos", "US"),
+        ("🇪🇺 Europa", "Europa"),
+        ("🇨🇴 Colombia", "Colombia")
+    ]
+
+    inline_keyboard = []
+    for label, key in zone_options:
+        is_selected = " ✓" if current_zone == key or (key == "Mexico" and current_zone == "México") or (key == "US" and current_zone == "Estados Unidos") else ""
+        inline_keyboard.append([
+            {"text": f"{label}{is_selected}", "callback_data": f"SET_ZONE:{key}"}
+        ])
+
+    text = (
+        "🌍 <b>Configuración de Zona Geográfica</b>\n\n"
+        f"Tu mercado prioritario actual es: <b>{current_zone}</b>\n\n"
+        "Selecciona una región para enfocar el análisis de tendencias, volumen de búsqueda y viabilidad comercial:"
+    )
+
+    await send_telegram_message(
+        text=text,
+        chat_id=chat_id,
+        reply_markup={"inline_keyboard": inline_keyboard}
+    )
+
+
+async def handle_set_zone(
+    chat_id: str,
+    callback_query_id: Optional[str] = None,
+    zone_key: str = "Global"
+) -> None:
+    """Almacena la preferencia de zona en SQLite y confirma al usuario."""
+    zone_names = {
+        "Global": "🌎 Global",
+        "Mexico": "🇲🇽 México",
+        "México": "🇲🇽 México",
+        "US": "🇺🇸 Estados Unidos",
+        "Estados Unidos": "🇺🇸 Estados Unidos",
+        "Europa": "🇪🇺 Europa",
+        "Colombia": "🇨🇴 Colombia"
+    }
+    display_name = zone_names.get(zone_key, zone_key)
+    set_user_zone(chat_id=chat_id, zone=zone_key)
+
+    if callback_query_id:
+        await answer_callback_query(callback_query_id, text=f"✅ Zona configurada: {display_name}")
+
+    msg = (
+        f"✅ <b>Preferencia de Zona Actualizada</b>\n\n"
+        f"Mercado configurado: <b>{display_name}</b>\n\n"
+        "A partir de ahora, los radares de tendencias y los reportes de profundización "
+        f"evaluarán prioritariamente el impacto y la viabilidad para <b>{display_name}</b>."
+    )
+    await send_telegram_message(text=msg, chat_id=chat_id)
+
+
 async def process_telegram_update(update: Dict[str, Any]) -> None:
     """Procesa una actualización entrante de Telegram (CallbackQuery o Message)."""
     # 1. Manejo de Botones del Inline Keyboard
@@ -411,6 +474,12 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
         msg_obj = cq.get("message", {})
         user_chat_id = str(msg_obj.get("chat", {}).get("id"))
         orig_msg_id = msg_obj.get("message_id")
+
+        # Manejo de SET_ZONE:{key}
+        if data.startswith("SET_ZONE:"):
+            zone_key = data.replace("SET_ZONE:", "").strip()
+            await handle_set_zone(chat_id=user_chat_id, callback_query_id=cb_id, zone_key=zone_key)
+            return
 
         # 3. Manejo de LOAD_FAV_{id}
         if data.startswith("LOAD_FAV_"):
@@ -458,7 +527,9 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
 
         logger.info(f"[Telegram Bot] Mensaje recibido: '{text}' de chat_id={user_chat_id}")
 
-        if text.startswith("/favoritos"):
+        if text.startswith("/zona"):
+            await handle_zone_command(chat_id=user_chat_id)
+        elif text.startswith("/favoritos"):
             await handle_view_favorites(chat_id=user_chat_id)
         elif text.startswith("/grafica") or text.startswith("/chart"):
             await handle_get_chart(chat_id=user_chat_id)
@@ -470,7 +541,8 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
                 "Monitoreo diario automatizado de tendencias tecnológicas de alto impacto comercial.\n\n"
                 "<b>Comandos disponibles:</b>\n"
                 "• <code>/radar</code> o <code>/hoy</code> : Generar y enviar el radar de hoy inmediatamente.\n"
-                "• <code>/favoritos</code> : Listar todas tus tecnologías guardadas con enlaces a sus tarjetas.\n"
+                "• <code>/zona</code> : Configurar la región geográfica preferida (Global, México, EE.UU., Europa, Colombia).\n"
+                "• <code>/favoritos</code> : Listar todas tus tecnologías guardadas con citas a sus tarjetas originales.\n"
                 "• <code>/grafica</code> : Visualizar la gráfica de tracción semanal.\n"
                 "• <code>/profundizar</code> : Generar reporte denso sobre la última tecnología.\n\n"
                 "<i>También puedes interactuar directamente usando los botones debajo de cada tarjeta.</i>"
