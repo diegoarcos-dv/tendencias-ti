@@ -110,6 +110,8 @@ def init_db(db_path: Optional[str] = None) -> None:
         }
         if "message_id" not in guardadas_cols:
             conn.execute("ALTER TABLE tendencias_guardadas ADD COLUMN message_id INTEGER DEFAULT NULL")
+        if "user_id" not in guardadas_cols:
+            conn.execute("ALTER TABLE tendencias_guardadas ADD COLUMN user_id TEXT DEFAULT NULL")
 
         cfg_cols = {
             col[1]
@@ -304,44 +306,108 @@ def get_recent_sent_trends(limit: int = 20) -> List[Dict[str, Any]]:
         return [dict(r) for r in rows]
 
 
-def mark_as_favorite(trend_id: int, message_id: Optional[int] = None) -> bool:
-    """Copia una entrada del historial a tendencias_guardadas como favorito, asociando el message_id si existe."""
+def mark_as_favorite(trend_id: int, message_id: Optional[int] = None, user_id: Optional[Any] = None) -> bool:
+    """Copia una entrada del historial a tendencias_guardadas como favorito, asociando el message_id y user_id si existen."""
     with _get_connection() as conn:
         row = conn.execute(
             "SELECT * FROM historial_envios WHERE id = ?", (trend_id,)
         ).fetchone()
         if not row:
             return False
-        conn.execute(
-            """
-            INSERT INTO tendencias_guardadas
-                (url, url_hash, title, source, category, score, llm_analysis, saved_at, is_favorite, message_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
-            ON CONFLICT(url_hash) DO UPDATE SET
-                message_id = COALESCE(excluded.message_id, tendencias_guardadas.message_id),
-                saved_at = excluded.saved_at
-            """,
-            (
-                row["url"],
-                row["url_hash"],
-                row["title"],
-                row["source"],
-                row["category"],
-                row["score"],
-                row["card_data"] if "card_data" in row.keys() else None,
-                datetime.utcnow().isoformat(),
-                message_id,
-            ),
-        )
+
+        cols = {col[1] for col in conn.execute("PRAGMA table_info(tendencias_guardadas)").fetchall()}
+        has_uid = "user_id" in cols
+
+        if has_uid:
+            conn.execute(
+                """
+                INSERT INTO tendencias_guardadas
+                    (url, url_hash, title, source, category, score, llm_analysis, saved_at, is_favorite, message_id, user_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+                ON CONFLICT(url_hash) DO UPDATE SET
+                    message_id = COALESCE(excluded.message_id, tendencias_guardadas.message_id),
+                    user_id = COALESCE(excluded.user_id, tendencias_guardadas.user_id),
+                    saved_at = excluded.saved_at,
+                    is_favorite = 1
+                """,
+                (
+                    row["url"],
+                    row["url_hash"],
+                    row["title"],
+                    row["source"],
+                    row["category"],
+                    row["score"],
+                    row["card_data"] if "card_data" in row.keys() else None,
+                    datetime.utcnow().isoformat(),
+                    message_id,
+                    str(user_id) if user_id is not None else None,
+                ),
+            )
+        else:
+            conn.execute(
+                """
+                INSERT INTO tendencias_guardadas
+                    (url, url_hash, title, source, category, score, llm_analysis, saved_at, is_favorite, message_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+                ON CONFLICT(url_hash) DO UPDATE SET
+                    message_id = COALESCE(excluded.message_id, tendencias_guardadas.message_id),
+                    saved_at = excluded.saved_at,
+                    is_favorite = 1
+                """,
+                (
+                    row["url"],
+                    row["url_hash"],
+                    row["title"],
+                    row["source"],
+                    row["category"],
+                    row["score"],
+                    row["card_data"] if "card_data" in row.keys() else None,
+                    datetime.utcnow().isoformat(),
+                    message_id,
+                ),
+            )
         return True
 
 
-def get_favorites() -> List[Dict[str, Any]]:
-    """Obtiene la lista de tendencias marcadas como favoritas."""
+def remove_favorite(user_id: Any, trend_id: int) -> bool:
+    """Elimina una tendencia de favoritos en tendencias_guardadas usando user_id y trend_id."""
     with _get_connection() as conn:
-        rows = conn.execute(
-            "SELECT * FROM tendencias_guardadas WHERE is_favorite = 1 ORDER BY saved_at DESC"
-        ).fetchall()
+        cols = {col[1] for col in conn.execute("PRAGMA table_info(tendencias_guardadas)").fetchall()}
+        has_uid = "user_id" in cols
+
+        if has_uid and user_id is not None:
+            cursor = conn.execute(
+                """
+                DELETE FROM tendencias_guardadas
+                WHERE (id = ? OR url_hash IN (SELECT url_hash FROM historial_envios WHERE id = ?))
+                  AND (user_id = ? OR user_id IS NULL)
+                """,
+                (trend_id, trend_id, str(user_id))
+            )
+        else:
+            cursor = conn.execute(
+                """
+                DELETE FROM tendencias_guardadas
+                WHERE id = ? OR url_hash IN (SELECT url_hash FROM historial_envios WHERE id = ?)
+                """,
+                (trend_id, trend_id)
+            )
+        return cursor.rowcount > 0
+
+
+def get_favorites(user_id: Optional[Any] = None) -> List[Dict[str, Any]]:
+    """Obtiene la lista de tendencias marcadas como favoritas (opcionalmente filtradas por user_id)."""
+    with _get_connection() as conn:
+        cols = {col[1] for col in conn.execute("PRAGMA table_info(tendencias_guardadas)").fetchall()}
+        if "user_id" in cols and user_id is not None:
+            rows = conn.execute(
+                "SELECT * FROM tendencias_guardadas WHERE is_favorite = 1 AND (user_id = ? OR user_id IS NULL) ORDER BY saved_at DESC",
+                (str(user_id),)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM tendencias_guardadas WHERE is_favorite = 1 ORDER BY saved_at DESC"
+            ).fetchall()
         favs = []
         for r in rows:
             item = dict(r)
@@ -454,6 +520,21 @@ def reset_user_config(chat_id: str) -> None:
             """,
             (str(chat_id), datetime.utcnow().isoformat())
         )
+
+
+def get_all_configured_users() -> List[Dict[str, Any]]:
+    """Consulta en SQLite a todos los usuarios con perfil completo (zona e industria no vacías)."""
+    with _get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT chat_id, zona_preferida, industria, updated_at
+            FROM configuracion_usuario
+            WHERE zona_preferida IS NOT NULL AND TRIM(zona_preferida) != ''
+              AND industria IS NOT NULL AND TRIM(industria) != ''
+            ORDER BY updated_at DESC
+            """
+        ).fetchall()
+        return [dict(r) for r in rows]
 
 
 # ============================================================================

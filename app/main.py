@@ -40,6 +40,7 @@ from app.database import (
     get_user_daily_card_count,
     get_expired_card_messages,
     delete_card_record,
+    get_all_configured_users,
 )
 from app.llm_service import generate_trend_card_data
 from app.visual_engine import create_png_card
@@ -308,6 +309,37 @@ async def cleanup_expired_messages(days: Optional[int] = None) -> Dict[str, Any]
     }
 
 
+async def run_all_individual_pipelines() -> Dict[str, Any]:
+    """Tarea programada diaria a las 10:00 AM para chats individuales (DM):
+    Consulta en SQLite a todos los usuarios con perfil completo (zona e industria definidas),
+    detona la búsqueda personalizada de forma asíncrona con Gemma y entrega la tarjeta visual a sus chat_id privados.
+    """
+    start_time = datetime.now()
+    configured_users = get_all_configured_users()
+
+    # Si no hay usuarios en la tabla pero está configurado TELEGRAM_CHAT_ID como admin/default:
+    if not configured_users and settings.TELEGRAM_CHAT_ID:
+        configured_users = [{"chat_id": str(settings.TELEGRAM_CHAT_ID), "zona_preferida": "Global", "industria": "TI & Software B2B"}]
+
+    logger.info(f"[Cron 10:00 AM] Iniciando envío de radar individual para {len(configured_users)} usuarios con perfil completo.")
+
+    dispatched = []
+    for user in configured_users:
+        cid = str(user["chat_id"])
+        # Detonar la búsqueda personalizada y envío asíncrono para cada usuario
+        asyncio.create_task(run_individual_pipeline(chat_id=cid))
+        dispatched.append(cid)
+
+    duration = (datetime.now() - start_time).total_seconds()
+    return {
+        "status": "success",
+        "job": "individual_daily_10am",
+        "total_users": len(configured_users),
+        "dispatched_chat_ids": dispatched,
+        "dispatch_duration_seconds": duration
+    }
+
+
 # Alias de compatibilidad
 run_daily_pipeline = run_individual_pipeline
 
@@ -336,23 +368,15 @@ async def lifespan(app: FastAPI):
     )
     logger.info("Cron de Grupo programado: estrictamente a las 10:00, 14:00 y 18:00.")
 
-    # 2. Cronograma de Notificaciones Individuales (DMs): Respeta límite de 3 envíos/día
-    # Programado por defecto en la hora configurada (07:00 AM) y franjas complementarias
-    hour, minute = 7, 0
-    try:
-        parts = settings.SCHEDULE_TIME.split(":")
-        hour, minute = int(parts[0]), int(parts[1])
-    except Exception as e:
-        logger.warning(f"Error parseando SCHEDULE_TIME ({settings.SCHEDULE_TIME}): {e}. Usando 07:00.")
-
+    # 2. Cronograma de Notificaciones Individuales (DMs): Todos los días a las 10:00 AM
     scheduler.add_job(
-        run_individual_pipeline,
-        trigger=CronTrigger(hour=hour, minute=minute),
-        id="individual_intelligence_pipeline_daily",
-        name=f"Pipeline Individual Diario ({hour:02d}:{minute:02d})",
+        run_all_individual_pipelines,
+        trigger=CronTrigger(hour=10, minute=0),
+        id="individual_intelligence_pipeline_daily_10am",
+        name="Pipeline Individual Diario (10:00 AM)",
         replace_existing=True
     )
-    logger.info(f"Cron Individual programado: diario a las {hour:02d}:{minute:02d} (máx 3 envíos/día).")
+    logger.info("Cron Individual programado: diariamente a las 10:00 AM para todos los usuarios con perfil completo.")
 
     # 3. Tarea Diaria de Caducidad de Mensajes (TTL 7 Días): Corre a las 03:00 AM
     scheduler.add_job(
@@ -437,8 +461,10 @@ async def trigger_group_pipeline_endpoint(chat_id: Optional[str] = Query(default
 
 @app.post("/api/v1/pipeline/individual", tags=["Orquestación"])
 async def trigger_individual_pipeline_endpoint(chat_id: Optional[str] = Query(default=None)) -> Dict[str, Any]:
-    """Fuerza la ejecución del pipeline individual (Enfoque por zona, menú 4 botones, límite 3 envíos/día)."""
-    return await run_individual_pipeline(chat_id=chat_id)
+    """Fuerza la ejecución del pipeline individual (Enfoque por zona; para un chat específico o para todos los configurados)."""
+    if chat_id:
+        return await run_individual_pipeline(chat_id=chat_id)
+    return await run_all_individual_pipelines()
 
 
 @app.post("/api/v1/pipeline/cleanup-expired", tags=["Orquestación"])

@@ -33,3 +33,4 @@ test_output/
 # Editores y entornos
 .vscode/
 .idea/
+scratch/

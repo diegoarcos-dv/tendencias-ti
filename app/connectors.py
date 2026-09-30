@@ -8,6 +8,8 @@ Fuentes soportadas:
 
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
+import time
+from email.utils import parsedate_to_datetime
 import logging
 import xml.etree.ElementTree as ET
 import requests
@@ -222,6 +224,7 @@ class ProductHuntConnector:
                 votesCount
                 url
                 website
+                createdAt
                 topics {
                   edges {
                     node {
@@ -247,6 +250,18 @@ class ProductHuntConnector:
         edges = data.get("data", {}).get("posts", {}).get("edges", [])
         for edge in edges:
             node = edge.get("node", {})
+
+            # Filtro de actualidad temporal (Product Hunt API)
+            created_at_str = node.get("createdAt")
+            if created_at_str:
+                try:
+                    pub_dt = datetime.fromisoformat(str(created_at_str).replace("Z", "+00:00"))
+                    now_utc = datetime.now(timezone.utc)
+                    if (now_utc - pub_dt).total_seconds() > (settings.MAX_TREND_AGE_HOURS * 3600):
+                        continue
+                except Exception:
+                    pass
+
             title = node.get("name", "Sin título")
             tagline = node.get("tagline", "")
             votes = float(node.get("votesCount", 0))
@@ -294,7 +309,21 @@ class ProductHuntConnector:
             items: List[TrendItem] = []
 
             entries = root.findall("atom:entry", ns)
-            for entry in entries[:limit]:
+            for entry in entries:
+                if len(items) >= limit:
+                    break
+
+                # Filtro de actualidad temporal (Product Hunt Atom)
+                date_str = entry.findtext("atom:published", namespaces=ns) or entry.findtext("atom:updated", namespaces=ns)
+                if date_str:
+                    try:
+                        pub_dt = datetime.fromisoformat(str(date_str).replace("Z", "+00:00"))
+                        now_utc = datetime.now(timezone.utc)
+                        if (now_utc - pub_dt).total_seconds() > (settings.MAX_TREND_AGE_HOURS * 3600):
+                            continue
+                    except Exception:
+                        pass
+
                 title = entry.findtext("atom:title", namespaces=ns) or "Sin título"
                 
                 link_el = entry.find("atom:link", namespaces=ns)
@@ -420,6 +449,7 @@ class RedditB2BConnector:
         self.subreddits = subreddits or settings.REDDIT_SUBREDDITS
 
     def fetch_trends(self, limit_per_sub: int = 4, industry: Optional[str] = None) -> List[TrendItem]:
+        import time
         items: List[TrendItem] = []
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
@@ -438,6 +468,15 @@ class RedditB2BConnector:
                         data = post.get("data", {})
                         if data.get("stickied", False):
                             continue
+
+                        # Filtro de actualidad temporal (Reddit)
+                        created_utc = data.get("created_utc")
+                        if created_utc is not None:
+                            try:
+                                if (time.time() - float(created_utc)) > (settings.MAX_TREND_AGE_HOURS * 3600):
+                                    continue
+                            except Exception:
+                                pass
 
                         title = data.get("title", "")
                         selftext = data.get("selftext", "")
@@ -596,7 +635,20 @@ class GoogleTrendsConnector:
                 root = ET.fromstring(response.content)
                 ht_ns = "{https://trends.google.com/trending/rss}"
 
-                for entry in root.findall(".//item")[:limit]:
+                for entry in root.findall(".//item"):
+                    if len(items) >= limit:
+                        break
+
+                    pub_date_str = entry.findtext("pubDate")
+                    if pub_date_str:
+                        try:
+                            pub_dt = parsedate_to_datetime(pub_date_str).astimezone(timezone.utc)
+                            now_utc = datetime.now(timezone.utc)
+                            if (now_utc - pub_dt).total_seconds() > (settings.MAX_TREND_AGE_HOURS * 3600):
+                                continue
+                        except Exception as e_date:
+                            logger.debug(f"Error parseando pubDate en Google Trends: {e_date}")
+
                     title = entry.findtext("title") or ""
                     desc = entry.findtext("description") or ""
 

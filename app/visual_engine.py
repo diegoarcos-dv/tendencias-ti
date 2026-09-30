@@ -143,7 +143,15 @@ async def create_png_card(
         )
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.chromium.launch(
+            headless=True,
+            args=[
+                "--disable-gpu",
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+            ],
+        )
         page = await browser.new_page(
             viewport={"width": 1080, "height": 1080},
             device_scale_factor=1,

@@ -22,6 +22,7 @@ from dotenv import load_dotenv
 from app.config import settings
 from app.database import (
     mark_as_favorite,
+    remove_favorite,
     get_favorites,
     get_trend_by_id,
     get_recent_sent_trends,
@@ -259,6 +260,78 @@ async def answer_callback_query(
         return False
 
 
+async def edit_telegram_message_text(
+    chat_id: str | int,
+    message_id: int,
+    text: str,
+    reply_markup: Optional[Dict[str, Any]] = None,
+    parse_mode: Optional[str] = "HTML"
+) -> Dict[str, Any]:
+    """Edita el texto y/o botones de un mensaje existente en Telegram utilizando editMessageText."""
+    bot_token, _ = _get_credentials()
+    if not bot_token:
+        return {"success": False, "error": "MISSING_CREDENTIALS"}
+
+    url = f"https://api.telegram.org/bot{bot_token}/editMessageText"
+    payload: Dict[str, Any] = {
+        "chat_id": str(chat_id),
+        "message_id": int(message_id),
+        "text": text,
+    }
+    if parse_mode:
+        payload["parse_mode"] = parse_mode
+    if reply_markup is not None:
+        payload["reply_markup"] = json.dumps(reply_markup)
+
+    try:
+        client = get_http_client()
+        resp = await client.post(url, json=payload)
+        res_json = resp.json()
+        if resp.status_code == 200 and res_json.get("ok"):
+            return {"success": True, "result": res_json}
+        if "can't parse entities" in str(res_json.get("description", "")):
+            import re
+            plain_text = re.sub(r"<[^>]+>", "", text)
+            payload["text"] = plain_text
+            payload.pop("parse_mode", None)
+            retry_resp = await client.post(url, json=payload)
+            return {"success": retry_resp.status_code == 200, "result": retry_resp.json()}
+        return {"success": False, "error": res_json}
+    except Exception as e:
+        logger.error(f"Error editando mensaje de Telegram ({chat_id}, {message_id}): {e}")
+        return {"success": False, "error": str(e)}
+
+
+async def edit_telegram_reply_markup(
+    chat_id: str | int,
+    message_id: int,
+    reply_markup: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """Actualiza únicamente el teclado en línea (Inline Keyboard) de un mensaje existente utilizando editMessageReplyMarkup."""
+    bot_token, _ = _get_credentials()
+    if not bot_token:
+        return {"success": False, "error": "MISSING_CREDENTIALS"}
+
+    url = f"https://api.telegram.org/bot{bot_token}/editMessageReplyMarkup"
+    payload: Dict[str, Any] = {
+        "chat_id": str(chat_id),
+        "message_id": int(message_id),
+    }
+    if reply_markup is not None:
+        payload["reply_markup"] = json.dumps(reply_markup)
+
+    try:
+        client = get_http_client()
+        resp = await client.post(url, json=payload)
+        res_json = resp.json()
+        if resp.status_code == 200 and res_json.get("ok"):
+            return {"success": True, "result": res_json}
+        return {"success": False, "error": res_json}
+    except Exception as e:
+        logger.error(f"Error en editMessageReplyMarkup ({chat_id}, {message_id}): {e}")
+        return {"success": False, "error": str(e)}
+
+
 async def send_telegram_message(
     text: str,
     chat_id: Optional[str] = None,
@@ -276,13 +349,16 @@ async def send_telegram_message(
     if len(text) > 4000:
         chunks = [text[i:i+3800] for i in range(0, len(text), 3800)]
         last_res = {"success": False}
-        for chunk in chunks:
+        for idx, chunk in enumerate(chunks):
+            # Adjuntar reply_markup solo al último chunk
+            chunk_markup = reply_markup if idx == len(chunks) - 1 else None
+            chunk_reply_to = reply_to_message_id if idx == 0 else None
             last_res = await send_telegram_message(
                 text=chunk,
                 chat_id=chat_id,
                 parse_mode=parse_mode,
-                reply_markup=reply_markup,
-                reply_to_message_id=reply_to_message_id
+                reply_markup=chunk_markup,
+                reply_to_message_id=chunk_reply_to
             )
         return last_res
 
@@ -441,9 +517,14 @@ async def handle_save_trend(
     chat_id: str,
     callback_query_id: Optional[str] = None,
     trend_id: Optional[int] = None,
-    message_id: Optional[int] = None
+    message_id: Optional[int] = None,
+    current_reply_markup: Optional[Dict[str, Any]] = None
 ) -> None:
-    """1. '⭐ Guardar en favoritos': Almacena la tendencia en SQLite y asocia el message_id de Telegram."""
+    """1. Confirmación de Guardado (Post-Deep Dive):
+    Almacena la tendencia en SQLite y utiliza editMessageReplyMarkup para actualizar el teclado
+    en línea de ese mensaje. El botón cambia de '⭐ Añadir a favoritos' a '✅ Guardado' y su
+    callback_data queda inactivo ('NOOP') para evitar clics duplicados.
+    """
     trend = _resolve_target_trend(trend_id)
     if not trend:
         if callback_query_id:
@@ -451,62 +532,236 @@ async def handle_save_trend(
         return
 
     tid = trend["id"]
-    title = trend["title"]
-    mark_as_favorite(tid, message_id=message_id)
+    mark_as_favorite(tid, message_id=message_id, user_id=chat_id)
 
     if callback_query_id:
         await answer_callback_query(callback_query_id, text="⭐ ¡Guardado en tus favoritos!", show_alert=False)
 
-    msg = (
-        f"⭐ <b>Guardado en tus favoritos</b>\n\n"
-        f"La tecnología <b>{title}</b> ha sido almacenada correctamente en tu lista de favoritos.\n\n"
-        f"Puedes consultarla cuando desees con el botón <b>📁 Ver favoritos</b> o el comando <code>/favoritos</code>."
-    )
-    await send_telegram_message(text=msg, chat_id=chat_id)
+    if message_id:
+        # Construir teclado con botón actualizado a "✅ Guardado"
+        new_keyboard = None
+        if current_reply_markup and "inline_keyboard" in current_reply_markup:
+            import copy
+            ik = copy.deepcopy(current_reply_markup["inline_keyboard"])
+            for row in ik:
+                for btn in row:
+                    cb = btn.get("callback_data", "")
+                    if cb.startswith("SAVE_TREND") or cb.startswith("save_favorite"):
+                        btn["text"] = "✅ Guardado"
+                        btn["callback_data"] = "NOOP"
+            new_keyboard = {"inline_keyboard": ik}
+        else:
+            new_keyboard = {
+                "inline_keyboard": [
+                    [{"text": "✅ Guardado", "callback_data": "NOOP"}]
+                ]
+            }
+
+        await edit_telegram_reply_markup(
+            chat_id=chat_id,
+            message_id=message_id,
+            reply_markup=new_keyboard
+        )
+    else:
+        title = trend.get("title", "Tendencia")
+        msg = (
+            f"⭐ <b>Guardado en tus favoritos</b>\n\n"
+            f"La tecnología <b>{title}</b> ha sido almacenada correctamente en tu lista de favoritos.\n\n"
+            f"Puedes consultarla cuando desees con el comando <code>/favoritos</code>."
+        )
+        await send_telegram_message(
+            text=msg,
+            chat_id=chat_id,
+            reply_markup={
+                "inline_keyboard": [
+                    [{"text": "📁 Ver favoritos", "callback_data": "VIEW_FAVS"}]
+                ]
+            }
+        )
 
 
 async def handle_view_favorites(
     chat_id: str,
-    callback_query_id: Optional[str] = None
+    callback_query_id: Optional[str] = None,
+    message_id: Optional[int] = None
 ) -> None:
-    """1. Eliminar Imagen de Favoritos: Responde solo con texto limpio y botones dinámicos para cada favorito."""
+    """2. Vista Limpia de Favoritos:
+    Renderiza la lista de favoritos como texto limpio sin saturar la vista con botones individuales de eliminación.
+    Contiene un único botón al final: '🗑️ Gestionar favoritos' (callback_data='MANAGE_FAVS').
+    """
     if callback_query_id:
         await answer_callback_query(callback_query_id)
 
-    favs = get_favorites()
+    favs = get_favorites(user_id=chat_id)
     if not favs:
         empty_msg = (
             "📁 <b>Portafolio de Favoritos</b>\n\n"
             "Aún no tienes tecnologías guardadas en tus favoritos.\n\n"
-            "Utiliza el botón <b>⭐ Guardar en favoritos</b> en el radar diario para guardar las soluciones más relevantes."
+            "Utiliza el botón <b>⭐ Añadir a favoritos</b> al finalizar un análisis profundo (Deep-Dive) "
+            "o en el radar diario para guardar las soluciones más relevantes."
         )
-        await send_telegram_message(text=empty_msg, chat_id=chat_id)
+        if message_id:
+            res = await edit_telegram_message_text(chat_id=chat_id, message_id=message_id, text=empty_msg)
+            if not res.get("success"):
+                await send_telegram_message(text=empty_msg, chat_id=chat_id)
+        else:
+            await send_telegram_message(text=empty_msg, chat_id=chat_id)
         return
 
-    # 2. Botones Dinámicos: genera un botón por cada tendencia guardada con LOAD_FAV_{id}
+    # Texto limpio con el listado de tendencias guardadas
+    lines = [
+        "📁 <b>Portafolio de Favoritos</b>\n",
+        "Aquí tienes las tecnologías que has guardado para seguimiento comercial:\n"
+    ]
+    for idx, f in enumerate(favs, start=1):
+        title = f.get("title", "Sin título")
+        category = f.get("category", "")
+        cat_str = f" • <i>{category}</i>" if category else ""
+        url = f.get("url", "")
+        url_str = f"\n   🔗 <a href='{url}'>Ver fuente</a>" if url else ""
+        lines.append(f"<b>{idx}. {title}</b>{cat_str}{url_str}")
+
+    text = "\n".join(lines)
+
+    # Un único botón al final: "🗑️ Gestionar favoritos"
+    buttons = [
+        [{"text": "🗑️ Gestionar favoritos", "callback_data": "MANAGE_FAVS"}]
+    ]
+    reply_markup = {"inline_keyboard": buttons}
+
+    if message_id:
+        res = await edit_telegram_message_text(
+            chat_id=chat_id,
+            message_id=message_id,
+            text=text,
+            reply_markup=reply_markup
+        )
+        if not res.get("success"):
+            await send_telegram_message(text=text, chat_id=chat_id, reply_markup=reply_markup)
+    else:
+        await send_telegram_message(text=text, chat_id=chat_id, reply_markup=reply_markup)
+
+
+async def handle_manage_favorites(
+    chat_id: str,
+    message_id: int,
+    callback_query_id: Optional[str] = None
+) -> None:
+    """3. Modo de Eliminación:
+    Edita el mensaje y despliega un InlineKeyboardMarkup donde cada fila es un botón
+    con el nombre de la tendencia ('❌ {Titulo_Tendencia}') y callback_data='REMOVE_FAV_{trend_id}'.
+    Incluye un botón '⬅️ Volver' al final para regresar a la vista de lectura.
+    """
+    if callback_query_id:
+        await answer_callback_query(callback_query_id)
+
+    favs = get_favorites(user_id=chat_id)
+    if not favs:
+        text = (
+            "🗑️ <b>Gestión de Favoritos</b>\n\n"
+            "No tienes tecnologías guardadas para eliminar."
+        )
+        buttons = [
+            [{"text": "⬅️ Volver", "callback_data": "VIEW_FAVS"}]
+        ]
+        await edit_telegram_message_text(
+            chat_id=chat_id,
+            message_id=message_id,
+            text=text,
+            reply_markup={"inline_keyboard": buttons}
+        )
+        return
+
     buttons = []
     for f in favs:
-        btn_text = f"📍 {f['title']}"
+        title = f.get("title", "Tendencia")
+        btn_text = f"❌ {title}"
         buttons.append([
-            {"text": btn_text, "callback_data": f"LOAD_FAV_{f['id']}"}
+            {"text": btn_text, "callback_data": f"REMOVE_FAV_{f['id']}"}
         ])
 
-    # Botones complementarios
     buttons.append([
-        {"text": "📈 Gráfica de tendencias", "callback_data": "GET_CHART"},
-        {"text": "🚀 Forzar nuevo radar", "callback_data": "RUN_RADAR"}
+        {"text": "⬅️ Volver", "callback_data": "VIEW_FAVS"}
     ])
 
     text = (
-        "📁 <b>Portafolio de Favoritos:</b>\n\n"
-        "Toca una tecnología para recuperar y saltar a su tarjeta visual original:"
+        "🗑️ <b>Gestión de Favoritos (Modo Eliminación)</b>\n\n"
+        "Toca sobre cualquier tecnología para retirarla de tu lista.\n"
+        "Pulsa <b>⬅️ Volver</b> para regresar a la vista de lectura:"
     )
 
-    await send_telegram_message(
-        text=text,
+    await edit_telegram_message_text(
         chat_id=chat_id,
+        message_id=message_id,
+        text=text,
         reply_markup={"inline_keyboard": buttons}
     )
+
+
+async def handle_remove_favorite(
+    chat_id: str,
+    trend_id: int,
+    callback_query_id: Optional[str] = None,
+    message_id: Optional[int] = None
+) -> None:
+    """4. Bucle de Eliminación Dinámica:
+    Tras ejecutar el DELETE en SQLite, actualiza instantáneamente el mensaje actual (Modo Eliminación)
+    para que el botón de la tendencia recién borrada desaparezca, permitiendo borrar varios elementos
+    sin salir del menú.
+    """
+    success = remove_favorite(user_id=chat_id, trend_id=trend_id)
+
+    if callback_query_id:
+        if success:
+            await answer_callback_query(callback_query_id, text="❌ Eliminado de favoritos.")
+        else:
+            await answer_callback_query(callback_query_id, text="No se encontró o ya fue eliminado.", show_alert=True)
+
+    # Actualizar instantáneamente el menú en Modo Eliminación
+    favs = get_favorites(user_id=chat_id)
+    if message_id:
+        if not favs:
+            text = (
+                "🗑️ <b>Gestión de Favoritos</b>\n\n"
+                "✅ <i>Todas las tecnologías seleccionadas han sido eliminadas.</i>\n\n"
+                "Tu portafolio de favoritos está vacío."
+            )
+            buttons = [
+                [{"text": "⬅️ Volver", "callback_data": "VIEW_FAVS"}]
+            ]
+            await edit_telegram_message_text(
+                chat_id=chat_id,
+                message_id=message_id,
+                text=text,
+                reply_markup={"inline_keyboard": buttons}
+            )
+        else:
+            buttons = []
+            for f in favs:
+                title = f.get("title", "Tendencia")
+                btn_text = f"❌ {title}"
+                buttons.append([
+                    {"text": btn_text, "callback_data": f"REMOVE_FAV_{f['id']}"}
+                ])
+            buttons.append([
+                {"text": "⬅️ Volver", "callback_data": "VIEW_FAVS"}
+            ])
+
+            text = (
+                "🗑️ <b>Gestión de Favoritos (Modo Eliminación)</b>\n\n"
+                "✅ <i>Elemento eliminado.</i> Toca otra tecnología para retirarla, o pulsa <b>⬅️ Volver</b>:"
+            )
+            await edit_telegram_message_text(
+                chat_id=chat_id,
+                message_id=message_id,
+                text=text,
+                reply_markup={"inline_keyboard": buttons}
+            )
+    else:
+        await send_telegram_message(
+            text="❌ La tecnología ha sido eliminada de tus favoritos.",
+            chat_id=chat_id
+        )
 
 
 async def handle_load_favorite(
@@ -515,7 +770,7 @@ async def handle_load_favorite(
     fav_id: Optional[int] = None
 ) -> None:
     """3. Recuperación de Tarjeta Original: Consulta message_id en SQLite y envía mensaje corto con reply_to_message_id."""
-    favs = get_favorites()
+    favs = get_favorites(user_id=chat_id)
     target_fav = next((f for f in favs if f["id"] == fav_id), None)
     if not target_fav and favs:
         target_fav = favs[0]
@@ -543,7 +798,9 @@ async def handle_load_favorite(
         reply_markup={
             "inline_keyboard": [
                 [
-                    {"text": "🔍 Profundizar datos", "callback_data": f"DEEP_DIVE:{target_fav['id']}"},
+                    {"text": "🔍 Profundizar datos", "callback_data": f"DEEP_DIVE:{target_fav['id']}"}
+                ],
+                [
                     {"text": "📁 Ver favoritos", "callback_data": "VIEW_FAVS"}
                 ]
             ]
@@ -707,10 +964,20 @@ async def handle_deep_dive(
 
     from app.llm_service import generate_deep_dive_report
     report = await generate_deep_dive_report(trend)
+    target_trend_id = trend.get("id") or trend_id
+    reply_markup = None
+    if target_trend_id is not None:
+        reply_markup = {
+            "inline_keyboard": [
+                [{"text": "⭐ Añadir a favoritos", "callback_data": f"SAVE_TREND_{target_trend_id}"}]
+            ]
+        }
+
     await send_telegram_message(
         text=report,
         chat_id=chat_id,
-        parse_mode="HTML"
+        parse_mode="HTML",
+        reply_markup=reply_markup
     )
 
 
@@ -837,25 +1104,68 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
             return
 
         # Regla estricta: en grupos está prohibido mostrar/procesar favoritos o profundizar
-        if chat_type in ("group", "supergroup") and action in ("SAVE_TREND", "save_favorite", "VIEW_FAVS", "view_favorites", "DEEP_DIVE", "deep_dive"):
+        if chat_type in ("group", "supergroup") and (
+            action in ("SAVE_TREND", "save_favorite", "VIEW_FAVS", "view_favorites", "DEEP_DIVE", "deep_dive")
+            or data.startswith("SAVE_TREND")
+            or data.startswith("REMOVE_FAV")
+            or data.startswith("VIEW_FAVS")
+        ):
             await answer_callback_query(cb_id, text="⚠️ Esta función solo está disponible en chat privado con el bot.", show_alert=True)
             return
 
-        if action in ("SAVE_TREND", "save_favorite"):
+        # Manejo de REMOVE_FAV_{trend_id} o REMOVE_FAV:{trend_id}
+        if data.startswith("REMOVE_FAV"):
+            clean_tid = data.replace("REMOVE_FAV_", "").replace("REMOVE_FAV:", "").strip()
+            rem_id = int(clean_tid) if clean_tid.isdigit() else None
+            if rem_id is not None:
+                await handle_remove_favorite(
+                    chat_id=user_chat_id,
+                    trend_id=rem_id,
+                    callback_query_id=cb_id,
+                    message_id=orig_msg_id
+                )
+            else:
+                await answer_callback_query(cb_id, text="ID de tendencia no válido.", show_alert=True)
+            return
+
+        # Manejo de NOOP (botón ya presionado / guardado)
+        if data == "NOOP":
+            await answer_callback_query(cb_id, text="Esta tecnología ya está guardada en tus favoritos.")
+            return
+
+        # Manejo de MANAGE_FAVS (Modo Eliminación)
+        if data == "MANAGE_FAVS":
+            await handle_manage_favorites(
+                chat_id=user_chat_id,
+                message_id=orig_msg_id,
+                callback_query_id=cb_id
+            )
+            return
+
+        if action in ("SAVE_TREND", "save_favorite") or data.startswith("SAVE_TREND"):
+            clean_tid = data.replace("SAVE_TREND_", "").replace("SAVE_TREND:", "").replace("save_favorite:", "").strip()
+            save_id = int(clean_tid) if clean_tid.isdigit() else trend_id
             await handle_save_trend(
                 chat_id=user_chat_id,
                 callback_query_id=cb_id,
-                trend_id=trend_id,
+                trend_id=save_id,
+                message_id=orig_msg_id,
+                current_reply_markup=msg_obj.get("reply_markup")
+            )
+        elif action in ("VIEW_FAVS", "view_favorites") or data == "VIEW_FAVS":
+            await handle_view_favorites(
+                chat_id=user_chat_id,
+                callback_query_id=cb_id,
                 message_id=orig_msg_id
             )
-        elif action in ("VIEW_FAVS", "view_favorites"):
-            await handle_view_favorites(chat_id=user_chat_id, callback_query_id=cb_id)
         elif action in ("LOAD_FAV", "GOTO_FAV", "goto_fav"):
             await handle_load_favorite(chat_id=user_chat_id, callback_query_id=cb_id, fav_id=trend_id)
-        elif action in ("GET_CHART", "view_chart"):
+        elif action in ("GET_CHART", "view_chart") or data == "GET_CHART":
             await handle_get_chart(chat_id=user_chat_id, callback_query_id=cb_id, trend_id=trend_id)
-        elif action in ("DEEP_DIVE", "deep_dive"):
-            await handle_deep_dive(chat_id=user_chat_id, callback_query_id=cb_id, trend_id=trend_id)
+        elif action in ("DEEP_DIVE", "deep_dive") or data.startswith("DEEP_DIVE"):
+            clean_tid = data.replace("DEEP_DIVE_", "").replace("DEEP_DIVE:", "").replace("deep_dive:", "").strip()
+            dd_id = int(clean_tid) if clean_tid.isdigit() else trend_id
+            await handle_deep_dive(chat_id=user_chat_id, callback_query_id=cb_id, trend_id=dd_id)
         elif action in ("RUN_RADAR", "run_radar"):
             await answer_callback_query(cb_id, text="🚀 Ejecutando radar diario...")
             if chat_type in ("group", "supergroup"):
@@ -932,6 +1242,10 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
                 zona_norm = val_res.get("zona_normalizada") or text.strip().title()
                 set_user_zone(user_chat_id, zona_norm)
 
+                # Si es localidad menor escalada, enviar mensaje explicativo primero
+                if val_res.get("es_localidad_menor") and val_res.get("mensaje_escalado"):
+                    await send_telegram_message(text=val_res["mensaje_escalado"], chat_id=user_chat_id)
+
                 # Paso 2: Preguntar por la industria en la zona normalizada
                 msg_step2 = f"💼 Perfecto. ¿De qué industria quieres conocer las tendencias en {zona_norm}?"
                 await send_telegram_message(text=msg_step2, chat_id=user_chat_id)
@@ -941,20 +1255,33 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
             if not curr_ind:
                 logger.info(f"[Telegram Bot] Clasificando industria en Paso 2: '{text}' para chat {user_chat_id}")
                 class_res = await classify_user_input(text)
+                if not class_res.get("valido", False):
+                    razon = class_res.get("razon_rechazo") or "El texto ingresado no es una industria o sector comercial válido."
+                    msg_reject = (
+                        f"⚠️ {razon}\n\n"
+                        f"💼 ¿De qué industria te interesa conocer las tendencias en {curr_zone}? (Ej. Fintech, Salud, E-Commerce, Inteligencia Artificial, Logística)."
+                    )
+                    await send_telegram_message(text=msg_reject, chat_id=user_chat_id)
+                    return
+
                 detected_industry = class_res.get("industria") or "TI & Software B2B"
                 set_user_industry(user_chat_id, detected_industry)
 
-                # Paso 3: Entrega automática sin volver a preguntar configuración
+                # Confirmación inmediata con botón de configuración (sin renderizado inmediato)
                 conf_msg = (
-                    f"✅ <b>Configuración completada:</b>\n"
-                    f"• Región: <b>{curr_zone}</b>\n"
-                    f"• Industria: <b>{detected_industry}</b>\n\n"
-                    "🚀 <i>Detonando búsqueda y generando tu tarjeta visual de tendencia...</i>"
+                    "✅ Configuración completada. Tu radar está activo.\n\n"
+                    f"Recibirás la tendencia más relevante de {detected_industry} en {curr_zone} todos los días a las 10:00 AM."
                 )
-                await send_telegram_message(text=conf_msg, chat_id=user_chat_id)
-
-                from app.main import run_individual_pipeline
-                asyncio.create_task(run_individual_pipeline(chat_id=user_chat_id))
+                reset_kb = {
+                    "inline_keyboard": [
+                        [{"text": "⚙️ Configuración", "callback_data": "RESET_CONFIG"}]
+                    ]
+                }
+                await send_telegram_message(
+                    text=conf_msg,
+                    chat_id=user_chat_id,
+                    reply_markup=reset_kb
+                )
                 return
 
             # Paso 3 ya completado previamente: el bot no vuelve a pedir configuración
