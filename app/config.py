@@ -60,6 +60,7 @@ class Settings:
     TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
     TELEGRAM_CHAT_ID: str = os.getenv("TELEGRAM_CHAT_ID", "")
     TELEGRAM_GROUP_CHAT_ID: str = os.getenv("TELEGRAM_GROUP_CHAT_ID") or os.getenv("TELEGRAM_PUBLISH_CHAT_ID", "-5326590371")
+    TELEGRAM_GROUP_INVITE_LINK: str = os.getenv("TELEGRAM_GROUP_INVITE_LINK", "https://t.me/+KzJZD9mDqAdkZmIx")
     TELEGRAM_BOT_USERNAME: str = os.getenv("TELEGRAM_BOT_USERNAME", "Tendencias_DiegoBot")
     SCHEDULE_TIME: str = os.getenv("SCHEDULE_TIME", "07:00")
     DEDUPLICATION_WINDOW_DAYS: int = int(os.getenv("DEDUPLICATION_WINDOW_DAYS", "30"))

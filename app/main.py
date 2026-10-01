@@ -36,7 +36,10 @@ from app.database import (
     get_favorites,
     get_recent_sent_trends,
     get_user_zone,
+    get_user_zone_hierarchy,
     get_user_industry,
+    get_user_exact_industry,
+    get_user_categoria_api,
     get_user_daily_card_count,
     get_expired_card_messages,
     delete_card_record,
@@ -203,7 +206,7 @@ async def run_group_pipeline(chat_id: Optional[str] = None) -> Dict[str, Any]:
     }
 
 
-async def run_individual_pipeline(chat_id: Optional[str] = None) -> Dict[str, Any]:
+async def run_individual_pipeline(chat_id: Optional[str] = None, ignore_daily_limit: bool = False) -> Dict[str, Any]:
     """2. Pipeline Individual (DM): Segmentado por la zona del usuario, menú completo de 4 botones.
     Respeta el límite estricto de 3 envíos diarios por usuario.
     """
@@ -213,7 +216,7 @@ async def run_individual_pipeline(chat_id: Optional[str] = None) -> Dict[str, An
     # Verificar límite estricto de 3 envíos diarios por usuario
     daily_count = get_user_daily_card_count(str(target_chat))
     max_daily = settings.USER_DAILY_SEND_LIMIT
-    if daily_count >= max_daily:
+    if not ignore_daily_limit and daily_count >= max_daily:
         msg = f"Límite diario alcanzado ({daily_count}/{max_daily}) para el chat {target_chat}."
         logger.warning(f"[Pipeline Individual] {msg}")
         return {
@@ -230,20 +233,68 @@ async def run_individual_pipeline(chat_id: Optional[str] = None) -> Dict[str, An
     clear_chart_cache()
 
     # 1. Obtener preferencias de zona e industria del usuario
-    user_zone = get_user_zone(str(target_chat)) or "Global"
+    user_zone_local, user_zone_pais = get_user_zone_hierarchy(str(target_chat))
+    user_zone = user_zone_local or "Global"
     user_industry = get_user_industry(str(target_chat)) or "TI & Software B2B"
-    all_trends = fetch_all_trends(zone=user_zone, industry=user_industry)
-    top_trend = select_top_trend(all_trends, industry=user_industry)
+    user_exact_industry = get_user_exact_industry(str(target_chat)) or user_industry
+    user_categoria_api = get_user_categoria_api(str(target_chat)) or "general"
+
+    # Búsqueda inicial estricta en la zona local/regional solicitada
+    all_trends = fetch_all_trends(
+        zone=user_zone_local,
+        industry=user_exact_industry,
+        categoria_api=user_categoria_api,
+        industria_exacta=user_exact_industry
+    )
+    top_trend = select_top_trend(all_trends, industry=user_exact_industry)
+    fallback_activado = False
+    effective_zone = user_zone_local
+
+    # Búsqueda con Rescate: SÓLO si la búsqueda local arroja 0 resultados
+    # y la zona local difiere del país macro:
+    if not top_trend and user_zone_local.strip().lower() != user_zone_pais.strip().lower():
+        logger.warning(
+            f"[Pipeline Individual] 0 tendencias encontradas para '{user_zone_local}'. "
+            f"Ejecutando búsqueda de rescate ampliada a nivel país macro: '{user_zone_pais}'..."
+        )
+        rescue_trends = fetch_all_trends(
+            zone=user_zone_pais,
+            industry=user_exact_industry,
+            categoria_api=user_categoria_api,
+            industria_exacta=user_exact_industry
+        )
+        top_trend = select_top_trend(rescue_trends, industry=user_exact_industry)
+        if top_trend:
+            fallback_activado = True
+            effective_zone = user_zone_pais
+            logger.info(
+                f"[Pipeline Individual] Búsqueda de rescate exitosa en '{user_zone_pais}' para '{user_exact_industry}'."
+            )
+
     if not top_trend:
-        logger.error(f"[Pipeline Individual] No hay tendencias frescas disponibles para {user_industry} en {user_zone}.")
+        logger.error(
+            f"[Pipeline Individual] No hay tendencias frescas disponibles para {user_exact_industry} "
+            f"en {user_zone_local}" + (f" ni en rescate {user_zone_pais}" if user_zone_local != user_zone_pais else "") + "."
+        )
         return {"status": "error", "message": "No fresh trends available"}
 
     # 2. Análisis con Gemma enfocado en la zona e industria del usuario
-    trend_dict = {**top_trend.model_dump(), "geo_region": user_zone, "category": user_industry}
+    trend_dict = {
+        **top_trend.model_dump(),
+        "geo_region": effective_zone,
+        "category": user_exact_industry,
+        "industria_exacta": user_exact_industry,
+        "fallback_activado": fallback_activado,
+        "zona_local": user_zone_local,
+        "zona_pais": user_zone_pais
+    }
     card_data = await generate_trend_card_data(
         trend_data=trend_dict,
         business_context_text=business_context.raw_content
     )
+    card_data["fallback_activado"] = fallback_activado
+    card_data["zona_local"] = user_zone_local
+    card_data["zona_pais"] = user_zone_pais
 
     # 3. Renderizado con Playwright
     target_png = settings.BASE_DIR / "temp_card.png"
@@ -252,23 +303,38 @@ async def run_individual_pipeline(chat_id: Optional[str] = None) -> Dict[str, An
     # 4. Persistencia en SQLite
     trend_id = save_trend(trend_data=top_trend.model_dump(), card_data=card_data)
 
-    # 5. Envío a Telegram con el panel interactivo completo (4 botones)
+    # 5. Notificación Transparente y Envío a Telegram con panel interactivo
+    caption = ""
+    if fallback_activado:
+        caption = f"📍 *Nota del radar: No detectamos volumen suficiente de datos en {user_zone_local} hoy, por lo que hemos ampliado el análisis a nivel {user_zone_pais}.*"
+
     reply_markup = build_interactive_keyboard(trend_id=trend_id, source_url=top_trend.url)
     telegram_result = await send_telegram_notification(
         photo_path=target_png,
-        caption="",
+        caption=caption,
+        parse_mode="Markdown" if fallback_activado else "HTML",
         reply_markup=reply_markup,
         chat_id=target_chat,
-        chat_type="private"
+        chat_type="private",
+        trend_id=trend_id,
+        fallback_activado=fallback_activado,
+        zona_local=user_zone_local,
+        zona_pais=user_zone_pais
     )
 
     duration = (datetime.now() - start_time).total_seconds()
-    logger.info(f"PIPELINE INDIVIDUAL COMPLETADO EN {duration:.2f}s (Zona: {user_zone} | Industria: {user_industry})")
+    logger.info(
+        f"PIPELINE INDIVIDUAL COMPLETADO EN {duration:.2f}s "
+        f"(Zona: {effective_zone} [Fallback: {fallback_activado}] | Industria: {user_industry})"
+    )
     return {
         "status": "success",
         "chat_type": "private",
         "chat_id": target_chat,
-        "zone": user_zone,
+        "zone": effective_zone,
+        "zona_local": user_zone_local,
+        "zona_pais": user_zone_pais,
+        "fallback_activado": fallback_activado,
         "industry": user_industry,
         "trend_id": trend_id,
         "duration_seconds": duration,
@@ -364,7 +430,8 @@ async def lifespan(app: FastAPI):
         trigger=CronTrigger(hour="10,14,18", minute=0),
         id="group_intelligence_pipeline_10_14_18",
         name="Pipeline Grupo TI (10:00, 14:00, 18:00)",
-        replace_existing=True
+        replace_existing=True,
+        misfire_grace_time=3600
     )
     logger.info("Cron de Grupo programado: estrictamente a las 10:00, 14:00 y 18:00.")
 
@@ -374,7 +441,8 @@ async def lifespan(app: FastAPI):
         trigger=CronTrigger(hour=10, minute=0),
         id="individual_intelligence_pipeline_daily_10am",
         name="Pipeline Individual Diario (10:00 AM)",
-        replace_existing=True
+        replace_existing=True,
+        misfire_grace_time=3600
     )
     logger.info("Cron Individual programado: diariamente a las 10:00 AM para todos los usuarios con perfil completo.")
 
@@ -384,7 +452,8 @@ async def lifespan(app: FastAPI):
         trigger=CronTrigger(hour=3, minute=0),
         id="cleanup_expired_cards_daily",
         name="Depuración Diaria TTL Tarjetas 7 Días (03:00 AM)",
-        replace_existing=True
+        replace_existing=True,
+        misfire_grace_time=3600
     )
     logger.info("Cron de Caducidad (TTL 7 días) programado: diariamente a las 03:00 AM.")
 

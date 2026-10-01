@@ -200,9 +200,18 @@ Devuelve un JSON estrictamente válido en ESPAÑOL. El análisis debe coincidir 
 
     # Blindaje REGLA DE ORO 2: Si el título resultante es idéntico al nombre de la herramienta, transformarlo a tendencia
     tool_raw_name = str(trend_data.get("title") or "").strip().lower()
+    exact_niche = str(trend_data.get("industria_exacta") or "").strip()
     if tool_raw_name and (clean_title.lower() == tool_raw_name or clean_title.lower().startswith(tool_raw_name + " ") or clean_title.lower() == f"solución {tool_raw_name}"):
-        cat_name = str(trend_data.get("category") or "Software B2B").strip()
+        cat_name = exact_niche or str(trend_data.get("category") or "Software B2B").strip()
         clean_title = f"Optimización de {cat_name}"[:36]
+
+    if exact_niche:
+        if exact_niche.lower() not in clean_title.lower():
+            if len(clean_title) <= 22:
+                clean_title = f"{clean_title} en {exact_niche}"[:48]
+            elif any(w in clean_title.lower() for w in ["optimización", "digitalización", "adopción", "demanda", "innovación", "tendencia"]):
+                first_word = clean_title.split()[0]
+                clean_title = f"{first_word} en {exact_niche}"[:48]
 
     final_card["title"] = clean_title
 
@@ -470,44 +479,63 @@ async def generate_deep_dive_report(
         except Exception:
             zona_preferida = "Global"
 
+    # Determinar industria objetivo del usuario
+    user_industry = trend_data.get("target_industry") or trend_data.get("category")
+    if not user_industry or str(user_industry).lower() in ("tecnología", "global", ""):
+        try:
+            from app.database import get_user_industry
+            user_industry = get_user_industry()
+        except Exception:
+            user_industry = "TI & Software B2B"
+    if not user_industry:
+        user_industry = "TI & Software B2B"
+
     selected_model = model or settings.OLLAMA_MODEL
 
     system_prompt = (
-        "Eres un Auditor de Inteligencia Comercial y Estrategia Tecnológica B2B de máxima rigurosidad. "
-        "Tu misión es generar un reporte de análisis profundo y transparencia analítica sobre una tecnología detectada por el radar.\n\n"
-        "REGLAS OBLIGATORIAS DE TRANSPARENCIA Y RIGOR:\n"
-        "1. TRANSPARENCIA EN MÉTRICAS DURAS: Desglosa obligatoriamente las métricas exactas y crudas extraídas de la fuente "
-        "(volumen numérico, puntajes de tracción, tasas de variación porcentual y velocidad de difusión). Sin rodeos ni métricas inventadas.\n"
-        "2. JUSTIFICACIÓN EXPLÍCITA CON REGLAS DE NEGOCIO (tendencias.txt): Detalla explícitamente cómo y bajo qué criterios "
-        "cruzaste los datos crudos con las líneas estratégicas y reglas de negocio del archivo local 'tendencias' "
-        "(Comercio B2B, AI & Analytics, o TI & Software Empresarial; adopción en empresas objetivo y ROI < 6 meses). Demuestra con precisión por qué la herramienta es relevante.\n"
-        f"3. ENFOQUE REGIONAL ({zona_preferida}): Analiza la viabilidad, facilidad de adopción, consideraciones operativas y ROI comercial "
-        f"específicamente para las organizaciones y empresas que operan en el mercado de {zona_preferida}.\n"
-        "4. DESGLOSE TÉCNICO Y COMERCIAL: Arquitectura de integración, stack tecnológico, monetización B2B y viabilidad.\n"
-        "5. FORMATO: Emplea HTML limpio soportado por Telegram (solamente <b>, <i>, <code>). Estilo ejecutivo, denso y directo.\n"
-        "6. FIDELIDAD: Basa el análisis exclusivamente en el software analizado y su propuesta real. Cero referencias a sectores ajenos (cero ganadería/agricultura)."
+        "Eres un Consultor Estratégico Senior de Inteligencia Comercial B2B dirigiéndote a un Director de Negocios y Tecnología.\n"
+        "Tu misión es elaborar un reporte ejecutivo de análisis profundo, consultivo y de alto nivel sobre una oportunidad o solución tecnológica identificada en el mercado.\n\n"
+        "REGLAS INQUEBRANTABLES DE ENMASCARAMIENTO Y ESTILO CONSULTIVO:\n"
+        "1. PROHIBICIÓN ABSOLUTA DE JERGA TÉCNICA INTERNA Y FUENTES RAW:\n"
+        "   - ESTÁ ESTRICTAMENTE PROHIBIDO mencionar nombres de archivos internos (ej. 'tendencias.txt', '.txt', '.csv', '.json'), nombres de APIs o fuentes crudas (ej. 'google_trends', 'Reddit', 'Product Hunt', 'RSS'), o jerga de desarrollo interno (ej. 'ingesta', 'score algorítmico', 'datos crudos', 'scraping').\n"
+        "   - Cuando justifiques la oportunidad basándote en el contexto estratégico interno, refiérete a él exclusivamente como 'nuestro análisis del sector', 'inteligencia de mercado' o 'criterios de viabilidad corporativa'.\n"
+        "2. TONO Y POSTURA EJECUTIVA:\n"
+        "   - Escribe con el tono de un Socio Consultor de Estrategia Digital: analítico, persuasivo, fundamentado en valor económico, reducción de costos y ventaja competitiva.\n"
+        "3. ENCABEZADOS ORIENTADOS A VALOR COMERCIAL:\n"
+        "   - Usa encabezados ejecutivos y elegantes (prohibido usar términos como 'desglose crudo', 'métrica dura' o 'arquitectura algorítmica').\n"
+        "   - Apartados obligatorios:\n"
+        "     1. 📊 Tracción y Demanda de Mercado\n"
+        f"     2. 🎯 Tesis de Oportunidad y Criterios de Viabilidad ({zona_preferida})\n"
+        "     3. ⚙️ Ruta de Implementación y Stack\n"
+        f"     4. 💼 Plan de Acción y Monetización B2B para {user_industry}\n"
+        "4. PLAN DE ACCIÓN APLICABLE AL SECTOR:\n"
+        f"   - El reporte DEBE cerrar obligatoriamente en el apartado 4 con un breve plan de acción accionable en 3 fases (Semana 1-2: Diagnóstico/PoC, Mes 1: Piloto, Mes 3: Escalamiento) aplicable específicamente a la industria de {user_industry} en {zona_preferida}.\n"
+        "5. FORMATO:\n"
+        "   - Emplea formato HTML limpio compatible con Telegram (solamente <b>, <i>, <code>). Estructura ejecutiva, concisa y orientada a la toma de decisiones."
     )
 
     user_prompt = (
-        f"Genera el reporte de profundización y transparencia para la siguiente tecnología B2B:\n\n"
-        f"📌 TECNOLOGÍA: {title}\n"
-        f"🏷️ CATEGORÍA: {category}\n"
-        f"🌐 FUENTE: {source}\n"
-        f"🌍 MERCADO REGIONAL OBJETIVO: {zona_preferida}\n"
-        f"📊 MÉTRICAS CRUDAS EXTRAÍDAS: {metric_label} = {metric_val} | Delta / Crecimiento = {delta_val} | Score Algorítmico = {score:.1f}\n"
-        f"📝 PROPUESTA DE VALOR / RESUMEN: {summary}\n"
-        f"⚙️ STACK / COMPONENTES: {stack_names}\n\n"
-        f"REGLAS DE NEGOCIO DEL ARCHIVO LOCAL (data/tendencias.txt):\n"
-        f"{business_rules_text}\n\n"
-        f"Estructura el reporte en estos 4 apartados obligatorios:\n"
-        f"1. 📊 <b>DESGLOSE DE MÉTRICAS DURAS Y CRUDAS EXTRAÍDAS</b>\n"
-        f"2. 🎯 <b>JUSTIFICACIÓN EXPLÍCITA: CRUCE CON REGLAS DE NEGOCIO (tendencias.txt) & ENFOQUE {zona_preferida.upper()}</b>\n"
-        f"3. ⚙️ <b>DESGLOSE TÉCNICO & ARQUITECTURA DE INTEGRACIÓN</b>\n"
-        f"4. 💼 <b>VIABILIDAD COMERCIAL & MONETIZACIÓN B2B ({zona_preferida.upper()})</b>"
+        f"Elabora el reporte estratégico de profundización para la siguiente oportunidad de negocio B2B:\n\n"
+        f"📌 SOLUCIÓN / OPORTUNIDAD: {title}\n"
+        f"🏷️ ENFOQUE: {category}\n"
+        f"💼 SECTOR DE APLICACIÓN: {user_industry}\n"
+        f"🌍 MERCADO REGIONAL: {zona_preferida}\n"
+        f"📈 SEÑALES DE DEMANDA AUDITADAS: {metric_label}: {metric_val} ({delta_val} de crecimiento sostenido)\n"
+        f"📝 PROPUESTA DE VALOR: {summary}\n"
+        f"⚙️ COMPONENTES Y STACK SUGERIDO: {stack_names}\n\n"
+        f"CRITERIOS DE VIABILIDAD CORPORATIVA DE REFERENCIA:\n"
+        f"Eficiencia operativa, digitalización de flujos B2B, integración ágil y retorno de inversión (ROI) estimado inferior a 6 meses.\n\n"
+        f"Estructura el reporte en exactamente estos 4 apartados ejecutivos (usando etiquetas HTML <b>, <i>, <code>):\n"
+        f"1. 📊 <b>Tracción y Demanda de Mercado</b>\n"
+        f"2. 🎯 <b>Tesis de Oportunidad y Criterios de Viabilidad ({zona_preferida})</b>\n"
+        f"3. ⚙️ <b>Ruta de Implementación y Stack</b>\n"
+        f"4. 💼 <b>Plan de Acción y Monetización B2B para {user_industry}</b>\n\n"
+        f"Recuerda: Prohibido mencionar archivos (como tendencias.txt), fuentes (como google_trends o Reddit) o términos como 'ingesta' o 'algorítmico'. "
+        f"El apartado 4 debe contener un plan de acción concreto de 3 fases para empresas del sector {user_industry}."
     )
 
     try:
-        async with httpx.AsyncClient(timeout=90.0) as client:
+        async with httpx.AsyncClient(timeout=120.0) as client:
             resp = await client.post(
                 f"{settings.OLLAMA_BASE_URL}/api/chat",
                 json={
@@ -517,46 +545,52 @@ async def generate_deep_dive_report(
                         {"role": "user", "content": user_prompt}
                     ],
                     "stream": False,
-                    "options": {"temperature": 0.2}
+                    "options": {"temperature": 0.2, "num_predict": 850}
                 }
             )
             if resp.status_code == 200:
                 content = resp.json().get("message", {}).get("content", "").strip()
                 if len(content) > 150:
+                    # Sanitizar etiquetas no soportadas por Telegram
+                    cleaned_content = content.replace("```html", "").replace("```", "").strip()
+                    cleaned_content = cleaned_content.replace("<li>", "• ").replace("</li>", "\n")
+                    cleaned_content = cleaned_content.replace("<ul>", "").replace("</ul>", "")
+                    cleaned_content = cleaned_content.replace("<ol>", "").replace("</ol>", "")
+                    cleaned_content = cleaned_content.replace("<p>", "").replace("</p>", "\n\n")
+                    cleaned_content = re.sub(r'<(?!/?(?:b|strong|i|em|u|ins|s|strike|del|span|tg-spoiler|a|code|pre|blockquote)\b)[^>]+>', '', cleaned_content)
+                    cleaned_content = re.sub(r'\n{3,}', '\n\n', cleaned_content).strip()
+
                     header = (
-                        f"🔍 <b>REPORTE DE PROFUNDIZACIÓN & TRANSPARENCIA ANALÍTICA</b>\n"
-                        f"📌 <b>Tecnología:</b> {title}\n"
-                        f"🏷️ <b>Categoría:</b> {category}\n"
-                        f"🌍 <b>Mercado Objetivo:</b> {zona_preferida}\n"
-                        f"🌐 <b>Fuente de Ingesta:</b> {source}\n\n"
+                        f"📊 <b>REPORTE ESTRATÉGICO DE PROFUNDIZACIÓN B2B</b>\n"
+                        f"📌 <b>Oportunidad / Solución:</b> {title}\n"
+                        f"💼 <b>Industria Objetivo:</b> {user_industry}\n"
+                        f"🌍 <b>Mercado Regional:</b> {zona_preferida}\n\n"
                     )
-                    return header + content
+                    return header + cleaned_content
     except Exception as e:
         logger.warning(f"Error generando reporte profundo con Gemma: {e}")
 
-    # Fallback estructurado de alta calidad si Ollama no responde
+    # Fallback consultivo de alta calidad si Ollama no responde o supera timeout
     return (
-        f"🔍 <b>REPORTE DE PROFUNDIZACIÓN & TRANSPARENCIA ANALÍTICA</b>\n"
-        f"📌 <b>Tecnología:</b> {title}\n"
-        f"🏷️ <b>Categoría:</b> {category}\n"
-        f"🌍 <b>Mercado Objetivo:</b> {zona_preferida}\n"
-        f"🌐 <b>Fuente de Ingesta:</b> {source}\n\n"
-        f"1. 📊 <b>DESGLOSE DE MÉTRICAS DURAS Y CRUDAS EXTRAÍDAS</b>\n"
-        f"• <b>Métrica Principal Cruda ({metric_label}):</b> <code>{metric_val}</code>\n"
-        f"• <b>Tasa de Variación / Crecimiento:</b> <code>{delta_val}</code>\n"
-        f"• <b>Puntaje Algorítmico Ponderado:</b> <code>{score:.1f} pts</code>\n"
-        f"• <b>Señal de Tracción:</b> Actividad detectada directamente en los endpoints de {source}. El volumen evidencia un interés activo y orgánico por equipos técnicos y tomadores de decisión.\n\n"
-        f"2. 🎯 <b>JUSTIFICACIÓN EXPLÍCITA: CRUCE CON REGLAS DE NEGOCIO & ENFOQUE {zona_preferida.upper()}</b>\n"
-        f"• <b>Regla de Negocio Aplicada:</b> Se alinea con el pilar de <i>{category}</i> definido en <code>tendencias.txt</code>.\n"
-        f"• <b>Criterio de Evaluación:</b> Cumple con los criterios de viabilidad al ofrecer una curva de adopción ágil sin requerir refactorizaciones complejas de infraestructura.\n"
-        f"• <b>Estimación de ROI:</b> Proyectado en menos de 6 meses para organizaciones en {zona_preferida}, gracias a la automatización de procesos operativos y reducción de tiempos de ciclo.\n\n"
-        f"3. ⚙️ <b>DESGLOSE TÉCNICO & ARQUITECTURA DE INTEGRACIÓN</b>\n"
-        f"• <b>Stack & Ecosistema:</b> {stack_names}.\n"
-        f"• <b>Integración:</b> Arquitectura modular desacoplada mediante APIs RESTful y Webhooks para interoperabilidad inmediata con ERPs y plataformas corporativas.\n"
-        f"• <b>Seguridad Empresarial:</b> Protocolos SSO/OAuth2, encriptación en tránsito y reposo, y auditoría de eventos.\n\n"
-        f"4. 💼 <b>VIABILIDAD COMERCIAL & MONETIZACIÓN B2B ({zona_preferida.upper()})</b>\n"
-        f"• <b>Esquema de Negocio:</b> Modelo SaaS escalable por volumen de uso o asientos, facilitando pruebas de concepto (PoC) rápidas antes de acuerdos Enterprise.\n"
-        f"• <b>Ventaja Competitiva en {zona_preferida}:</b> Resuelve directamente puntos de dolor actuales frente a herramientas tradicionales con mayor costo y menor dinamismo.\n"
+        f"📊 <b>REPORTE ESTRATÉGICO DE PROFUNDIZACIÓN B2B</b>\n"
+        f"📌 <b>Oportunidad / Solución:</b> {title}\n"
+        f"💼 <b>Industria Objetivo:</b> {user_industry}\n"
+        f"🌍 <b>Mercado Regional:</b> {zona_preferida}\n\n"
+        f"1. 📊 <b>Tracción y Demanda de Mercado</b>\n"
+        f"• <b>Métrica Clave de Adopción ({metric_label}):</b> <code>{metric_val}</code>\n"
+        f"• <b>Tendencia de Crecimiento:</b> <code>{delta_val}</code>\n"
+        f"• <b>Validación Comercial:</b> Nuestro análisis de mercado detecta un incremento constante en la demanda de soluciones digitales enfocadas en optimización operativa e integración B2B.\n\n"
+        f"2. 🎯 <b>Tesis de Oportunidad y Criterios de Viabilidad ({zona_preferida})</b>\n"
+        f"• <b>Alineación Estratégica:</b> La solución responde directamente a nuestros criterios de viabilidad corporativa en modernización digital y eficiencia operativa.\n"
+        f"• <b>Proyección de Retorno:</b> Estimación de recuperación de inversión (ROI) en menos de 6 meses en organizaciones de {zona_preferida}, impulsada por la automatización de flujos y reducción de costos operativos.\n\n"
+        f"3. ⚙️ <b>Ruta de Implementación y Stack</b>\n"
+        f"• <b>Tecnologías Clave:</b> {stack_names}.\n"
+        f"• <b>Arquitectura:</b> Modelo modular desacoplado mediante APIs seguras y Webhooks para conectarse con sistemas empresariales preexistentes sin interrumpir la operación continua.\n"
+        f"• <b>Gobernanza:</b> Autenticación corporativa SSO/OAuth2 y cifrado integral de datos de extremo a extremo.\n\n"
+        f"4. 💼 <b>Plan de Acción y Monetización B2B para {user_industry}</b>\n"
+        f"• <b>Fase 1 (Semanas 1-2):</b> Evaluación diagnóstica y Prueba de Concepto (PoC) sobre procesos críticos del sector {user_industry}.\n"
+        f"• <b>Fase 2 (Mes 1):</b> Despliegue piloto controlado con usuarios clave y medición de KPIs de eficiencia.\n"
+        f"• <b>Fase 3 (Mes 3 en adelante):</b> Integración completa y monetización basada en valor agregado y ahorro operativo en {zona_preferida}.\n"
     )
 
 
@@ -581,11 +615,13 @@ async def classify_user_input(
     if not cleaned_input or len(cleaned_input) < 2:
         return {
             "valido": False,
+            "industria_exacta": "",
+            "categoria_api": "general",
             "industria": None,
-            "razon_rechazo": "Por favor escribe un sector comercial o industria de interés (ej. Fintech, Salud, E-Commerce, Logística)."
+            "razon_rechazo": "Por favor escribe un sector comercial, industria o tecnología de interés (ej. Industria Pesquera, Tecnologías de la Información, Inteligencia Artificial)."
         }
 
-    lower_text = cleaned_input.lower()
+    lower_text = cleaned_input.lower().strip()
 
     # 1. Filtro estricto previo de groserías, palabras basura o entradas inválidas evidentes
     profanities = [
@@ -596,27 +632,116 @@ async def classify_user_input(
     if any(p == lower_text or f" {p} " in f" {lower_text} " for p in profanities):
         return {
             "valido": False,
+            "industria_exacta": "",
+            "categoria_api": "general",
             "industria": None,
-            "razon_rechazo": f"'{cleaned_input}' no es una industria o sector comercial válido. Por favor, especifica un sector como Fintech, Salud, E-Commerce o Logística."
+            "razon_rechazo": f"'{cleaned_input}' no es una industria, sector comercial o tecnología válida. Por favor, especifica un área real (ej. Industria Pesquera, Tecnologías de la Información, Inteligencia Artificial)."
         }
 
     # 2. Detección de patrones evidentes de letras al azar
     vowels = set("aeiouáéíóú")
-    if not any(c in vowels for c in lower_text) and lower_text not in ("ti", "ai", "hr"):
+    if not any(c in vowels for c in lower_text) and lower_text not in ("ti", "ai", "hr", "tic", "tics", "tic's"):
         return {
             "valido": False,
+            "industria_exacta": "",
+            "categoria_api": "general",
             "industria": None,
-            "razon_rechazo": "El texto parece ser letras al azar. Por favor, escribe un sector comercial real (ej. Fintech, Salud, Software)."
+            "razon_rechazo": "El texto parece ser letras al azar. Por favor, escribe un sector comercial o tecnología real."
         }
+
+    # 3. Mapeo determinista prioritario de alta granularidad (precisión inmediata)
+    known_granular_map = {
+        "pesca": ("Industria Pesquera", "general"),
+        "pesquero": ("Industria Pesquera", "general"),
+        "pesquera": ("Industria Pesquera", "general"),
+        "industria pesquera": ("Industria Pesquera", "general"),
+        "tic's": ("Tecnologías de la Información", "tech"),
+        "tics": ("Tecnologías de la Información", "tech"),
+        "tic": ("Tecnologías de la Información", "tech"),
+        "tecnologias de la informacion": ("Tecnologías de la Información", "tech"),
+        "tecnologías de la información": ("Tecnologías de la Información", "tech"),
+        "inteligencia generativa": ("Inteligencia Artificial", "tech"),
+        "ia generativa": ("Inteligencia Artificial", "tech"),
+        "inteligencia artificial": ("Inteligencia Artificial", "tech"),
+        "ia": ("Inteligencia Artificial", "tech"),
+        "blockchain": ("Tecnología Blockchain", "tech"),
+        "cadena de bloques": ("Tecnología Blockchain", "tech"),
+        "cripto": ("Tecnología Blockchain", "tech"),
+        "criptomonedas": ("Tecnología Blockchain", "tech"),
+        "agricultura": ("Agricultura", "general"),
+        "agro": ("Agroindustria & Agricultura", "general"),
+        "agrotech": ("Agrotech", "tech"),
+        "ganaderia": ("Ganadería", "general"),
+        "ganadería": ("Ganadería", "general"),
+        "mineria": ("Industria Minera", "general"),
+        "minería": ("Industria Minera", "general"),
+        "fintech": ("Fintech & Servicios Financieros", "tech"),
+        "finanzas": ("Fintech & Servicios Financieros", "tech"),
+        "banca": ("Banca & Servicios Financieros", "tech"),
+        "ecommerce": ("E-Commerce & Comercio Digital", "retail"),
+        "e-commerce": ("E-Commerce & Comercio Digital", "retail"),
+        "comercio electronico": ("E-Commerce & Comercio Digital", "retail"),
+        "comercio electrónico": ("E-Commerce & Comercio Digital", "retail"),
+        "retail": ("Retail & Comercio Minorista", "retail"),
+        "ciberseguridad": ("Ciberseguridad", "tech"),
+        "seguridad informatica": ("Ciberseguridad", "tech"),
+        "seguridad informática": ("Ciberseguridad", "tech"),
+        "software": ("Software & SaaS", "tech"),
+        "saas": ("Software & SaaS", "tech"),
+        "salud": ("Sector Salud & Medicina", "general"),
+        "medicina": ("Sector Salud & Medicina", "general"),
+        "healthtech": ("Healthtech & Salud Digital", "tech"),
+        "logistica": ("Logística & Cadena de Suministro", "general"),
+        "logística": ("Logística & Cadena de Suministro", "general"),
+        "construccion": ("Construcción & Infraestructura", "general"),
+        "construcción": ("Construcción & Infraestructura", "general"),
+        "turismo": ("Turismo & Hospitalidad", "general"),
+        "gastronomia": ("Gastronomía & Restauración", "general"),
+        "gastronomía": ("Gastronomía & Restauración", "general"),
+        "educacion": ("Sector Educación", "general"),
+        "educación": ("Sector Educación", "general"),
+        "edtech": ("EdTech", "tech")
+    }
+
+    # Revisión directa de exact match o contención en el mapeo granular
+    for kw, (sec_name, cat) in known_granular_map.items():
+        if kw == lower_text:
+            return {
+                "valido": True,
+                "industria_exacta": sec_name,
+                "categoria_api": cat,
+                "industria": sec_name,
+                "razon_rechazo": ""
+            }
 
     selected_model = model or settings.OLLAMA_MODEL
 
     system_prompt = (
-        "Evalúa si el texto representa una industria, sector comercial o nicho de mercado real. "
-        "Detecta groserías o palabras basura (ej. 'caca'). "
-        "Si es inválido, devuelve ESTRICTAMENTE JSON: {'valido': false, 'razon_rechazo': 'Mensaje educado'}. "
-        "Si es válido, devuelve: {'valido': true, 'industria': 'Nombre de la industria normalizado'}. "
-        "PROHIBIDO poner 'Tecnología' por defecto si el texto es inválido."
+        "Eres un Enrutador Semántico Granular y Clasificador de Nicho para Inteligencia Comercial B2B.\n"
+        "Tu misión es analizar la entrada del usuario y clasificarla respetando con máxima fidelidad la granularidad exacta del sector o tecnología sin diluir ni agrupar erróneamente conceptos.\n\n"
+        "REGLAS DE ORO:\n"
+        "1. REGLA DE GRANULARIDAD: Normaliza la entrada al nombre profesional EXACTO del sector o tecnología. "
+        "Si el usuario ingresa 'Pesca', devuelve 'Industria Pesquera' (NUNCA Agricultura). "
+        "Si ingresa 'Agricultura', devuelve 'Agricultura'. "
+        "Si ingresa acrónimos como 'TIC\'s', devuelve 'Tecnologías de la Información'. "
+        "Cualquier sector primario (Pesca, Ganadería, Agricultura, Minería), oficios o nichos específicos ES 100% VÁLIDO. "
+        "ESTÁ ESTRICTAMENTE PROHIBIDO clasificar actividades comerciales legítimas como lenguaje ofensivo o inválidas.\n"
+        "2. REGLA DE PRECISIÓN TECNOLÓGICA: Si el usuario ingresa una tecnología específica, respétala. "
+        "'Inteligencia generativa' se normaliza a 'Inteligencia Artificial'. "
+        "'Blockchain' se normaliza a 'Tecnología Blockchain'. "
+        "NUNCA las diluyas en 'Tecnología General' o 'TI'. Todos estos conceptos son VÁLIDOS.\n"
+        "3. CATEGORÍA DE API (categoria_api): Debe ser exactamente uno de estos tres valores:\n"
+        "   - 'tech': Si es software, plataformas digitales, inteligencia artificial, blockchain, TIC's, devops, ciberseguridad, fintech.\n"
+        "   - 'retail': Si es comercio electrónico, retail, tiendas online, marketplace, puntos de venta.\n"
+        "   - 'general': Para sectores primarios (Industria Pesquera, Agricultura, Ganadería, Minería), oficios, salud tradicional, logística o negocios tradicionales.\n"
+        "4. DETECCIÓN DE BASURA: SOLO debes rechazar (valido: false) insultos explícitos, groserías o letras al azar sin sentido (ej. 'asdasd', 'dfghjk').\n\n"
+        "FORMATO DE SALIDA (ESTRICTAMENTE JSON):\n"
+        "{\n"
+        '  "valido": true/false,\n'
+        '  "industria_exacta": "Nombre profesional preciso (ej. Industria Pesquera, Inteligencia Artificial)",\n'
+        '  "categoria_api": "tech, retail, o general",\n'
+        '  "razon_rechazo": "Solo si es texto basura"\n'
+        "}"
     )
 
     try:
@@ -639,63 +764,67 @@ async def classify_user_input(
                 extracted = _extract_json(raw_json_str)
                 if extracted and "valido" in extracted:
                     is_val = bool(extracted.get("valido"))
-                    ind_val = str(extracted.get("industria") or "").strip()
+                    ind_exact = str(extracted.get("industria_exacta") or extracted.get("industria") or "").strip()
+                    cat_api = str(extracted.get("categoria_api") or "general").strip().lower()
+                    if cat_api not in ("tech", "retail", "general"):
+                        cat_api = "general"
                     razon = str(extracted.get("razon_rechazo") or "").strip()
 
-                    # Blindaje: Si devolvió 'Tecnología' por defecto ante un texto que no tiene relación técnica
-                    if is_val and ind_val:
-                        if ind_val.lower() in ("tecnología", "tecnologia", "technology"):
+                    # Blindaje REGLA DE GRANULARIDAD: Evitar que 'Pesca' se transforme en Agricultura
+                    if "pesca" in lower_text or "pesquer" in lower_text:
+                        ind_exact = "Industria Pesquera"
+                        cat_api = "general"
+                        is_val = True
+
+                    # Blindaje acrónimos TIC's
+                    if lower_text in ("tic", "tics", "tic's"):
+                        ind_exact = "Tecnologías de la Información"
+                        cat_api = "tech"
+                        is_val = True
+
+                    # Blindaje Inteligencia generativa -> Inteligencia Artificial
+                    if "generativa" in lower_text or "inteligencia artificial" in lower_text or lower_text == "ia":
+                        ind_exact = "Inteligencia Artificial"
+                        cat_api = "tech"
+                        is_val = True
+
+                    if is_val and ind_exact:
+                        # Si devolvió 'Tecnología' genérico ante texto no tecnológico
+                        if ind_exact.lower() in ("tecnología", "tecnologia", "technology"):
                             if not any(w in lower_text for w in ["tec", "software", "ti", "it", "sistemas", "dev", "codigo", "código", "app", "digital", "computacion", "computación"]):
                                 return {
                                     "valido": False,
+                                    "industria_exacta": "",
+                                    "categoria_api": "general",
                                     "industria": None,
                                     "razon_rechazo": f"'{cleaned_input}' no parece ser un sector comercial válido."
                                 }
 
                         return {
                             "valido": True,
-                            "industria": ind_val,
+                            "industria_exacta": ind_exact,
+                            "categoria_api": cat_api,
+                            "industria": ind_exact,
                             "razon_rechazo": ""
                         }
                     else:
                         return {
                             "valido": False,
+                            "industria_exacta": "",
+                            "categoria_api": "general",
                             "industria": None,
                             "razon_rechazo": razon or f"'{cleaned_input}' no es una industria o sector comercial válido."
                         }
     except Exception as e:
         logger.warning(f"Error en classify_user_input con Ollama ({e}).")
 
-    # Mapeo determinista para sectores reconocidos comunes
-    known_sectors = {
-        "fintech": "Fintech & Servicios Financieros",
-        "finanzas": "Fintech & Servicios Financieros",
-        "banca": "Fintech & Servicios Financieros",
-        "salud": "Salud & Healthtech",
-        "medicina": "Salud & Healthtech",
-        "healthtech": "Salud & Healthtech",
-        "ecommerce": "E-Commerce & Retailtech",
-        "comercio": "E-Commerce & Retailtech",
-        "retail": "E-Commerce & Retailtech",
-        "ciberseguridad": "Ciberseguridad",
-        "seguridad": "Ciberseguridad",
-        "logistica": "Logística & Supply Chain",
-        "logística": "Logística & Supply Chain",
-        "marketing": "Marketing & AdTech",
-        "publicidad": "Marketing & AdTech",
-        "software": "TI & Software B2B",
-        "saas": "TI & Software B2B",
-        "inteligencia artificial": "Inteligencia Artificial & IA",
-        "ia": "Inteligencia Artificial & IA",
-        "agrotech": "Agrotech & Agricultura",
-        "educacion": "EdTech & Educación",
-        "educación": "EdTech & Educación",
-        "edtech": "EdTech & Educación"
-    }
-    for kw, sec_name in known_sectors.items():
+    # Mapeo determinista secundario (si kw está contenido en lower_text)
+    for kw, (sec_name, cat) in known_granular_map.items():
         if kw in lower_text:
             return {
                 "valido": True,
+                "industria_exacta": sec_name,
+                "categoria_api": cat,
                 "industria": sec_name,
                 "razon_rechazo": ""
             }
@@ -703,8 +832,10 @@ async def classify_user_input(
     # Si no es un sector conocido y falló el LLM, RECHAZAR en lugar de alucinar 'Tecnología'
     return {
         "valido": False,
+        "industria_exacta": "",
+        "categoria_api": "general",
         "industria": None,
-        "razon_rechazo": f"No pudimos reconocer '{cleaned_input}' como un sector comercial o industria válida. Por favor, intenta con ejemplos como Fintech, Salud, E-Commerce, Ciberseguridad o Logística."
+        "razon_rechazo": f"No pudimos reconocer '{cleaned_input}' como un sector comercial o industria válida. Por favor, intenta con ejemplos como Industria Pesquera, Tecnologías de la Información, Inteligencia Artificial, Fintech o Logística."
     }
 
 
@@ -879,26 +1010,23 @@ async def validate_zone(
     text: str,
     model: Optional[str] = None
 ) -> Dict[str, Any]:
-    """Evalúa si el texto del usuario es una región geográfica válida y aplica escalado territorial para localidades menores.
-    Detecta groserías, letras al azar, países ficticios y normaliza municipios a su entidad/mercado macro.
-    Devuelve JSON con:
-      - valido: bool
-      - zona_normalizada: str
-      - es_localidad_menor: bool
-      - mensaje_escalado: Optional[str]
-      - razon_rechazo: str
+    """Evalúa la entrada geográfica del usuario con análisis jerárquico (zona_local vs zona_pais).
+    - Infiere estados/ciudades clave para regiones.
+    - Asume México por defecto para 'sur del país', 'capital del país', 'centro'.
+    - Devuelve JSON estricto:
+      {"valido": bool, "zona_local": str, "zona_pais": str, "razon_rechazo": str}
     """
     cleaned_input = str(text or "").strip()
-    lower_input = cleaned_input.lower()
+    lower_input = cleaned_input.lower().strip()
     
     # 1. Filtro estricto anti-letras al azar (ej. 'jsjdsjd') y texto vacío
     if _is_gibberish_zone(cleaned_input):
         return {
             "valido": False,
+            "zona_local": "",
+            "zona_pais": "",
             "zona_normalizada": None,
-            "es_localidad_menor": False,
-            "mensaje_escalado": None,
-            "razon_rechazo": "El texto proporcionado parece ser letras al azar o una entrada no válida. Por favor, escribe un país, continente o región económica real (ej. China, Silicon Valley, Europa, Global)."
+            "razon_rechazo": "El texto proporcionado parece ser letras al azar o una entrada no válida. Por favor, escribe un estado, ciudad, región o país real (ej. Oaxaca, Norte de México, Silicon Valley, Global)."
         }
 
     # 2. Filtro estricto contra países y territorios ficticios conocidos (Marvel, DC, cine, literatura)
@@ -906,77 +1034,92 @@ async def validate_zone(
         if fic == lower_input or f" {fic} " in f" {lower_input} ":
             return {
                 "valido": False,
+                "zona_local": "",
+                "zona_pais": "",
                 "zona_normalizada": None,
-                "es_localidad_menor": False,
-                "mensaje_escalado": None,
-                "razon_rechazo": f"'{cleaned_input}' es un país o territorio ficticio (de cine, cómics o literatura). Por favor, escribe un país, continente o región real (ej. México, España, Silicon Valley, Europa, Global)."
+                "razon_rechazo": f"'{cleaned_input}' es un país o territorio ficticio (de cine, cómics o literatura). Por favor, escribe un país, estado o región real (ej. Oaxaca, México, Silicon Valley, Global)."
             }
 
-    # 3. Comprobación rápida para países y polos tecnológicos consolidados (coincidencia directa)
-    if lower_input in KNOWN_TECH_ZONES:
+    # 3. Mapeo determinista para regiones con país por defecto México
+    REGIONAL_INFERENCES = {
+        "norte": ("Norte de México (Monterrey, Tijuana, Juárez, Chihuahua)", "México"),
+        "norte de mexico": ("Norte de México (Monterrey, Tijuana, Juárez, Chihuahua)", "México"),
+        "norte de méxico": ("Norte de México (Monterrey, Tijuana, Juárez, Chihuahua)", "México"),
+        "el norte": ("Norte de México (Monterrey, Tijuana, Juárez, Chihuahua)", "México"),
+        "sur": ("Sur de México (Oaxaca, Chiapas, Yucatán, Veracruz)", "México"),
+        "el sur": ("Sur de México (Oaxaca, Chiapas, Yucatán, Veracruz)", "México"),
+        "sur del pais": ("Sur de México (Oaxaca, Chiapas, Yucatán, Veracruz)", "México"),
+        "sur del país": ("Sur de México (Oaxaca, Chiapas, Yucatán, Veracruz)", "México"),
+        "sur de mexico": ("Sur de México (Oaxaca, Chiapas, Yucatán, Veracruz)", "México"),
+        "sur de méxico": ("Sur de México (Oaxaca, Chiapas, Yucatán, Veracruz)", "México"),
+        "capital": ("Ciudad de México (CDMX)", "México"),
+        "capital del pais": ("Ciudad de México (CDMX)", "México"),
+        "capital del país": ("Ciudad de México (CDMX)", "México"),
+        "cdmx": ("Ciudad de México (CDMX)", "México"),
+        "centro": ("Centro de México (CDMX, Puebla, Querétaro, Estado de México)", "México"),
+        "el centro": ("Centro de México (CDMX, Puebla, Querétaro, Estado de México)", "México"),
+        "centro del pais": ("Centro de México (CDMX, Puebla, Querétaro, Estado de México)", "México"),
+        "centro del país": ("Centro de México (CDMX, Puebla, Querétaro, Estado de México)", "México"),
+        "bajio": ("Bajío Mexicano (Guanajuato, Querétaro, Aguascalientes)", "México"),
+        "bajío": ("Bajío Mexicano (Guanajuato, Querétaro, Aguascalientes)", "México"),
+        "occidente": ("Occidente de México (Guadalajara, Jalisco, Colima)", "México"),
+        "sur de canada": ("Sur de Canadá (Toronto, Montreal, Vancouver)", "Canadá"),
+        "sur de canadá": ("Sur de Canadá (Toronto, Montreal, Vancouver)", "Canadá"),
+        "silicon valley": ("Silicon Valley (California)", "Estados Unidos"),
+        "california": ("California", "Estados Unidos"),
+        "texas": ("Texas", "Estados Unidos"),
+    }
+
+    if lower_input in REGIONAL_INFERENCES:
+        z_loc, z_p = REGIONAL_INFERENCES[lower_input]
         return {
             "valido": True,
-            "zona_normalizada": KNOWN_TECH_ZONES[lower_input],
-            "es_localidad_menor": False,
-            "mensaje_escalado": None,
+            "zona_local": z_loc,
+            "zona_pais": z_p,
+            "zona_normalizada": z_loc,
             "razon_rechazo": ""
         }
 
-    # 4. Regla de Nivel Territorial determinista: Detección de Municipio + Estado (ej. 'Altotonga Veracruz', 'Zapopan Jalisco')
+    # 4. Estados de México (ej. Oaxaca, Veracruz, Jalisco)
     for st_key, st_name in MEXICAN_STATES.items():
-        if st_key in lower_input:
-            # Si el texto es exactamente solo el nombre del estado (ej. 'Veracruz' o 'Oaxaca')
-            if lower_input == st_key:
-                return {
-                    "valido": True,
-                    "zona_normalizada": f"{st_name} / México",
-                    "es_localidad_menor": False,
-                    "mensaje_escalado": None,
-                    "razon_rechazo": ""
-                }
-            # Si contiene palabras adicionales, es un municipio/pueblo dentro del estado
-            mun_candidate = re.sub(re.escape(st_key), "", lower_input, flags=re.IGNORECASE).strip(" ,.-/")
-            mun_name = mun_candidate.title() if mun_candidate else "su localidad"
-            norm_zone = f"{st_name} / México"
-            msg_escalado = (
-                f"📍 Detectamos que {mun_name} es un municipio de {st_name}. "
-                f"Dado que las fuentes de inteligencia tecnológica monitorean mercados consolidados, "
-                f"enfocaremos tu radar en {norm_zone} para darte métricas reales y confiables."
-            )
+        if lower_input == st_key or lower_input == f"estado de {st_key}":
             return {
                 "valido": True,
-                "zona_normalizada": norm_zone,
-                "es_localidad_menor": True,
-                "localidad": mun_name,
-                "entidad_macro": st_name,
-                "mensaje_escalado": msg_escalado,
+                "zona_local": st_name,
+                "zona_pais": "México",
+                "zona_normalizada": f"{st_name}, México",
                 "razon_rechazo": ""
             }
 
-    # 5. Comprobación de subcadena en países/polos consolidados
-    for k, v in KNOWN_TECH_ZONES.items():
-        if k in lower_input:
-            return {
-                "valido": True,
-                "zona_normalizada": v,
-                "es_localidad_menor": False,
-                "mensaje_escalado": None,
-                "razon_rechazo": ""
-            }
+    # 5. Países y Polos Macro Consolidados
+    if lower_input in KNOWN_TECH_ZONES:
+        macro_name = KNOWN_TECH_ZONES[lower_input]
+        return {
+            "valido": True,
+            "zona_local": macro_name,
+            "zona_pais": macro_name,
+            "zona_normalizada": macro_name,
+            "razon_rechazo": ""
+        }
 
     selected_model = model or settings.OLLAMA_MODEL
 
-    # Prompt con escalado territorial y REGLAS DE ORO
     system_prompt = (
-        "Evalúa si el siguiente texto es un país, continente, región económica/tecnológica o una localidad/municipio/pueblo del planeta Tierra hoy en día.\n"
-        "REGLA DE ORO 1: PROHIBIDO adivinar, asumir o autocompletar. Si el texto es un sistema de transporte (ej. Mexibus), groserías, texto sin sentido o algo que NO sea una región geográfica real, DEBES devolver 'valido': false. Bajo ninguna circunstancia devuelvas un país por defecto como 'Estados Unidos' si el usuario no lo escribió.\n"
-        "REGLA DE ORO 2 (RESOLUCIÓN GEOGRÁFICA DE LOCALIDADES): Si el usuario ingresa un municipio, localidad o pueblo pequeño (ej. 'Ahueyahualco', 'Altotonga', 'Uruapan'), DEBES usar tu base de conocimiento para identificar su país. Devuelve ÚNICAMENTE EL NOMBRE REAL DEL PAÍS en 'zona_normalizada' (ej. 'México'). ESTÁ ESTRICTAMENTE PROHIBIDO devolver etiquetas genéricas o placeholders como 'Estado / País' o 'Tu País', y ESTÁ PROHIBIDO repetir el nombre del pueblo en 'zona_normalizada'.\n"
-        "REGLAS:\n"
-        "1. Si es un territorio ficticio de cine/cómics (ej. Sokovia, Wakanda) o un sistema/objeto no geográfico: {'valido': false, 'razon_rechazo': 'Mensaje educado'}\n"
-        "2. Si es un país o polo global (ej. México, España, Japón, Europa): {'valido': true, 'es_localidad_menor': false, 'zona_normalizada': 'Nombre Real del País o Región', 'razon_rechazo': ''}\n"
-        "3. Si es un municipio, localidad o pueblo menor (ej. Ahueyahualco): identifica su país real. "
-        "{'valido': true, 'es_localidad_menor': true, 'localidad': 'Ahueyahualco', 'entidad_macro': 'México', 'zona_normalizada': 'México', 'razon_rechazo': ''}\n"
-        "Devuelve ESTRICTAMENTE JSON."
+        "Eres un Analista y Validador de Geografía Jerárquica para Inteligencia Comercial B2B.\n"
+        "Tu misión es clasificar y descomponer la entrada geográfica del usuario en dos niveles jerárquicos estrictos: nivel local o regional ('zona_local') y país macro ('zona_pais').\n\n"
+        "REGLAS OBLIGATORIAS:\n"
+        "1. REGLA 1 (REGIONES): Si el usuario menciona una región (ej. 'Norte de México', 'Sur de Canadá'), DEBES inferir los estados/ciudades principales de esa zona para enriquecer la búsqueda en 'zona_local' (ej. 'Norte de México (Monterrey, Tijuana, Juárez, Chihuahua)').\n"
+        "2. REGLA 2 (PAÍS POR DEFECTO): Si el usuario menciona 'sur del país', 'capital del país', 'centro', 'el sur' sin especificar la nación, DEBES asumir 'México' por defecto (a menos que especifique expresamente otro país como 'de EUA', 'de España', etc.).\n"
+        "3. CIUDADES Y ESTADOS: Si el usuario ingresa una ciudad o estado (ej. 'Oaxaca', 'Medellín', 'Barcelona'), 'zona_local' debe ser la ciudad/estado y 'zona_pais' su país correspondiente (ej. Oaxaca -> zona_local: 'Oaxaca', zona_pais: 'México').\n"
+        "4. PAÍSES DIRECTOS: Si el usuario ingresa un país completo (ej. 'México', 'Colombia', 'España'), tanto 'zona_local' como 'zona_pais' deben ser el nombre del país.\n"
+        "5. RECHAZO DE BASURA: SOLO debes rechazar ('valido': false) si el texto son insultos, sistemas de transporte (ej. Mexibús, Metrobús), o letras al azar sin sentido (ej. 'asdasd').\n\n"
+        "FORMATO DE SALIDA (ESTRICTAMENTE JSON):\n"
+        "{\n"
+        '  "valido": true/false,\n'
+        '  "zona_local": "Ciudad, Estado o Región inferida exacta",\n'
+        '  "zona_pais": "País macro al que pertenece",\n'
+        '  "razon_rechazo": "Solo si es basura"\n'
+        "}"
     )
 
     try:
@@ -999,71 +1142,55 @@ async def validate_zone(
                 extracted = _extract_json(raw_json_str)
                 if extracted and "valido" in extracted:
                     is_val = bool(extracted.get("valido"))
-                    norm_zone = extracted.get("zona_normalizada")
+                    z_local = str(extracted.get("zona_local") or extracted.get("zona_normalizada") or "").strip()
+                    z_pais = str(extracted.get("zona_pais") or "").strip()
                     reject_msg = str(extracted.get("razon_rechazo") or "").strip()
-                    
-                    if is_val and norm_zone and str(norm_zone).lower() not in ("null", "none", ""):
-                        norm_clean = str(norm_zone).strip()
-                        # Si el LLM devolvió un placeholder prohibido (ej. 'Estado / País', 'Tu País'), inferir 'México'
-                        if any(p in norm_clean.lower() for p in ["estado / país", "estado / pais", "tu país", "tu pais", "estado", "país", "pais", "nombre"]):
-                            logger.warning(f"[validate_zone] Placeholder prohibido '{norm_clean}' detectado para '{cleaned_input}'. Resolviendo a país real.")
-                            norm_clean = "México"
 
-                        # Si el modelo repitió el nombre de la localidad en lugar de resolver el país macro
-                        is_minor = bool(extracted.get("es_localidad_menor", False))
-                        loc = extracted.get("localidad") or cleaned_input.title()
-                        ent = extracted.get("entidad_macro") or norm_clean
-                        if any(p in str(ent).lower() for p in ["estado / país", "estado / pais", "tu país", "tu pais", "estado", "país", "pais"]):
-                            ent = "México"
+                    # Resolución de país por defecto si quedó vacío o genérico
+                    if not z_pais or any(p in z_pais.lower() for p in ["estado / país", "estado / pais", "tu país", "tu pais", "país", "pais"]):
+                        if any(w in lower_input for w in ["mexico", "méxico", "sur del", "capital del", "centro", "norte", "bajio", "oaxaca"]):
+                            z_pais = "México"
+                        else:
+                            z_pais = "México"
 
-                        if is_minor and norm_clean.lower() == cleaned_input.lower():
-                            if ent and ent.lower() != cleaned_input.lower() and ent.lower() not in ("null", "none"):
-                                norm_clean = ent
-                            else:
-                                norm_clean = "México"
+                    if not z_local:
+                        z_local = cleaned_input.title()
 
-                        # Protección anti-alucinación: Si Gemma intentó autocompletar 'Estados Unidos' sin que el usuario lo escribiera
-                        if any(us_w in norm_clean.lower() for us_w in ["estados unidos", "united states", "eeuu", "usa"]):
-                            if not any(w in lower_input for w in ["estados unidos", "united states", "eeuu", "ee.uu.", "usa", "us", "america", "américa"]):
-                                logger.warning(f"[validate_zone] Alucinación de '{norm_clean}' detectada para '{cleaned_input}'. Rechazando.")
-                                return {
-                                    "valido": False,
-                                    "zona_normalizada": None,
-                                    "es_localidad_menor": False,
-                                    "mensaje_escalado": None,
-                                    "razon_rechazo": f"'{cleaned_input}' no es una región geográfica válida. Por favor, escribe un país, estado o región real (ej. México, España, Silicon Valley, Europa, Global)."
-                                }
-                        
-                        msg_esc = None
-                        if is_minor:
-                            msg_esc = (
-                                f"📍 Detectamos que {loc} es una localidad de {norm_clean}. "
-                                f"Dado que las fuentes de inteligencia tecnológica monitorean mercados consolidados, "
-                                f"enfocaremos tu radar en {norm_clean} para darte métricas reales y confiables."
-                            )
-
+                    if is_val and z_local:
                         return {
                             "valido": True,
-                            "zona_normalizada": norm_clean,
-                            "es_localidad_menor": is_minor,
-                            "mensaje_escalado": msg_esc,
+                            "zona_local": z_local,
+                            "zona_pais": z_pais,
+                            "zona_normalizada": f"{z_local}, {z_pais}" if z_local != z_pais and z_pais not in z_local else z_local,
                             "razon_rechazo": ""
                         }
                     else:
                         return {
                             "valido": False,
+                            "zona_local": "",
+                            "zona_pais": "",
                             "zona_normalizada": None,
-                            "es_localidad_menor": False,
-                            "mensaje_escalado": None,
-                            "razon_rechazo": reject_msg or "No pudimos reconocer esa región. Por favor, escribe un país o polo tecnológico conocido (ej. China, Silicon Valley, Europa, Global)."
+                            "razon_rechazo": reject_msg or f"No pudimos reconocer '{cleaned_input}' como una región geográfica válida."
                         }
     except Exception as e:
         logger.warning(f"Error en validate_zone con Ollama ({e}).")
 
+    # Fallback si falló el LLM
+    # Buscar si menciona algún estado mexicano
+    for st_key, st_name in MEXICAN_STATES.items():
+        if st_key in lower_input:
+            return {
+                "valido": True,
+                "zona_local": st_name,
+                "zona_pais": "México",
+                "zona_normalizada": f"{st_name}, México",
+                "razon_rechazo": ""
+            }
+
     return {
         "valido": False,
+        "zona_local": "",
+        "zona_pais": "",
         "zona_normalizada": None,
-        "es_localidad_menor": False,
-        "mensaje_escalado": None,
-        "razon_rechazo": "No pudimos reconocer esa región geográfica o económica. Por favor, intenta con un país o mercado reconocido como México, Silicon Valley, China, Europa o Global."
+        "razon_rechazo": f"No pudimos reconocer '{cleaned_input}' como una región geográfica o económica válida. Por favor, intenta con ejemplos como Oaxaca, Norte de México, Silicon Valley o Global."
     }

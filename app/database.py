@@ -73,10 +73,14 @@ def init_db(db_path: Optional[str] = None) -> None:
             );
 
             CREATE TABLE IF NOT EXISTS configuracion_usuario (
-                chat_id         TEXT PRIMARY KEY,
-                zona_preferida  TEXT NOT NULL DEFAULT 'Global',
-                industria       TEXT NOT NULL DEFAULT 'TI & Software B2B',
-                updated_at      TEXT NOT NULL
+                chat_id          TEXT PRIMARY KEY,
+                zona_preferida   TEXT NOT NULL DEFAULT 'Global',
+                zona_local       TEXT NOT NULL DEFAULT '',
+                zona_pais        TEXT NOT NULL DEFAULT '',
+                industria        TEXT NOT NULL DEFAULT 'TI & Software B2B',
+                industria_exacta TEXT NOT NULL DEFAULT '',
+                categoria_api    TEXT NOT NULL DEFAULT 'general',
+                updated_at       TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS registro_tarjetas_enviadas (
@@ -119,8 +123,16 @@ def init_db(db_path: Optional[str] = None) -> None:
         }
         if "zona_preferida" not in cfg_cols and cfg_cols:
             conn.execute("ALTER TABLE configuracion_usuario ADD COLUMN zona_preferida TEXT NOT NULL DEFAULT 'Global'")
+        if "zona_local" not in cfg_cols and cfg_cols:
+            conn.execute("ALTER TABLE configuracion_usuario ADD COLUMN zona_local TEXT NOT NULL DEFAULT ''")
+        if "zona_pais" not in cfg_cols and cfg_cols:
+            conn.execute("ALTER TABLE configuracion_usuario ADD COLUMN zona_pais TEXT NOT NULL DEFAULT ''")
         if "industria" not in cfg_cols and cfg_cols:
             conn.execute("ALTER TABLE configuracion_usuario ADD COLUMN industria TEXT NOT NULL DEFAULT 'TI & Software B2B'")
+        if "industria_exacta" not in cfg_cols and cfg_cols:
+            conn.execute("ALTER TABLE configuracion_usuario ADD COLUMN industria_exacta TEXT DEFAULT ''")
+        if "categoria_api" not in cfg_cols and cfg_cols:
+            conn.execute("ALTER TABLE configuracion_usuario ADD COLUMN categoria_api TEXT DEFAULT 'general'")
 
 
 def _normalize_url(url: str) -> str:
@@ -291,6 +303,43 @@ def get_trend_by_id(trend_id: int) -> Optional[Dict[str, Any]]:
         return data
 
 
+def get_favorite_or_trend(identifier: int) -> Optional[Dict[str, Any]]:
+    """Busca una tendencia por ID tanto en tendencias_guardadas como en historial_envios, deserializando card_data/llm_analysis."""
+    with _get_connection() as conn:
+        # 1. Buscar en tendencias_guardadas por id
+        row = conn.execute("SELECT * FROM tendencias_guardadas WHERE id = ?", (identifier,)).fetchone()
+        if row:
+            data = dict(row)
+            card_dict = None
+            if data.get("llm_analysis"):
+                try:
+                    card_dict = json.loads(data["llm_analysis"]) if isinstance(data["llm_analysis"], str) else data["llm_analysis"]
+                except Exception:
+                    pass
+            if not card_dict and data.get("url_hash"):
+                h_row = conn.execute("SELECT card_data FROM historial_envios WHERE url_hash = ?", (data["url_hash"],)).fetchone()
+                if h_row and h_row["card_data"]:
+                    try:
+                        card_dict = json.loads(h_row["card_data"]) if isinstance(h_row["card_data"], str) else h_row["card_data"]
+                    except Exception:
+                        pass
+            data["card_data"] = card_dict
+            return data
+
+        # 2. Buscar en historial_envios por id
+        h_row = conn.execute("SELECT * FROM historial_envios WHERE id = ?", (identifier,)).fetchone()
+        if h_row:
+            data = dict(h_row)
+            if data.get("card_data"):
+                try:
+                    data["card_data"] = json.loads(data["card_data"]) if isinstance(data["card_data"], str) else data["card_data"]
+                except Exception:
+                    pass
+            return data
+
+        return None
+
+
 def get_recent_sent_trends(limit: int = 20) -> List[Dict[str, Any]]:
     """Retorna las tendencias enviadas recientemente ordenadas cronológicamente."""
     with _get_connection() as conn:
@@ -431,19 +480,28 @@ def get_daily_history(date: Optional[datetime] = None) -> List[Dict[str, Any]]:
         return [dict(r) for r in rows]
 
 
-def set_user_zone(chat_id: str, zone: Optional[str]) -> None:
-    """Guarda o actualiza la zona geográfica preferida del usuario en SQLite."""
+def set_user_zone(
+    chat_id: str,
+    zone: Optional[str],
+    zona_local: Optional[str] = None,
+    zona_pais: Optional[str] = None
+) -> None:
+    """Guarda o actualiza la zona geográfica preferida del usuario en SQLite (con soporte jerárquico local/país)."""
     val = str(zone).strip() if zone else ""
+    z_local = str(zona_local).strip() if zona_local is not None else val
+    z_pais = str(zona_pais).strip() if zona_pais is not None else val
     with _get_connection() as conn:
         conn.execute(
             """
-            INSERT INTO configuracion_usuario (chat_id, zona_preferida, industria, updated_at)
-            VALUES (?, ?, '', ?)
+            INSERT INTO configuracion_usuario (chat_id, zona_preferida, zona_local, zona_pais, industria, updated_at)
+            VALUES (?, ?, ?, ?, '', ?)
             ON CONFLICT(chat_id) DO UPDATE SET
                 zona_preferida = excluded.zona_preferida,
+                zona_local = excluded.zona_local,
+                zona_pais = excluded.zona_pais,
                 updated_at = excluded.updated_at
             """,
-            (str(chat_id), val, datetime.utcnow().isoformat())
+            (str(chat_id), val, z_local, z_pais, datetime.utcnow().isoformat())
         )
 
 
@@ -452,7 +510,7 @@ def get_user_zone(chat_id: Optional[str] = None, default: Optional[str] = None) 
     with _get_connection() as conn:
         if chat_id:
             row = conn.execute(
-                "SELECT zona_preferida FROM configuracion_usuario WHERE chat_id = ?",
+                "SELECT zona_preferida, zona_local, zona_pais FROM configuracion_usuario WHERE chat_id = ?",
                 (str(chat_id),)
             ).fetchone()
             if row and row["zona_preferida"] and str(row["zona_preferida"]).strip():
@@ -461,7 +519,7 @@ def get_user_zone(chat_id: Optional[str] = None, default: Optional[str] = None) 
 
         # Si no se especificó chat_id o no existe aún, tomar la última guardada no vacía
         row = conn.execute(
-            "SELECT zona_preferida FROM configuracion_usuario WHERE zona_preferida IS NOT NULL AND zona_preferida != '' ORDER BY updated_at DESC LIMIT 1"
+            "SELECT zona_preferida, zona_local, zona_pais FROM configuracion_usuario WHERE zona_preferida IS NOT NULL AND zona_preferida != '' ORDER BY updated_at DESC LIMIT 1"
         ).fetchone()
         if row and row["zona_preferida"] and str(row["zona_preferida"]).strip():
             return str(row["zona_preferida"]).strip()
@@ -469,53 +527,129 @@ def get_user_zone(chat_id: Optional[str] = None, default: Optional[str] = None) 
         return default or "Global"
 
 
-def set_user_industry(chat_id: str, industry: Optional[str]) -> None:
-    """Guarda o actualiza la industria preferida del usuario en SQLite."""
+def get_user_zone_hierarchy(chat_id: Optional[str] = None) -> tuple[str, str]:
+    """Obtiene la tupla (zona_local, zona_pais) del usuario para resolución geográfica jerárquica."""
+    with _get_connection() as conn:
+        if chat_id:
+            row = conn.execute(
+                "SELECT zona_preferida, zona_local, zona_pais FROM configuracion_usuario WHERE chat_id = ?",
+                (str(chat_id),)
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT zona_preferida, zona_local, zona_pais FROM configuracion_usuario WHERE (zona_preferida IS NOT NULL AND zona_preferida != '') OR (zona_local IS NOT NULL AND zona_local != '') ORDER BY updated_at DESC LIMIT 1"
+            ).fetchone()
+
+        if row:
+            keys = row.keys()
+            z_loc = str(row["zona_local"]).strip() if "zona_local" in keys and row["zona_local"] else ""
+            z_p = str(row["zona_pais"]).strip() if "zona_pais" in keys and row["zona_pais"] else ""
+            z_pref = str(row["zona_preferida"]).strip() if "zona_preferida" in keys and row["zona_preferida"] else ""
+
+            if not z_loc:
+                z_loc = z_pref or "Global"
+            if not z_p:
+                z_p = z_pref or "Global"
+            return (z_loc, z_p)
+
+        return ("Global", "Global")
+
+
+def set_user_industry(
+    chat_id: str,
+    industry: Optional[str],
+    industria_exacta: Optional[str] = None,
+    categoria_api: Optional[str] = None
+) -> None:
+    """Guarda o actualiza la industria preferida, la industria exacta y la categoría de API del usuario en SQLite."""
     val = str(industry).strip() if industry else ""
+    exact_val = str(industria_exacta).strip() if industria_exacta else val
+    cat_val = str(categoria_api).strip().lower() if categoria_api else "general"
+    if cat_val not in ("tech", "retail", "general"):
+        cat_val = "general"
+
     with _get_connection() as conn:
         conn.execute(
             """
-            INSERT INTO configuracion_usuario (chat_id, zona_preferida, industria, updated_at)
-            VALUES (?, '', ?, ?)
+            INSERT INTO configuracion_usuario (chat_id, zona_preferida, industria, industria_exacta, categoria_api, updated_at)
+            VALUES (?, '', ?, ?, ?, ?)
             ON CONFLICT(chat_id) DO UPDATE SET
                 industria = excluded.industria,
+                industria_exacta = excluded.industria_exacta,
+                categoria_api = excluded.categoria_api,
                 updated_at = excluded.updated_at
             """,
-            (str(chat_id), val, datetime.utcnow().isoformat())
+            (str(chat_id), val, exact_val, cat_val, datetime.utcnow().isoformat())
         )
 
 
 def get_user_industry(chat_id: Optional[str] = None, default: Optional[str] = None) -> Optional[str]:
-    """Obtiene la industria preferida del usuario (None si está vacía)."""
+    """Obtiene la industria preferida del usuario (prioriza industria_exacta si existe)."""
     with _get_connection() as conn:
         if chat_id:
             row = conn.execute(
-                "SELECT industria FROM configuracion_usuario WHERE chat_id = ?",
+                "SELECT industria, industria_exacta FROM configuracion_usuario WHERE chat_id = ?",
                 (str(chat_id),)
             ).fetchone()
-            if row and row["industria"] and str(row["industria"]).strip():
-                return str(row["industria"]).strip()
+            if row:
+                if "industria_exacta" in row.keys() and row["industria_exacta"] and str(row["industria_exacta"]).strip():
+                    return str(row["industria_exacta"]).strip()
+                if row["industria"] and str(row["industria"]).strip():
+                    return str(row["industria"]).strip()
             return default
 
         row = conn.execute(
-            "SELECT industria FROM configuracion_usuario WHERE industria IS NOT NULL AND industria != '' ORDER BY updated_at DESC LIMIT 1"
+            "SELECT industria, industria_exacta FROM configuracion_usuario WHERE (industria_exacta IS NOT NULL AND industria_exacta != '') OR (industria IS NOT NULL AND industria != '') ORDER BY updated_at DESC LIMIT 1"
         ).fetchone()
-        if row and row["industria"] and str(row["industria"]).strip():
-            return str(row["industria"]).strip()
+        if row:
+            if "industria_exacta" in row.keys() and row["industria_exacta"] and str(row["industria_exacta"]).strip():
+                return str(row["industria_exacta"]).strip()
+            if row["industria"] and str(row["industria"]).strip():
+                return str(row["industria"]).strip()
 
         return default or "TI & Software B2B"
 
 
+def get_user_exact_industry(chat_id: Optional[str] = None, default: Optional[str] = None) -> Optional[str]:
+    """Obtiene el nombre profesional exacto de la industria o tecnología del usuario."""
+    return get_user_industry(chat_id, default=default)
+
+
+def get_user_categoria_api(chat_id: Optional[str] = None, default: str = "general") -> str:
+    """Obtiene la categoría de API del usuario ('tech', 'retail', 'general')."""
+    with _get_connection() as conn:
+        if chat_id:
+            row = conn.execute(
+                "SELECT categoria_api FROM configuracion_usuario WHERE chat_id = ?",
+                (str(chat_id),)
+            ).fetchone()
+            if row and "categoria_api" in row.keys() and row["categoria_api"] and str(row["categoria_api"]).strip():
+                return str(row["categoria_api"]).strip().lower()
+            return default
+
+        row = conn.execute(
+            "SELECT categoria_api FROM configuracion_usuario WHERE categoria_api IS NOT NULL AND categoria_api != '' ORDER BY updated_at DESC LIMIT 1"
+        ).fetchone()
+        if row and "categoria_api" in row.keys() and row["categoria_api"] and str(row["categoria_api"]).strip():
+            return str(row["categoria_api"]).strip().lower()
+
+        return default
+
+
 def reset_user_config(chat_id: str) -> None:
-    """Borra zona_preferida e industria del usuario en SQLite para reiniciar el onboarding."""
+    """Borra zona_preferida, zona_local, zona_pais, industria e industria_exacta del usuario en SQLite para reiniciar el onboarding."""
     with _get_connection() as conn:
         conn.execute(
             """
-            INSERT INTO configuracion_usuario (chat_id, zona_preferida, industria, updated_at)
-            VALUES (?, '', '', ?)
+            INSERT INTO configuracion_usuario (chat_id, zona_preferida, zona_local, zona_pais, industria, industria_exacta, categoria_api, updated_at)
+            VALUES (?, '', '', '', '', '', 'general', ?)
             ON CONFLICT(chat_id) DO UPDATE SET
                 zona_preferida = '',
+                zona_local = '',
+                zona_pais = '',
                 industria = '',
+                industria_exacta = '',
+                categoria_api = 'general',
                 updated_at = excluded.updated_at
             """,
             (str(chat_id), datetime.utcnow().isoformat())
@@ -523,14 +657,20 @@ def reset_user_config(chat_id: str) -> None:
 
 
 def get_all_configured_users() -> List[Dict[str, Any]]:
-    """Consulta en SQLite a todos los usuarios con perfil completo (zona e industria no vacías)."""
+    """Consulta en SQLite a todos los usuarios con perfil registrado (asignando industria por defecto si no está definida)."""
     with _get_connection() as conn:
         rows = conn.execute(
             """
-            SELECT chat_id, zona_preferida, industria, updated_at
+            SELECT chat_id,
+                   COALESCE(NULLIF(TRIM(zona_preferida), ''), 'Global') AS zona_preferida,
+                   COALESCE(NULLIF(TRIM(zona_local), ''), NULLIF(TRIM(zona_preferida), ''), 'Global') AS zona_local,
+                   COALESCE(NULLIF(TRIM(zona_pais), ''), NULLIF(TRIM(zona_preferida), ''), 'Global') AS zona_pais,
+                   COALESCE(NULLIF(TRIM(industria_exacta), ''), NULLIF(TRIM(industria), ''), 'TI & Software B2B') AS industria,
+                   COALESCE(NULLIF(TRIM(industria_exacta), ''), NULLIF(TRIM(industria), ''), 'TI & Software B2B') AS industria_exacta,
+                   COALESCE(NULLIF(TRIM(categoria_api), ''), 'general') AS categoria_api,
+                   updated_at
             FROM configuracion_usuario
-            WHERE zona_preferida IS NOT NULL AND TRIM(zona_preferida) != ''
-              AND industria IS NOT NULL AND TRIM(industria) != ''
+            WHERE chat_id IS NOT NULL AND TRIM(chat_id) != ''
             ORDER BY updated_at DESC
             """
         ).fetchall()

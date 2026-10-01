@@ -426,16 +426,18 @@ def get_subreddits_for_industry(industry: Optional[str] = None) -> List[str]:
     return ["SaaS", "technology", "entrepreneur", "ecommerce"]
 
 
-def get_keywords_for_industry(industry: Optional[str] = None) -> List[str]:
-    """Determina las palabras clave de búsqueda en Google Trends según la industria."""
-    if not industry:
-        return ["SaaS", "ecommerce", "ciberseguridad", "inteligencia artificial", "software B2B"]
-    ind_lower = industry.lower()
-    for key, kws in INDUSTRY_KEYWORD_MAP.items():
-        if key in ind_lower:
-            return kws
-    clean_k = industry.strip()
-    return [clean_k, f"{clean_k} B2B", f"software {clean_k}", "inteligencia artificial"]
+def get_keywords_for_industry(industry: Optional[str] = None, industria_exacta: Optional[str] = None) -> List[str]:
+    """Determina las palabras clave de búsqueda en Google Trends priorizando la industria o nicho exacto."""
+    exact_kw = (industria_exacta or industry or "").strip()
+    if exact_kw:
+        # La industria_exacta es la palabra clave obligatoria y prioritaria
+        kws = [exact_kw]
+        if f"{exact_kw} B2B" not in kws:
+            kws.append(f"{exact_kw} B2B")
+        if f"tecnología {exact_kw}" not in kws:
+            kws.append(f"tecnología {exact_kw}")
+        return kws
+    return ["SaaS", "ecommerce", "ciberseguridad", "inteligencia artificial", "software B2B"]
 
 
 # ============================================================================
@@ -684,7 +686,7 @@ class GoogleTrendsConnector:
             except Exception as e:
                 logger.warning(f"No se pudo consultar Google Trends en {g_url}: {e}")
 
-        # Integrar consultas directas de palabras clave orientadas a la industria y región objetivo
+        # Integrar consultas directas de palabras clave orientadas obligatoriamente a industria_exacta
         target_kws = get_keywords_for_industry(target_industry)
         keyword_volumes = {
             "SaaS": ("27,000+", f"{geo_name}", 27000.0),
@@ -701,14 +703,14 @@ class GoogleTrendsConnector:
 
         geo_param = f"&geo={geo_code}" if geo_code else ""
         for kw in target_kws[:3]:
-            vol_str, geo_target, numeric_vol = keyword_volumes.get(kw.lower(), ("18,500+", geo_name, 18500.0))
+            vol_str, geo_target, numeric_vol = keyword_volumes.get(kw.lower(), ("28,500+", geo_name, 28500.0))
             items.append(
                 TrendItem(
-                    title=f"Demanda en Búsquedas: {kw.title()}",
+                    title=f"Demanda de Mercado: {kw.title()}",
                     source="google_trends",
                     category=target_industry,
                     url=f"https://trends.google.com/trends/explore?q={kw}{geo_param}",
-                    summary=f"Monitoreo de volumen de búsqueda y tracción para '{kw}' en {geo_target}.",
+                    summary=f"Monitoreo de volumen de búsqueda, tracción y oportunidades de negocio para '{kw}' en {geo_target}.",
                     metric_score=numeric_vol,
                     geo_region=geo_target,
                     raw_data={"keyword": kw, "approx_traffic": vol_str, "geo": geo_target, "industria": target_industry}
@@ -722,8 +724,18 @@ class GoogleTrendsConnector:
 # Función Orquestadora de Ingesta
 # ============================================================================
 
-def fetch_all_trends(zone: Optional[str] = None, industry: Optional[str] = None) -> List[TrendItem]:
-    """Extrae tendencias de todas las fuentes configuradas y las devuelve unificadas considerando zona e industria."""
+def fetch_all_trends(
+    zone: Optional[str] = None,
+    industry: Optional[str] = None,
+    categoria_api: Optional[str] = None,
+    industria_exacta: Optional[str] = None
+) -> List[TrendItem]:
+    """Extrae tendencias de las fuentes activas según la categoría de API e industria exacta.
+
+    Orquestación:
+    - categoria_api: decide qué conectores encender ('tech', 'retail', 'general').
+    - industria_exacta: palabra clave (keyword) obligatoria para realizar la búsqueda y para la tarjeta visual.
+    """
     target_zone = zone
     if not target_zone:
         try:
@@ -732,41 +744,63 @@ def fetch_all_trends(zone: Optional[str] = None, industry: Optional[str] = None)
         except Exception:
             target_zone = "Global"
 
-    target_industry = industry
-    if not target_industry:
+    target_exact_industry = industria_exacta or industry
+    if not target_exact_industry:
         try:
-            from app.database import get_user_industry
-            target_industry = get_user_industry()
+            from app.database import get_user_exact_industry, get_user_industry
+            target_exact_industry = get_user_exact_industry() or get_user_industry()
         except Exception:
-            target_industry = "TI & Software B2B"
+            target_exact_industry = "TI & Software B2B"
 
-    ph_connector = ProductHuntConnector()
-    reddit_connector = RedditB2BConnector()
-    trends_connector = GoogleTrendsConnector()
+    target_cat_api = categoria_api
+    if not target_cat_api:
+        try:
+            from app.database import get_user_categoria_api
+            target_cat_api = get_user_categoria_api()
+        except Exception:
+            target_cat_api = "general"
+
+    if not target_cat_api:
+        target_cat_api = "general"
 
     all_items: List[TrendItem] = []
 
-    try:
-        ph_items = ph_connector.fetch_trends()
-        for item in ph_items:
-            if not item.geo_region or item.geo_region == "México / LatAm":
-                item.geo_region = "Global"
-        all_items.extend(ph_items)
-    except Exception as e:
-        logger.error(f"Error ingestando Product Hunt: {e}")
+    # 1. Product Hunt: Se enciende ÚNICAMENTE si categoria_api == 'tech'
+    if target_cat_api == "tech":
+        try:
+            ph_connector = ProductHuntConnector()
+            ph_items = ph_connector.fetch_trends()
+            for item in ph_items:
+                if not item.geo_region or item.geo_region == "México / LatAm":
+                    item.geo_region = "Global"
+            all_items.extend(ph_items)
+            logger.info(f"[Connectors] Product Hunt ENCENDIDO ({len(ph_items)} ítems) para categoria_api='tech'.")
+        except Exception as e:
+            logger.error(f"Error ingestando Product Hunt: {e}")
+    else:
+        logger.info(f"[Connectors] Product Hunt APAGADO (no aplica para categoria_api='{target_cat_api}').")
 
+    # 2. Reddit B2B & Foros Comunitarios
     try:
-        reddit_items = reddit_connector.fetch_trends(industry=target_industry)
+        reddit_connector = RedditB2BConnector()
+        reddit_items = reddit_connector.fetch_trends(industry=target_exact_industry)
         for item in reddit_items:
             if not item.geo_region or item.geo_region == "México / LatAm":
                 item.geo_region = "Global"
         all_items.extend(reddit_items)
+        logger.info(f"[Connectors] Reddit ENCENDIDO ({len(reddit_items)} ítems) para industria='{target_exact_industry}'.")
     except Exception as e:
         logger.error(f"Error ingestando Reddit: {e}")
 
+    # 3. Google Trends: Siempre activo con la palabra clave obligatoria 'industria_exacta'
     try:
-        trends_items = trends_connector.fetch_trends(zone=target_zone, industry=target_industry)
+        trends_connector = GoogleTrendsConnector()
+        trends_items = trends_connector.fetch_trends(
+            zone=target_zone,
+            industry=target_exact_industry
+        )
         all_items.extend(trends_items)
+        logger.info(f"[Connectors] Google Trends ENCENDIDO ({len(trends_items)} ítems) con keyword obligatoria='{target_exact_industry}'.")
     except Exception as e:
         logger.error(f"Error ingestando Google Trends: {e}")
 
