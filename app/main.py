@@ -37,6 +37,7 @@ from app.database import (
     get_recent_sent_trends,
     get_user_zone,
     get_user_zone_hierarchy,
+    get_user_zones,
     get_user_industry,
     get_user_exact_industry,
     get_user_categoria_api,
@@ -232,49 +233,69 @@ async def run_individual_pipeline(chat_id: Optional[str] = None, ignore_daily_li
     logger.info("=" * 60)
     clear_chart_cache()
 
-    # 1. Obtener preferencias de zona e industria del usuario
-    user_zone_local, user_zone_pais = get_user_zone_hierarchy(str(target_chat))
-    user_zone = user_zone_local or "Global"
+    # 1. Obtener preferencias multizona e industria del usuario
+    user_zones = get_user_zones(str(target_chat))
     user_industry = get_user_industry(str(target_chat)) or "TI & Software B2B"
     user_exact_industry = get_user_exact_industry(str(target_chat)) or user_industry
     user_categoria_api = get_user_categoria_api(str(target_chat)) or "general"
 
-    # Búsqueda inicial estricta en la zona local/regional solicitada
-    all_trends = fetch_all_trends(
-        zone=user_zone_local,
-        industry=user_exact_industry,
-        categoria_api=user_categoria_api,
-        industria_exacta=user_exact_industry
-    )
-    top_trend = select_top_trend(all_trends, industry=user_exact_industry)
+    top_trend = None
     fallback_activado = False
-    effective_zone = user_zone_local
+    chosen_zone_local = ""
+    chosen_zone_pais = ""
+    effective_zone = ""
 
-    # Búsqueda con Rescate: SÓLO si la búsqueda local arroja 0 resultados
-    # y la zona local difiere del país macro:
-    if not top_trend and user_zone_local.strip().lower() != user_zone_pais.strip().lower():
-        logger.warning(
-            f"[Pipeline Individual] 0 tendencias encontradas para '{user_zone_local}'. "
-            f"Ejecutando búsqueda de rescate ampliada a nivel país macro: '{user_zone_pais}'..."
-        )
-        rescue_trends = fetch_all_trends(
-            zone=user_zone_pais,
+    # Iterar sobre la lista de zonas configuradas del usuario,
+    # deteniéndose y enviando la tendencia en cuanto encuentre resultados válidos en alguna de ellas:
+    for z_entry in user_zones:
+        cur_local = str(z_entry.get("zona_local") or "").strip() or "Global"
+        cur_pais = str(z_entry.get("zona_pais") or "").strip() or cur_local
+
+        logger.info(f"[Pipeline Individual] Buscando tendencias para '{user_exact_industry}' en zona: '{cur_local}'...")
+        all_trends = fetch_all_trends(
+            zone=cur_local,
             industry=user_exact_industry,
             categoria_api=user_categoria_api,
             industria_exacta=user_exact_industry
         )
-        top_trend = select_top_trend(rescue_trends, industry=user_exact_industry)
-        if top_trend:
-            fallback_activado = True
-            effective_zone = user_zone_pais
-            logger.info(
-                f"[Pipeline Individual] Búsqueda de rescate exitosa en '{user_zone_pais}' para '{user_exact_industry}'."
+        candidate = select_top_trend(all_trends, industry=user_exact_industry)
+        cur_fallback = False
+
+        # Búsqueda con Rescate: si la búsqueda local arroja 0 resultados y difiere del país macro:
+        if not candidate and cur_local.strip().lower() != cur_pais.strip().lower():
+            logger.warning(
+                f"[Pipeline Individual] 0 tendencias encontradas para '{cur_local}'. "
+                f"Ejecutando búsqueda de rescate ampliada a nivel país macro: '{cur_pais}'..."
             )
+            rescue_trends = fetch_all_trends(
+                zone=cur_pais,
+                industry=user_exact_industry,
+                categoria_api=user_categoria_api,
+                industria_exacta=user_exact_industry
+            )
+            candidate = select_top_trend(rescue_trends, industry=user_exact_industry)
+            if candidate:
+                cur_fallback = True
+                logger.info(
+                    f"[Pipeline Individual] Búsqueda de rescate exitosa en '{cur_pais}' para '{user_exact_industry}'."
+                )
+
+        if candidate:
+            top_trend = candidate
+            fallback_activado = cur_fallback
+            chosen_zone_local = cur_local
+            chosen_zone_pais = cur_pais
+            effective_zone = cur_pais if cur_fallback else cur_local
+            logger.info(
+                f"[Pipeline Individual] Tendencia válida encontrada en '{effective_zone}'. "
+                f"Deteniendo iteración multizona para proceder al envío."
+            )
+            break
 
     if not top_trend:
         logger.error(
             f"[Pipeline Individual] No hay tendencias frescas disponibles para {user_exact_industry} "
-            f"en {user_zone_local}" + (f" ni en rescate {user_zone_pais}" if user_zone_local != user_zone_pais else "") + "."
+            f"en ninguna de las zonas configuradas: {[z.get('zona_local') for z in user_zones]}."
         )
         return {"status": "error", "message": "No fresh trends available"}
 
@@ -285,16 +306,16 @@ async def run_individual_pipeline(chat_id: Optional[str] = None, ignore_daily_li
         "category": user_exact_industry,
         "industria_exacta": user_exact_industry,
         "fallback_activado": fallback_activado,
-        "zona_local": user_zone_local,
-        "zona_pais": user_zone_pais
+        "zona_local": chosen_zone_local,
+        "zona_pais": chosen_zone_pais
     }
     card_data = await generate_trend_card_data(
         trend_data=trend_dict,
         business_context_text=business_context.raw_content
     )
     card_data["fallback_activado"] = fallback_activado
-    card_data["zona_local"] = user_zone_local
-    card_data["zona_pais"] = user_zone_pais
+    card_data["zona_local"] = chosen_zone_local
+    card_data["zona_pais"] = chosen_zone_pais
 
     # 3. Renderizado con Playwright
     target_png = settings.BASE_DIR / "temp_card.png"
@@ -306,7 +327,7 @@ async def run_individual_pipeline(chat_id: Optional[str] = None, ignore_daily_li
     # 5. Notificación Transparente y Envío a Telegram con panel interactivo
     caption = ""
     if fallback_activado:
-        caption = f"📍 *Nota del radar: No detectamos volumen suficiente de datos en {user_zone_local} hoy, por lo que hemos ampliado el análisis a nivel {user_zone_pais}.*"
+        caption = f"📍 *Nota del radar: No detectamos volumen suficiente de datos en {chosen_zone_local} hoy, por lo que hemos ampliado el análisis a nivel {chosen_zone_pais}.*"
 
     reply_markup = build_interactive_keyboard(trend_id=trend_id, source_url=top_trend.url)
     telegram_result = await send_telegram_notification(
@@ -318,8 +339,8 @@ async def run_individual_pipeline(chat_id: Optional[str] = None, ignore_daily_li
         chat_type="private",
         trend_id=trend_id,
         fallback_activado=fallback_activado,
-        zona_local=user_zone_local,
-        zona_pais=user_zone_pais
+        zona_local=chosen_zone_local,
+        zona_pais=chosen_zone_pais
     )
 
     duration = (datetime.now() - start_time).total_seconds()
@@ -332,8 +353,8 @@ async def run_individual_pipeline(chat_id: Optional[str] = None, ignore_daily_li
         "chat_type": "private",
         "chat_id": target_chat,
         "zone": effective_zone,
-        "zona_local": user_zone_local,
-        "zona_pais": user_zone_pais,
+        "zona_local": chosen_zone_local,
+        "zona_pais": chosen_zone_pais,
         "fallback_activado": fallback_activado,
         "industry": user_industry,
         "trend_id": trend_id,
@@ -461,8 +482,10 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    logger.info("Deteniendo Long Polling de Telegram y APScheduler...")
+    logger.info("Deteniendo Long Polling de Telegram, APScheduler y Navegador Caliente...")
     await stop_bot_polling()
+    from app.visual_engine import close_browser_singleton
+    await close_browser_singleton()
     scheduler.shutdown(wait=False)
 
 

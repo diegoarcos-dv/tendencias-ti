@@ -5,7 +5,7 @@ cruzando la tendencia externa con la fuente de verdad (tendencias.txt).
 Las métricas numéricas se calculan y formatean estrictamente a partir de los datos reales extraídos.
 """
 
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, List
 import json
 import logging
 import re
@@ -13,6 +13,11 @@ import httpx
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Caché en memoria para acelerar validaciones frecuentes y eliminar latencia
+_ZONE_CACHE: Dict[str, Dict[str, Any]] = {}
+_INDUSTRY_CACHE: Dict[str, Dict[str, Any]] = {}
+
 
 
 def extract_real_metrics(trend_data: Dict[str, Any]) -> Tuple[str, str, str, str]:
@@ -178,7 +183,13 @@ Devuelve un JSON estrictamente válido en ESPAÑOL. El análisis debe coincidir 
                     {"role": "user", "content": user_prompt}
                 ],
                 "stream": False,
-                "format": "json"
+                "format": "json",
+                "keep_alive": "60m",
+                "options": {
+                    "temperature": 0.2,
+                    "num_predict": 380,
+                    "num_ctx": 2048
+                }
             }
             res = await client.post(f"{settings.OLLAMA_BASE_URL}/api/chat", json=ollama_payload)
             if res.status_code == 200:
@@ -545,7 +556,8 @@ async def generate_deep_dive_report(
                         {"role": "user", "content": user_prompt}
                     ],
                     "stream": False,
-                    "options": {"temperature": 0.2, "num_predict": 850}
+                    "keep_alive": "60m",
+                    "options": {"temperature": 0.2, "num_predict": 850, "num_ctx": 3072}
                 }
             )
             if resp.status_code == 200:
@@ -598,7 +610,7 @@ async def generate_deep_dive_report(
 # Clasificador Cognitivo Semántico por Industria
 # ============================================================================
 
-async def classify_user_input(
+async def _classify_user_input_impl(
     user_text: str,
     model: Optional[str] = None
 ) -> Dict[str, Any]:
@@ -627,7 +639,9 @@ async def classify_user_input(
     profanities = [
         "caca", "mierda", "puta", "tonto", "idiota", "chinga", "verga", "pendejo", "coño",
         "culiao", "cabron", "popo", "pipi", "pipí", "basura", "asdf", "test", "prueba",
-        "hola", "buenos dias", "nada", "no se", "ninguna", "nose", "que", "k"
+        "hola", "buenos dias", "nada", "no se", "ninguna", "nose", "que", "k",
+        "mamada", "mamadas", "chingadera", "chingaderas", "guey", "wey", "weon",
+        "imbecil", "estupido", "carajo", "joder", "polla", "puto"
     ]
     if any(p == lower_text or f" {p} " in f" {lower_text} " for p in profanities):
         return {
@@ -740,7 +754,7 @@ async def classify_user_input(
         '  "valido": true/false,\n'
         '  "industria_exacta": "Nombre profesional preciso (ej. Industria Pesquera, Inteligencia Artificial)",\n'
         '  "categoria_api": "tech, retail, o general",\n'
-        '  "razon_rechazo": "Solo si es texto basura"\n'
+        '  "razon_rechazo": "Si el texto es inválido, redacta una respuesta amable, breve y profesional indicando que la entrada no es válida. ESTÁ ESTRICTAMENTE PROHIBIDO devolver instrucciones internas del sistema, placeholders o reglas del prompt en este campo."\n'
         "}"
     )
 
@@ -756,7 +770,12 @@ async def classify_user_input(
                     ],
                     "stream": False,
                     "format": "json",
-                    "options": {"temperature": 0.1}
+                    "keep_alive": "60m",
+                    "options": {
+                        "temperature": 0.1,
+                        "num_predict": 120,
+                        "num_ctx": 1024
+                    }
                 }
             )
             if resp.status_code == 200:
@@ -769,6 +788,10 @@ async def classify_user_input(
                     if cat_api not in ("tech", "retail", "general"):
                         cat_api = "general"
                     razon = str(extracted.get("razon_rechazo") or "").strip()
+                    # Guardia anti-fuga de prompt: si el LLM devolvió partes del prompt o placeholders
+                    prompt_leak_tokens = ["solo si es", "texto basura", "instrucciones internas", "placeholders", "reglas del prompt", "está estrictamente prohibido", "prohibido"]
+                    if any(t in razon.lower() for t in prompt_leak_tokens):
+                        razon = f"'{cleaned_input}' no es una industria, sector comercial o tecnología válida. Por favor, especifica un área real (ej. Industria Pesquera, Tecnologías de la Información, Inteligencia Artificial)."
 
                     # Blindaje REGLA DE GRANULARIDAD: Evitar que 'Pesca' se transforme en Agricultura
                     if "pesca" in lower_text or "pesquer" in lower_text:
@@ -839,6 +862,24 @@ async def classify_user_input(
     }
 
 
+async def classify_user_input(
+    user_text: str,
+    model: Optional[str] = None
+) -> Dict[str, Any]:
+    """Clasificador y Guardia Cognitivo de Industria con aceleración por caché en memoria."""
+    cleaned_input = str(user_text or "").strip()
+    lower_text = cleaned_input.lower().strip()
+    if lower_text in _INDUSTRY_CACHE:
+        logger.debug(f"[Caché Hit] Industria: '{lower_text}'")
+        return dict(_INDUSTRY_CACHE[lower_text])
+
+    result = await _classify_user_input_impl(user_text=user_text, model=model)
+    if len(_INDUSTRY_CACHE) > 1000:
+        _INDUSTRY_CACHE.clear()
+    _INDUSTRY_CACHE[lower_text] = dict(result)
+    return result
+
+
 # ============================================================================
 # Validador Cognitivo de Zona Geográfica / Económica (Guardia Semántico)
 # ============================================================================
@@ -863,12 +904,15 @@ def _is_gibberish_zone(text: str) -> bool:
     if re.search(r"(.)\1{2,}", lower):
         return True
         
-    # Groserías, palabras basura o sistemas de transporte no geográficos
+    # Groserías, palabras basura, deportes/artes marciales o sistemas de transporte no geográficos
     invalids = [
         "mierda", "puta", "tonto", "idiota", "chinga", "verga", "pendejo", "coño",
         "culiao", "cabron", "caca", "popo", "pipi", "pipí", "basura", "asdf", "test",
         "prueba", "hola", "buenos dias", "nada", "no se", "mexibus", "mexibús",
-        "metrobus", "metrobús", "suburbano", "tren ligero", "cablebus", "cablebús"
+        "metrobus", "metrobús", "suburbano", "tren ligero", "cablebus", "cablebús",
+        "mamada", "mamadas", "chingadera", "chingaderas", "guey", "wey", "weon",
+        "imbecil", "estupido", "carajo", "joder", "polla", "puto",
+        "muay thai", "box", "futbol", "fútbol", "karate", "judo", "taekwondo"
     ]
     if any(inv in lower for inv in invalids):
         return True
@@ -896,10 +940,14 @@ KNOWN_TECH_ZONES = {
     "silicon valley": "Silicon Valley",
     "california": "Silicon Valley",
     "estados unidos": "Estados Unidos",
+    "eu": "Estados Unidos",
+    "eua": "Estados Unidos",
     "eeuu": "Estados Unidos",
     "ee.uu.": "Estados Unidos",
     "usa": "Estados Unidos",
     "us": "Estados Unidos",
+    "u.s.": "Estados Unidos",
+    "u.s.a.": "Estados Unidos",
     "mexico": "México",
     "méxico": "México",
     "europa": "Europa",
@@ -957,6 +1005,18 @@ KNOWN_TECH_ZONES = {
     "austria": "Austria",
     "irlanda": "Irlanda",
     "polonia": "Polonia",
+    "tailandia": "Tailandia",
+    "japon": "Japón",
+    "japón": "Japón",
+    "alemania": "Alemania",
+    "reino unido": "Reino Unido",
+    "espana": "España",
+    "españa": "España",
+    "portugal": "Portugal",
+    "china": "China",
+    "india": "India",
+    "corea": "Corea del Sur",
+    "corea del sur": "Corea del Sur",
 }
 
 
@@ -1005,16 +1065,55 @@ MEXICAN_STATES = {
     "zacatecas": "Zacatecas"
 }
 
+# Principales ciudades de México para reconocimiento de zona local
+MEXICAN_CITIES = {
+    "monterrey": "Monterrey",
+    "guadalajara": "Guadalajara",
+    "tijuana": "Tijuana",
+    "juárez": "Ciudad Juárez",
+    "juarez": "Ciudad Juárez",
+    "ciudad juárez": "Ciudad Juárez",
+    "ciudad juarez": "Ciudad Juárez",
+    "puebla": "Puebla",
+    "león": "León",
+    "leon": "León",
+    "cancún": "Cancún",
+    "cancun": "Cancún",
+    "mérida": "Mérida",
+    "merida": "Mérida",
+    "querétaro": "Querétaro",
+    "queretaro": "Querétaro",
+    "toluca": "Toluca",
+    "zapopan": "Zapopan",
+    "chihuahua": "Chihuahua",
+    "morelia": "Morelia",
+    "hermosillo": "Hermosillo",
+    "saltillo": "Saltillo",
+    "culiacán": "Culiacán",
+    "culiacan": "Culiacán",
+    "acapulco": "Acapulco",
+    "mazatlán": "Mazatlán",
+    "mazatlan": "Mazatlán",
+    "veracruz": "Veracruz",
+    "ensenada": "Ensenada",
+    "reynosa": "Reynosa",
+    "torreón": "Torreón",
+    "torreon": "Torreón",
+    "tampico": "Tampico",
+}
 
-async def validate_zone(
+
+async def _validate_zone_impl(
     text: str,
     model: Optional[str] = None
 ) -> Dict[str, Any]:
-    """Evalúa la entrada geográfica del usuario con análisis jerárquico (zona_local vs zona_pais).
+    """Evalúa la entrada geográfica del usuario con análisis multizona y jerárquico.
+    - Soporta múltiples regiones simultáneas (zonas: [{"zona_local": ..., "zona_pais": ...}]).
+    - Calibración estricta de acrónimos: EU, EUA, EEUU, USA -> Estados Unidos (NUNCA Europa).
     - Infiere estados/ciudades clave para regiones.
     - Asume México por defecto para 'sur del país', 'capital del país', 'centro'.
     - Devuelve JSON estricto:
-      {"valido": bool, "zona_local": str, "zona_pais": str, "razon_rechazo": str}
+      {"valido": bool, "zonas": [{"zona_local": str, "zona_pais": str}, ...], "razon_rechazo": str}
     """
     cleaned_input = str(text or "").strip()
     lower_input = cleaned_input.lower().strip()
@@ -1023,6 +1122,7 @@ async def validate_zone(
     if _is_gibberish_zone(cleaned_input):
         return {
             "valido": False,
+            "zonas": [],
             "zona_local": "",
             "zona_pais": "",
             "zona_normalizada": None,
@@ -1034,13 +1134,14 @@ async def validate_zone(
         if fic == lower_input or f" {fic} " in f" {lower_input} ":
             return {
                 "valido": False,
+                "zonas": [],
                 "zona_local": "",
                 "zona_pais": "",
                 "zona_normalizada": None,
                 "razon_rechazo": f"'{cleaned_input}' es un país o territorio ficticio (de cine, cómics o literatura). Por favor, escribe un país, estado o región real (ej. Oaxaca, México, Silicon Valley, Global)."
             }
 
-    # 3. Mapeo determinista para regiones con país por defecto México
+    # Mapeo determinista para regiones con país por defecto México
     REGIONAL_INFERENCES = {
         "norte": ("Norte de México (Monterrey, Tijuana, Juárez, Chihuahua)", "México"),
         "norte de mexico": ("Norte de México (Monterrey, Tijuana, Juárez, Chihuahua)", "México"),
@@ -1070,55 +1171,105 @@ async def validate_zone(
         "texas": ("Texas", "Estados Unidos"),
     }
 
-    if lower_input in REGIONAL_INFERENCES:
-        z_loc, z_p = REGIONAL_INFERENCES[lower_input]
+    def _resolve_single_zone(raw_chunk: str) -> Optional[Dict[str, Any]]:
+        chunk = raw_chunk.strip().lower()
+        if not chunk:
+            return None
+        # 1. Regla Inquebrantable de Acrónimos de Estados Unidos
+        if chunk in ("eu", "eua", "eeuu", "ee.uu.", "usa", "us", "u.s.", "u.s.a."):
+            return {"zona_local": None, "zona_pais": "Estados Unidos"}
+        # 2. Regiones inferidas
+        if chunk in REGIONAL_INFERENCES:
+            z_loc, z_p = REGIONAL_INFERENCES[chunk]
+            return {"zona_local": z_loc, "zona_pais": z_p}
+        # 3. Ciudades y Estados de México
+        if chunk in MEXICAN_CITIES:
+            return {"zona_local": MEXICAN_CITIES[chunk], "zona_pais": "México"}
+        for st_key, st_name in MEXICAN_STATES.items():
+            if chunk == st_key or chunk == f"estado de {st_key}":
+                return {"zona_local": st_name, "zona_pais": "México"}
+        # 4. Polos y países soberanos conocidos
+        if chunk in KNOWN_TECH_ZONES:
+            macro_name = KNOWN_TECH_ZONES[chunk]
+            return {"zona_local": None, "zona_pais": macro_name}
+        return None
+
+    # Resolución determinista directa para un solo término
+    single_res = _resolve_single_zone(lower_input)
+    if single_res:
+        zl = single_res.get("zona_local")
+        zp = single_res.get("zona_pais") or ""
+        if zl and str(zl).strip():
+            if zp and str(zp).strip() and str(zp).lower() != str(zl).lower() and str(zp).lower() not in str(zl).lower():
+                norm_str = f"{str(zl).strip()}, {str(zp).strip()}"
+            else:
+                norm_str = str(zl).strip()
+        else:
+            norm_str = str(zp).strip()
+
         return {
             "valido": True,
-            "zona_local": z_loc,
-            "zona_pais": z_p,
-            "zona_normalizada": z_loc,
+            "zonas": [single_res],
+            "zona_local": single_res.get("zona_local"),
+            "zona_pais": single_res.get("zona_pais"),
+            "zona_normalizada": norm_str,
             "razon_rechazo": ""
         }
 
-    # 4. Estados de México (ej. Oaxaca, Veracruz, Jalisco)
-    for st_key, st_name in MEXICAN_STATES.items():
-        if lower_input == st_key or lower_input == f"estado de {st_key}":
+    # Resolución determinista multizona si el texto está separado por comas o 'y'/'e'
+    raw_parts = [p.strip() for p in re.split(r"[,;]|\s+(?:y|e|and)\s+", lower_input) if p.strip()]
+    if len(raw_parts) > 1:
+        resolved_parts = [_resolve_single_zone(p) for p in raw_parts]
+        if all(r is not None for r in resolved_parts):
+            seen_keys = set()
+            clean_list: List[Dict[str, Any]] = []
+            for r in resolved_parts:
+                key = (str(r.get("zona_local") or "").lower(), str(r.get("zona_pais") or "").lower())
+                if key not in seen_keys:
+                    seen_keys.add(key)
+                    clean_list.append(r)
+            parts_norm = []
+            for z in clean_list:
+                zl = z.get("zona_local")
+                zp = z.get("zona_pais") or ""
+                if zl and str(zl).strip():
+                    if zp and str(zp).strip() and str(zp).lower() != str(zl).lower() and str(zp).lower() not in str(zl).lower():
+                        parts_norm.append(f"{str(zl).strip()}, {str(zp).strip()}")
+                    else:
+                        parts_norm.append(str(zl).strip())
+                else:
+                    parts_norm.append(str(zp).strip())
+            norm_str = " | ".join(parts_norm)
+
             return {
                 "valido": True,
-                "zona_local": st_name,
-                "zona_pais": "México",
-                "zona_normalizada": f"{st_name}, México",
+                "zonas": clean_list,
+                "zona_local": clean_list[0].get("zona_local"),
+                "zona_pais": clean_list[0].get("zona_pais"),
+                "zona_normalizada": norm_str,
                 "razon_rechazo": ""
             }
-
-    # 5. Países y Polos Macro Consolidados
-    if lower_input in KNOWN_TECH_ZONES:
-        macro_name = KNOWN_TECH_ZONES[lower_input]
-        return {
-            "valido": True,
-            "zona_local": macro_name,
-            "zona_pais": macro_name,
-            "zona_normalizada": macro_name,
-            "razon_rechazo": ""
-        }
 
     selected_model = model or settings.OLLAMA_MODEL
 
     system_prompt = (
-        "Eres un Analista y Validador de Geografía Jerárquica para Inteligencia Comercial B2B.\n"
-        "Tu misión es clasificar y descomponer la entrada geográfica del usuario en dos niveles jerárquicos estrictos: nivel local o regional ('zona_local') y país macro ('zona_pais').\n\n"
-        "REGLAS OBLIGATORIAS:\n"
-        "1. REGLA 1 (REGIONES): Si el usuario menciona una región (ej. 'Norte de México', 'Sur de Canadá'), DEBES inferir los estados/ciudades principales de esa zona para enriquecer la búsqueda en 'zona_local' (ej. 'Norte de México (Monterrey, Tijuana, Juárez, Chihuahua)').\n"
-        "2. REGLA 2 (PAÍS POR DEFECTO): Si el usuario menciona 'sur del país', 'capital del país', 'centro', 'el sur' sin especificar la nación, DEBES asumir 'México' por defecto (a menos que especifique expresamente otro país como 'de EUA', 'de España', etc.).\n"
-        "3. CIUDADES Y ESTADOS: Si el usuario ingresa una ciudad o estado (ej. 'Oaxaca', 'Medellín', 'Barcelona'), 'zona_local' debe ser la ciudad/estado y 'zona_pais' su país correspondiente (ej. Oaxaca -> zona_local: 'Oaxaca', zona_pais: 'México').\n"
-        "4. PAÍSES DIRECTOS: Si el usuario ingresa un país completo (ej. 'México', 'Colombia', 'España'), tanto 'zona_local' como 'zona_pais' deben ser el nombre del país.\n"
-        "5. RECHAZO DE BASURA: SOLO debes rechazar ('valido': false) si el texto son insultos, sistemas de transporte (ej. Mexibús, Metrobús), o letras al azar sin sentido (ej. 'asdasd').\n\n"
+        "Eres un Analista y Validador de Geografía Jerárquica Multizona para Inteligencia Comercial B2B.\n"
+        "Tu misión es clasificar y descomponer la entrada geográfica del usuario en una lista estructurada de regiones ('zonas'), donde cada elemento contiene su nivel local ('zona_local') y país macro ('zona_pais').\n\n"
+        "REGLAS INQUEBRANTABLES:\n"
+        "1. CALIBRACIÓN DE SOBERANÍA: Si el texto del usuario es directamente un país soberano (ej. 'Tailandia', 'Alemania', 'Japón', 'Francia', 'Brasil', 'Canadá', 'México', 'Colombia'), asígnalo EXACTAMENTE a 'zona_pais' y deja 'zona_local' como null. ESTÁ ESTRICTAMENTE PROHIBIDO usar 'México' por defecto a menos que el usuario escriba explícitamente términos relativos como 'del país', 'la capital' o 'el norte'.\n"
+        "2. REGLA INQUEBRANTABLE DE ACRÓNIMOS (ESTADOS UNIDOS): Si el usuario escribe 'EU', 'EUA', 'EEUU' o 'USA', DEBES normalizarlo EXACTAMENTE como 'Estados Unidos' en 'zona_pais' y dejar 'zona_local' como null (NUNCA como 'Europa' o 'Unión Europea').\n"
+        "3. SOPORTE MULTIZONA: Si el usuario menciona múltiples lugares, países o estados (separados por comas, 'y', 'e', guiones, etc., ej. 'México y EU', 'Oaxaca, Jalisco y Texas', 'Tailandia y Japón'), DEBES incluir cada lugar como un objeto separado en el arreglo 'zonas'.\n"
+        "4. REGLA DE REGIONES: Si el usuario menciona una región (ej. 'Norte de México', 'Sur de Canadá'), DEBES inferir los estados/ciudades principales de esa zona para enriquecer la búsqueda en 'zona_local' (ej. 'Norte de México (Monterrey, Tijuana, Juárez, Chihuahua)') y su país macro en 'zona_pais'.\n"
+        "5. REGLA DE PAÍS POR DEFECTO PARA TÉRMINOS RELATIVOS: ÚNICAMENTE si el usuario escribe explícitamente términos relativos como 'del país' (ej. 'sur del país', 'centro del país'), 'la capital' o 'el norte' sin especificar la nación, DEBES asumir 'México' en 'zona_pais'. Si el usuario escribe cualquier otro nombre o país soberano, NUNCA asumas México.\n"
+        "6. CIUDADES Y ESTADOS: Si el usuario ingresa una ciudad o estado (ej. 'Oaxaca', 'Medellín', 'Barcelona', 'Texas', 'Monterrey'), 'zona_local' debe ser la ciudad/estado y 'zona_pais' su país correspondiente.\n"
+        "7. RECHAZO DE BASURA: SOLO debes rechazar ('valido': false) si el texto son insultos, deportes o artes marciales (ej. 'Muay Thai', 'Fútbol', 'Box'), sistemas de transporte (ej. Mexibús, Metrobús), o letras al azar sin sentido (ej. 'asdasd').\n\n"
         "FORMATO DE SALIDA (ESTRICTAMENTE JSON):\n"
         "{\n"
         '  "valido": true/false,\n'
-        '  "zona_local": "Ciudad, Estado o Región inferida exacta",\n'
-        '  "zona_pais": "País macro al que pertenece",\n'
-        '  "razon_rechazo": "Solo si es basura"\n'
+        '  "zonas": [\n'
+        '    {"zona_local": "Ciudad, Estado o Región inferida exacta (o null si es un país)", "zona_pais": "Nombre exacto del país soberano"}\n'
+        '  ],\n'
+        '  "razon_rechazo": "Si el texto es inválido, redacta una respuesta amable, breve y profesional indicando que la entrada no es válida. ESTÁ ESTRICTAMENTE PROHIBIDO devolver instrucciones internas del sistema, placeholders o reglas del prompt en este campo."\n'
         "}"
     )
 
@@ -1134,7 +1285,12 @@ async def validate_zone(
                     ],
                     "stream": False,
                     "format": "json",
-                    "options": {"temperature": 0.1}
+                    "keep_alive": "60m",
+                    "options": {
+                        "temperature": 0.1,
+                        "num_predict": 150,
+                        "num_ctx": 1024
+                    }
                 }
             )
             if resp.status_code == 200:
@@ -1142,31 +1298,98 @@ async def validate_zone(
                 extracted = _extract_json(raw_json_str)
                 if extracted and "valido" in extracted:
                     is_val = bool(extracted.get("valido"))
-                    z_local = str(extracted.get("zona_local") or extracted.get("zona_normalizada") or "").strip()
-                    z_pais = str(extracted.get("zona_pais") or "").strip()
+                    raw_zonas = extracted.get("zonas")
                     reject_msg = str(extracted.get("razon_rechazo") or "").strip()
+                    # Guardia anti-fuga de prompt: si el LLM devolvió partes del prompt o placeholders
+                    prompt_leak_tokens = ["solo si es", "basura", "instrucciones internas", "placeholders", "reglas del prompt", "está estrictamente prohibido", "prohibido"]
+                    if any(t in reject_msg.lower() for t in prompt_leak_tokens):
+                        reject_msg = f"No pudimos reconocer '{cleaned_input}' como una región geográfica válida. Por favor, escribe un país, estado o región real (ej. Oaxaca, México, Silicon Valley, Global)."
 
-                    # Resolución de país por defecto si quedó vacío o genérico
-                    if not z_pais or any(p in z_pais.lower() for p in ["estado / país", "estado / pais", "tu país", "tu pais", "país", "pais"]):
-                        if any(w in lower_input for w in ["mexico", "méxico", "sur del", "capital del", "centro", "norte", "bajio", "oaxaca"]):
-                            z_pais = "México"
+                    if not raw_zonas or not isinstance(raw_zonas, list):
+                        z_loc = extracted.get("zona_local") or extracted.get("zona_normalizada")
+                        z_p = extracted.get("zona_pais")
+                        if z_loc or z_p:
+                            raw_zonas = [{"zona_local": z_loc, "zona_pais": z_p}]
                         else:
-                            z_pais = "México"
+                            raw_zonas = []
 
-                    if not z_local:
-                        z_local = cleaned_input.title()
+                    clean_zonas: List[Dict[str, Any]] = []
+                    has_relative_term = bool(re.search(r"\b(del pa[ií]s|la capital|el norte|el sur|el centro)\b", lower_input))
 
-                    if is_val and z_local:
+                    for item in raw_zonas:
+                        if not isinstance(item, dict):
+                            continue
+                        loc_raw = item.get("zona_local")
+                        pais_raw = item.get("zona_pais")
+
+                        loc = str(loc_raw).strip() if loc_raw is not None else None
+                        pais = str(pais_raw).strip() if pais_raw is not None else None
+
+                        if loc and loc.lower() in ("null", "none", "n/a", "no aplica", ""):
+                            loc = None
+                        if pais and pais.lower() in ("null", "none", "n/a", "no aplica", ""):
+                            pais = None
+
+                        # Normalización estricta anti-confusión EU -> Estados Unidos
+                        if loc and loc.upper() in ("EU", "EUA", "EEUU", "EE.UU.", "USA", "US"):
+                            loc = None
+                            pais = "Estados Unidos"
+                        if pais and pais.upper() in ("EU", "EUA", "EEUU", "EE.UU.", "USA", "US"):
+                            pais = "Estados Unidos"
+
+                        # Salvaguarda si Gemma asignó 'Europa' o 'Unión Europea' por el acrónimo 'EU'
+                        has_eu_token = bool(re.search(r"\b(eu|eua|eeuu|usa)\b", lower_input))
+                        if has_eu_token:
+                            if loc and loc.lower() in ("europa", "unión europea", "union europea"):
+                                loc = None
+                                pais = "Estados Unidos"
+                            if pais and pais.lower() in ("europa", "unión europea", "union europea"):
+                                pais = "Estados Unidos"
+
+                        # Calibración de Soberanía:
+                        # Si loc es idéntico a pais -> zona_local debe ser None
+                        if loc and pais and loc.lower() == pais.lower():
+                            loc = None
+
+                        # Si Gemma asignó loc='Tailandia' y pais='México' por la regla por defecto pero sin términos relativos:
+                        if loc and pais == "México" and not has_relative_term:
+                            if loc.lower() not in MEXICAN_STATES and f"estado de {loc.lower()}" not in MEXICAN_STATES and loc.lower() not in MEXICAN_CITIES:
+                                pais = loc
+                                loc = None
+
+                        # Si pais quedó vacío pero hay loc:
+                        if not pais and loc:
+                            pais = loc
+                            loc = None
+
+                        clean_zonas.append({"zona_local": loc, "zona_pais": pais or "Global"})
+
+                    if is_val and clean_zonas:
+                        parts_norm = []
+                        for z in clean_zonas:
+                            zl = z.get("zona_local")
+                            zp = z.get("zona_pais") or ""
+                            if zl and str(zl).strip():
+                                if zp and str(zp).strip() and str(zp).lower() != str(zl).lower() and str(zp).lower() not in str(zl).lower():
+                                    parts_norm.append(f"{str(zl).strip()}, {str(zp).strip()}")
+                                else:
+                                    parts_norm.append(str(zl).strip())
+                            else:
+                                parts_norm.append(str(zp).strip())
+                        norm_str = " | ".join(parts_norm)
+
                         return {
                             "valido": True,
-                            "zona_local": z_local,
-                            "zona_pais": z_pais,
-                            "zona_normalizada": f"{z_local}, {z_pais}" if z_local != z_pais and z_pais not in z_local else z_local,
+                            "zonas": clean_zonas,
+                            "zona_local": clean_zonas[0].get("zona_local"),
+                            "zona_pais": clean_zonas[0].get("zona_pais"),
+                            "zona_normalizada": norm_str,
                             "razon_rechazo": ""
                         }
                     else:
                         return {
                             "valido": False,
+                            "zonas": [],
                             "zona_local": "",
                             "zona_pais": "",
                             "zona_normalizada": None,
@@ -1176,11 +1399,23 @@ async def validate_zone(
         logger.warning(f"Error en validate_zone con Ollama ({e}).")
 
     # Fallback si falló el LLM
-    # Buscar si menciona algún estado mexicano
+    # 1. Búsqueda si menciona acrónimo de Estados Unidos
+    if any(re.search(rf"\b{tok}\b", lower_input) for tok in ("eu", "eua", "eeuu", "usa")):
+        return {
+            "valido": True,
+            "zonas": [{"zona_local": "Estados Unidos", "zona_pais": "Estados Unidos"}],
+            "zona_local": "Estados Unidos",
+            "zona_pais": "Estados Unidos",
+            "zona_normalizada": "Estados Unidos",
+            "razon_rechazo": ""
+        }
+
+    # 2. Buscar si menciona algún estado mexicano
     for st_key, st_name in MEXICAN_STATES.items():
         if st_key in lower_input:
             return {
                 "valido": True,
+                "zonas": [{"zona_local": st_name, "zona_pais": "México"}],
                 "zona_local": st_name,
                 "zona_pais": "México",
                 "zona_normalizada": f"{st_name}, México",
@@ -1189,8 +1424,28 @@ async def validate_zone(
 
     return {
         "valido": False,
+        "zonas": [],
         "zona_local": "",
         "zona_pais": "",
         "zona_normalizada": None,
-        "razon_rechazo": f"No pudimos reconocer '{cleaned_input}' como una región geográfica o económica válida. Por favor, intenta con ejemplos como Oaxaca, Norte de México, Silicon Valley o Global."
+        "razon_rechazo": f"No pudimos reconocer '{cleaned_input}' como una región geográfica o económica válida. Por favor, intenta con ejemplos como Oaxaca, Norte de México, EU, Silicon Valley o Global."
     }
+
+
+async def validate_zone(
+    text: str,
+    model: Optional[str] = None
+) -> Dict[str, Any]:
+    """Evalúa la entrada geográfica del usuario con aceleración por caché en memoria."""
+    cleaned_input = str(text or "").strip()
+    lower_input = cleaned_input.lower().strip()
+    if lower_input in _ZONE_CACHE:
+        logger.debug(f"[Caché Hit] Zona: '{lower_input}'")
+        return dict(_ZONE_CACHE[lower_input])
+
+    result = await _validate_zone_impl(text=text, model=model)
+    if len(_ZONE_CACHE) > 1000:
+        _ZONE_CACHE.clear()
+    _ZONE_CACHE[lower_input] = dict(result)
+    return result
+

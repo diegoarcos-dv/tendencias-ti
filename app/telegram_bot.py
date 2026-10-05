@@ -22,6 +22,7 @@ from dotenv import load_dotenv
 from app.config import settings
 from app.database import (
     mark_as_favorite,
+    add_favorite,
     remove_favorite,
     get_favorites,
     get_trend_by_id,
@@ -31,6 +32,7 @@ from app.database import (
     set_user_zone,
     record_sent_card,
     get_user_daily_card_count,
+    get_last_sent_card_message,
 )
 from app.visual_engine import create_chart_png_card
 
@@ -80,20 +82,25 @@ def _get_credentials() -> tuple[str, str]:
 
 def build_interactive_keyboard(
     trend_id: Optional[int] = None,
-    source_url: Optional[str] = None
+    source_url: Optional[str] = None,
+    showing_chart: bool = False
 ) -> Dict[str, Any]:
     """Genera la estructura del panel interactivo para chats privados (DM) con los botones interactivos:
-    - 📈 Gráfica de tendencias (callback_data: GET_CHART)
+    - 📈 Ver gráfica / 📍 Tendencia original (alternable binario)
     - 🛠️ Stack técnico (callback_data: GET_STACK)
     - ⭐ Guardar en favoritos (callback_data: SAVE_TREND)
-    Y opciones complementarias (Profundizar datos, Ver favoritos, Configuración).
+    - 🔍 Profundizar datos (callback_data: DEEP_DIVE)
+    - 📁 Ver favoritos (callback_data: VIEW_FAVS)
+    - ⚙️ Configuración (callback_data: RESET_CONFIG)
     """
     id_suffix = f":{trend_id}" if trend_id is not None else ""
+    chart_btn_text = "📍 Tendencia original" if showing_chart else "📈 Ver gráfica"
+    chart_cb = f"TOGGLE_DM_ORIGINAL{id_suffix}" if showing_chart else f"GET_CHART{id_suffix}"
 
     return {
         "inline_keyboard": [
             [
-                {"text": "📈 Gráfica de tendencias", "callback_data": f"GET_CHART{id_suffix}"},
+                {"text": chart_btn_text, "callback_data": chart_cb},
                 {"text": "🛠️ Stack técnico", "callback_data": f"GET_STACK{id_suffix}"}
             ],
             [
@@ -108,17 +115,59 @@ def build_interactive_keyboard(
     }
 
 
+def update_dm_keyboard_chart_toggle(
+    current_reply_markup: Optional[Dict[str, Any]],
+    showing_chart: bool,
+    trend_id: Optional[int] = None
+) -> Dict[str, Any]:
+    """Actualiza únicamente el botón de la gráfica en el teclado DM existente:
+    - Si showing_chart=True -> '📍 Tendencia original'
+    - Si showing_chart=False -> '📈 Ver gráfica'
+    Manteniendo intactos los botones de favoritos, menú, configuración, stack y profundizar.
+    """
+    id_suffix = f":{trend_id}" if trend_id is not None else ""
+    target_text = "📍 Tendencia original" if showing_chart else "📈 Ver gráfica"
+    target_cb = f"TOGGLE_DM_ORIGINAL{id_suffix}" if showing_chart else f"GET_CHART{id_suffix}"
+
+    if current_reply_markup and "inline_keyboard" in current_reply_markup:
+        import copy
+        new_kb = copy.deepcopy(current_reply_markup)
+        updated = False
+        for row in new_kb["inline_keyboard"]:
+            for btn in row:
+                cb = btn.get("callback_data", "")
+                txt = btn.get("text", "")
+                if (
+                    cb.startswith("GET_CHART")
+                    or cb.startswith("TOGGLE_DM_ORIGINAL")
+                    or "gráfica" in txt.lower()
+                    or "grafica" in txt.lower()
+                    or "tendencia original" in txt.lower()
+                ):
+                    btn["text"] = target_text
+                    btn["callback_data"] = target_cb
+                    updated = True
+                    break
+            if updated:
+                break
+        if updated:
+            return new_kb
+
+    return build_interactive_keyboard(trend_id=trend_id, showing_chart=showing_chart)
+
+
 def build_group_keyboard(
     trend_id: Optional[Any] = None,
     bot_username: Optional[str] = None,
     showing_chart: bool = False
 ) -> Dict[str, Any]:
-    """Genera el teclado exclusivo para grupos/supergrupos con:
-    1. '🔍 Profundizar': Redirige a https://t.me/{BOT_USERNAME}?start=deepdive_{trend_id}
-    2. '📈 Gráfica de tendencias' o '📍 Tendencia original': Toggle interactivo vía editMessageMedia (TOGGLE_CHART_{trend_id})
-    3. '🤖 Personalizar alertas': Redirige a https://t.me/{BOT_USERNAME}?start=config
+    """Genera el teclado para grupos/supergrupos:
+    - Botón '🔍 Profundizar' configurado como deep-link URL (t.me/TuBot?start=deepdive_{trend_id})
+    - Botón '🤖 Personalizar alertas' configurado como deep-link URL (t.me/TuBot?start=config)
+    - Botón de alternancia:
+      * Estado 1 (Imagen Original): [ 📈 Gráfica de tendencias ] (TOGGLE_CHART_{trend_id})
+      * Estado 2 (Imagen Gráfica): [ 📍 Tendencia original ] (TOGGLE_CHART_{trend_id}:original)
     """
-    # Si el primer argumento es un string con username en llamadas legadas
     if isinstance(trend_id, str) and not trend_id.isdigit():
         bot_username = trend_id
         trend_id = None
@@ -126,22 +175,31 @@ def build_group_keyboard(
     username = bot_username or settings.TELEGRAM_BOT_USERNAME or "Tendencias_DiegoBot"
     clean_username = username.lstrip("@")
     tid_str = str(trend_id) if trend_id is not None else ""
-    deepdive_param = f"deepdive_{tid_str}" if tid_str else "deepdive"
+    deepdive_url = f"https://t.me/{clean_username}?start=deepdive_{tid_str}"
+    config_url = f"https://t.me/{clean_username}?start=config"
 
-    toggle_btn_text = "📍 Tendencia original" if showing_chart else "📈 Gráfica de tendencias"
-    toggle_cb_data = f"TOGGLE_CHART_{tid_str}:original" if showing_chart else f"TOGGLE_CHART_{tid_str}"
-
-    buttons = [
-        [
-            {"text": "🔍 Profundizar", "url": f"https://t.me/{clean_username}?start={deepdive_param}"}
-        ],
-        [
-            {"text": toggle_btn_text, "callback_data": toggle_cb_data}
-        ],
-        [
-            {"text": "🤖 Personalizar alertas", "url": f"https://t.me/{clean_username}?start=config"}
+    if showing_chart:
+        # Estado 2 (Imagen Gráfica): [ 🔍 Profundizar ], [ 🤖 Personalizar alertas ] y [ 📍 Tendencia original ]
+        buttons = [
+            [
+                {"text": "🔍 Profundizar", "url": deepdive_url},
+                {"text": "🤖 Personalizar alertas", "url": config_url}
+            ],
+            [
+                {"text": "📍 Tendencia original", "callback_data": f"TOGGLE_CHART_{tid_str}:original"}
+            ]
         ]
-    ]
+    else:
+        # Estado 1 (Imagen Original): [ 🔍 Profundizar ], [ 🤖 Personalizar alertas ] y [ 📈 Gráfica de tendencias ]
+        buttons = [
+            [
+                {"text": "🔍 Profundizar", "url": deepdive_url},
+                {"text": "🤖 Personalizar alertas", "url": config_url}
+            ],
+            [
+                {"text": "📈 Gráfica de tendencias", "callback_data": f"TOGGLE_CHART_{tid_str}"}
+            ]
+        ]
     return {"inline_keyboard": buttons}
 
 
@@ -383,6 +441,13 @@ async def send_telegram_message(
         if resp.status_code == 200 and res_json.get("ok"):
             return {"success": True, "result": res_json}
 
+        if res_json.get("parameters", {}).get("migrate_to_chat_id"):
+            migrated_id = str(res_json["parameters"]["migrate_to_chat_id"])
+            payload["chat_id"] = migrated_id
+            retry_migrated = await client.post(url, json=payload)
+            if retry_migrated.status_code == 200 and retry_migrated.json().get("ok"):
+                return {"success": True, "result": retry_migrated.json()}
+
         # Fallback en texto plano si falla el parseo de HTML
         if "can't parse entities" in str(res_json.get("description", "")):
             import re
@@ -396,6 +461,26 @@ async def send_telegram_message(
     except Exception as e:
         logger.error(f"Error enviando mensaje a Telegram: {e}")
         return {"success": False, "error": str(e)}
+
+
+async def send_chat_action(
+    action: str = "typing",
+    chat_id: Optional[str] = None
+) -> bool:
+    """Envía una acción de chat (typing, upload_photo, etc.) a Telegram para feedback inmediato al usuario."""
+    bot_token, default_chat = _get_credentials()
+    target_chat = chat_id or default_chat
+    if not bot_token or not target_chat:
+        return False
+    url = f"https://api.telegram.org/bot{bot_token}/sendChatAction"
+    payload = {"chat_id": target_chat, "action": action}
+    try:
+        client = get_http_client()
+        resp = await client.post(url, json=payload, timeout=5.0)
+        return resp.status_code == 200
+    except Exception as e:
+        logger.debug(f"Error en sendChatAction ({target_chat}, {action}): {e}")
+        return False
 
 
 async def send_telegram_notification(
@@ -489,6 +574,12 @@ async def send_telegram_notification(
                     response = await client.post(telegram_url, data=data, files=files)
 
             res_json = response.json()
+            if res_json.get("parameters", {}).get("migrate_to_chat_id"):
+                migrated_id = str(res_json["parameters"]["migrate_to_chat_id"])
+                logger.info(f"[send_telegram_notification] El chat {c_chat} fue migrado a supergrupo: {migrated_id}. Agregando a la lista de reintento...")
+                if migrated_id not in candidate_chats:
+                    candidate_chats.append(migrated_id)
+
             if response.status_code != 200 and "can't parse entities" in str(res_json.get("description", "")):
                 logger.warning(f"[send_telegram_notification] Error de entidades en caption. Reintentando sin parse_mode para {c_chat}...")
                 data.pop("parse_mode", None)
@@ -547,12 +638,13 @@ async def handle_save_trend(
     callback_query_id: Optional[str] = None,
     trend_id: Optional[int] = None,
     message_id: Optional[int] = None,
-    current_reply_markup: Optional[Dict[str, Any]] = None
+    current_reply_markup: Optional[Dict[str, Any]] = None,
+    user_id: Optional[Any] = None
 ) -> None:
     """1. Confirmación de Guardado (Post-Deep Dive):
-    Almacena la tendencia en SQLite y utiliza editMessageReplyMarkup para actualizar el teclado
-    en línea de ese mensaje. El botón cambia de '⭐ Añadir a favoritos' a '✅ Guardado' y su
-    callback_data queda inactivo ('NOOP') para evitar clics duplicados.
+    Almacena la tendencia en SQLite vinculada estrictamente al user_id y utiliza editMessageReplyMarkup
+    para actualizar el teclado en línea de ese mensaje. El botón cambia de '⭐ Añadir a favoritos' a '✅ Guardado'
+    y su callback_data queda inactivo ('NOOP') para evitar clics duplicados.
     """
     trend = _resolve_target_trend(trend_id)
     if not trend:
@@ -561,7 +653,8 @@ async def handle_save_trend(
         return
 
     tid = trend["id"]
-    mark_as_favorite(tid, message_id=message_id, user_id=chat_id)
+    target_uid = int(user_id) if user_id is not None and str(user_id).isdigit() else (int(chat_id) if str(chat_id).isdigit() else chat_id)
+    mark_as_favorite(tid, message_id=message_id, user_id=target_uid)
 
     if callback_query_id:
         await answer_callback_query(callback_query_id, text="⭐ ¡Guardado en tus favoritos!", show_alert=False)
@@ -612,7 +705,8 @@ async def handle_save_trend(
 async def handle_view_favorites(
     chat_id: str,
     callback_query_id: Optional[str] = None,
-    message_id: Optional[int] = None
+    message_id: Optional[int] = None,
+    user_id: Optional[Any] = None
 ) -> None:
     """1. Limpieza de Texto y 2. Botones de Título:
     Elimina por completo la impresión de enlaces web y URLs.
@@ -623,7 +717,8 @@ async def handle_view_favorites(
     if callback_query_id:
         await answer_callback_query(callback_query_id)
 
-    favs = get_favorites(user_id=chat_id)
+    target_uid = int(user_id) if user_id is not None and str(user_id).isdigit() else (int(chat_id) if str(chat_id).isdigit() else chat_id)
+    favs = get_favorites(user_id=target_uid)
     if not favs:
         empty_msg = (
             "📁 <b>Portafolio de Favoritos</b>\n\n"
@@ -673,7 +768,8 @@ async def handle_view_favorites(
 async def handle_manage_favorites(
     chat_id: str,
     message_id: int,
-    callback_query_id: Optional[str] = None
+    callback_query_id: Optional[str] = None,
+    user_id: Optional[Any] = None
 ) -> None:
     """3. Modo de Eliminación:
     Edita el mensaje y despliega un InlineKeyboardMarkup donde cada fila es un botón
@@ -683,7 +779,8 @@ async def handle_manage_favorites(
     if callback_query_id:
         await answer_callback_query(callback_query_id)
 
-    favs = get_favorites(user_id=chat_id)
+    target_uid = int(user_id) if user_id is not None and str(user_id).isdigit() else (int(chat_id) if str(chat_id).isdigit() else chat_id)
+    favs = get_favorites(user_id=target_uid)
     if not favs:
         text = (
             "🗑️ <b>Gestión de Favoritos</b>\n\n"
@@ -730,14 +827,16 @@ async def handle_remove_favorite(
     chat_id: str,
     trend_id: int,
     callback_query_id: Optional[str] = None,
-    message_id: Optional[int] = None
+    message_id: Optional[int] = None,
+    user_id: Optional[Any] = None
 ) -> None:
     """4. Bucle de Eliminación Dinámica:
-    Tras ejecutar el DELETE en SQLite, actualiza instantáneamente el mensaje actual (Modo Eliminación)
+    Tras ejecutar el DELETE en SQLite filtrando por user_id, actualiza instantáneamente el mensaje actual (Modo Eliminación)
     para que el botón de la tendencia recién borrada desaparezca, permitiendo borrar varios elementos
     sin salir del menú.
     """
-    success = remove_favorite(user_id=chat_id, trend_id=trend_id)
+    target_uid = int(user_id) if user_id is not None and str(user_id).isdigit() else (int(chat_id) if str(chat_id).isdigit() else chat_id)
+    success = remove_favorite(user_id=target_uid, trend_id=trend_id)
 
     if callback_query_id:
         if success:
@@ -746,7 +845,7 @@ async def handle_remove_favorite(
             await answer_callback_query(callback_query_id, text="No se encontró o ya fue eliminado.", show_alert=True)
 
     # Actualizar instantáneamente el menú en Modo Eliminación
-    favs = get_favorites(user_id=chat_id)
+    favs = get_favorites(user_id=target_uid)
     if message_id:
         if not favs:
             text = (
@@ -795,7 +894,8 @@ async def handle_remove_favorite(
 async def handle_view_favorite_card(
     chat_id: str,
     fav_id: Optional[int] = None,
-    callback_query_id: Optional[str] = None
+    callback_query_id: Optional[str] = None,
+    user_id: Optional[Any] = None
 ) -> None:
     """4. Renderizado Inmortal:
     Consulta los datos completos de esa tendencia en SQLite y vuelve a enviar la tarjeta visual original
@@ -807,7 +907,8 @@ async def handle_view_favorite_card(
             await answer_callback_query(callback_query_id, text="ID de tendencia no válido.", show_alert=True)
         return
 
-    trend = get_favorite_or_trend(fav_id)
+    target_uid = int(user_id) if user_id is not None and str(user_id).isdigit() else (int(chat_id) if str(chat_id).isdigit() else chat_id)
+    trend = get_favorite_or_trend(fav_id, user_id=target_uid)
     if not trend:
         if callback_query_id:
             await answer_callback_query(callback_query_id, text="No se encontró la tendencia en tus favoritos.", show_alert=True)
@@ -890,76 +991,107 @@ async def handle_load_favorite(
 async def handle_get_chart(
     chat_id: str,
     callback_query_id: Optional[str] = None,
-    trend_id: Optional[int] = None
+    trend_id: Optional[int] = None,
+    message_id: Optional[int] = None,
+    current_reply_markup: Optional[Dict[str, Any]] = None,
+    to_original: bool = False
 ) -> None:
-    """3. '📈 Gráfica de tendencias': Envía gráfica de tracción usando caché de file_id si existe o renderizando con Playwright."""
-    from datetime import datetime
-    from app.database import get_daily_history
+    """Procesa la acción de alternancia (toggle) de la gráfica en el chat privado (DM).
+    REGLA: ELIMINA el uso de sendPhoto y utiliza obligatoriamente editMessageMedia
+    para actualizar la foto dentro del mismo globo de mensaje (cero spam).
+    - Estado Gráfica: el botón se actualiza a '📍 Tendencia original' (preservando los demás botones).
+    - Estado Original: el botón se actualiza a '📈 Ver gráfica' (preservando los demás botones).
+    """
+    # Feedback visual instantáneo para el usuario
+    asyncio.create_task(send_chat_action(action="upload_photo", chat_id=chat_id))
 
-    now = datetime.now()
-    today_records = get_daily_history(date=now)
+    from app.visual_engine import create_chart_png_card, create_png_card
+    from app.database import get_trend_by_id, get_recent_sent_trends, get_last_sent_card_message
 
-    # Si aún no son las 10:00 AM y no hay tendencia registrada para hoy
-    if now.hour < 10 and not today_records and not trend_id:
-        aviso = (
-            "⏳ <b>Aviso de Horario</b>\n\n"
-            "Aún no son las 10:00 AM. La gráfica de tracción y la tendencia del día "
-            "se generarán automáticamente a las 10:00 AM."
-        )
+    target_msg_id = message_id or get_last_sent_card_message(chat_id)
+
+    trend = None
+    if trend_id is not None:
+        trend = get_trend_by_id(trend_id)
+    if not trend:
+        recent = get_recent_sent_trends(limit=1)
+        if recent:
+            trend = get_trend_by_id(recent[0]["id"])
+            if trend and trend_id is None:
+                trend_id = trend["id"]
+
+    if to_original:
+        # Alternar a la tarjeta original de la tendencia
         if callback_query_id:
-            await answer_callback_query(
-                callback_query_id,
-                text="Aún no son las 10:00 AM. La gráfica se generará a las 10:00 AM.",
-                show_alert=True
-            )
-        await send_telegram_message(text=aviso, chat_id=chat_id)
-        return
+            await answer_callback_query(callback_query_id, text="📍 Mostrando tendencia original...")
 
-    if callback_query_id:
-        await answer_callback_query(callback_query_id, text="📈 Cargando gráfica de tracción...")
+        photo_to_use: Path | str = ""
+        cached_file_id = _trend_card_file_id_cache.get(trend_id)
+        if cached_file_id:
+            photo_to_use = cached_file_id
+        else:
+            temp_card_path = settings.BASE_DIR / f"temp_trend_{trend_id}.png"
+            if temp_card_path.exists():
+                photo_to_use = temp_card_path
+            elif (settings.BASE_DIR / "temp_card.png").exists() and (not trend or trend.get("id") == trend_id):
+                photo_to_use = settings.BASE_DIR / "temp_card.png"
+            elif trend and trend.get("card_data"):
+                photo_to_use = await create_png_card(data=trend["card_data"], output_path=temp_card_path)
+            else:
+                photo_to_use = settings.BASE_DIR / "temp_card.png"
 
-    caption = (
-        "📈 <b>Radar de Tracción & Demanda B2B</b>\n\n"
-        "Análisis comparativo de volumen, crecimiento sostenido y aceleración comercial "
-        "monitoreado en tiempo real a través de fuentes abiertas (Product Hunt, Hacker News, Reddit y Google Trends)."
-    )
+        new_kb = update_dm_keyboard_chart_toggle(
+            current_reply_markup=current_reply_markup,
+            showing_chart=False,
+            trend_id=trend_id
+        )
 
-    # 1. Verificación en caché de Telegram: entrega instantánea (<200 ms)
-    cached_file_id = _chart_file_id_cache.get("latest")
-    if cached_file_id:
-        try:
-            res = await send_telegram_notification(
-                photo_path=cached_file_id,
-                caption=caption,
+        if target_msg_id:
+            res = await edit_telegram_media(
                 chat_id=chat_id,
-                reply_markup=build_interactive_keyboard(trend_id)
+                message_id=target_msg_id,
+                photo_path=photo_to_use,
+                reply_markup=new_kb
             )
-            if res.get("success"):
-                logger.info(f"[Telegram Bot] Gráfica entregada instantáneamente desde caché ({cached_file_id[:16]}...).")
-                return
-        except Exception as e_cache:
-            logger.warning(f"[Telegram Bot] Fallo al enviar gráfica desde caché ({e_cache}). Re-renderizando...")
+            if res.get("file_id") and trend_id:
+                _trend_card_file_id_cache[trend_id] = res["file_id"]
+    else:
+        # Alternar a la gráfica de tendencias
+        if callback_query_id:
+            await answer_callback_query(callback_query_id, text="📈 Mostrando gráfica de tendencias...")
 
-    # 2. Si no está en caché o falló el envío previo, renderizar con Playwright
-    chart_target = settings.BASE_DIR / "temp_chart.png"
-    try:
-        await create_chart_png_card(output_path=chart_target)
-        res = await send_telegram_notification(
-            photo_path=chart_target,
-            caption=caption,
-            chat_id=chat_id,
-            reply_markup=build_interactive_keyboard(trend_id)
+        photo_to_use = ""
+        cached_chart_id = _chart_file_id_cache.get(f"chart_{trend_id}") or _chart_file_id_cache.get("latest")
+        if cached_chart_id:
+            photo_to_use = cached_chart_id
+        else:
+            chart_target = settings.BASE_DIR / "temp_chart.png"
+            try:
+                await create_chart_png_card(output_path=chart_target)
+                photo_to_use = chart_target
+            except Exception as e_chart:
+                logger.error(f"[handle_get_chart] Error renderizando gráfica: {e_chart}")
+                if callback_query_id:
+                    await answer_callback_query(callback_query_id, text="⚠️ No se pudo renderizar la gráfica.", show_alert=True)
+                return
+
+        new_kb = update_dm_keyboard_chart_toggle(
+            current_reply_markup=current_reply_markup,
+            showing_chart=True,
+            trend_id=trend_id
         )
-        new_file_id = res.get("file_id")
-        if new_file_id:
-            _chart_file_id_cache["latest"] = new_file_id
-            logger.info(f"[Telegram Bot] Gráfica cacheada exitosamente con file_id: {new_file_id[:16]}...")
-    except Exception as e:
-        logger.error(f"Error generando o enviando gráfica de tracción: {e}")
-        await send_telegram_message(
-            text=f"⚠️ No se pudo renderizar la gráfica de tendencias: {e}",
-            chat_id=chat_id
-        )
+
+        if target_msg_id:
+            res = await edit_telegram_media(
+                chat_id=chat_id,
+                message_id=target_msg_id,
+                photo_path=photo_to_use,
+                reply_markup=new_kb
+            )
+            if res.get("file_id"):
+                if trend_id:
+                    _chart_file_id_cache[f"chart_{trend_id}"] = res["file_id"]
+                _chart_file_id_cache["latest"] = res["file_id"]
 
 
 async def handle_get_stack(
@@ -1103,6 +1235,9 @@ async def handle_deep_dive(
     if callback_query_id:
         await answer_callback_query(callback_query_id, text="🔍 Generando reporte técnico y comercial...")
 
+    # Feedback visual instantáneo para el usuario
+    asyncio.create_task(send_chat_action(action="typing", chat_id=chat_id))
+
     trend = _resolve_target_trend(trend_id)
     if not trend:
         await send_telegram_message(
@@ -1217,6 +1352,10 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
         trend_id = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else None
         chat_type = msg_obj.get("chat", {}).get("type", "private")
 
+        # Extraer ID del usuario llamante (query.from_user.id)
+        from_user = cq.get("from", {})
+        caller_user_id = from_user.get("id") or (int(user_chat_id) if user_chat_id.isdigit() else user_chat_id)
+
         # Manejo de RESET_CONFIG
         if action == "RESET_CONFIG":
             from app.database import reset_user_config
@@ -1236,15 +1375,15 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
         if data.startswith("VIEW_FAV_") or data.startswith("LOAD_FAV_") or data.startswith("VIEW_FAV:"):
             clean_str = data.replace("VIEW_FAV_", "").replace("LOAD_FAV_", "").replace("VIEW_FAV:", "").strip()
             fav_id = int(clean_str) if clean_str.isdigit() else None
-            await handle_view_favorite_card(chat_id=user_chat_id, fav_id=fav_id, callback_query_id=cb_id)
+            await handle_view_favorite_card(chat_id=user_chat_id, fav_id=fav_id, callback_query_id=cb_id, user_id=caller_user_id)
             return
 
-        # 4. Manejo de TOGGLE_CHART_{trend_id} (efecto toggle dinámico entre gráfica y tendencia)
-        if data.startswith("TOGGLE_CHART") or data.startswith("TOGGLE_ORIGINAL"):
+        # 4. Manejo de TOGGLE_CHART_{trend_id} (efecto toggle binario estricto entre gráfica y tendencia en grupo)
+        if (data.startswith("TOGGLE_CHART") or data.startswith("TOGGLE_ORIGINAL")) and not data.startswith("TOGGLE_DM_ORIGINAL"):
             is_to_orig = ":original" in data or "_orig" in data or data.startswith("TOGGLE_ORIGINAL")
-            clean_str = data.replace(":original", "").replace("_orig", "")
-            tid_part = clean_str.split("_")[-1] if "_" in clean_str else ""
-            t_id = int(tid_part) if tid_part.isdigit() else trend_id
+            import re
+            m = re.search(r"\d+", data)
+            t_id = int(m.group(0)) if m else trend_id
             await handle_toggle_chart(
                 chat_id=user_chat_id,
                 message_id=orig_msg_id,
@@ -1273,7 +1412,8 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
                     chat_id=user_chat_id,
                     trend_id=rem_id,
                     callback_query_id=cb_id,
-                    message_id=orig_msg_id
+                    message_id=orig_msg_id,
+                    user_id=caller_user_id
                 )
             else:
                 await answer_callback_query(cb_id, text="ID de tendencia no válido.", show_alert=True)
@@ -1291,12 +1431,14 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
                 await handle_manage_favorites(
                     chat_id=user_chat_id,
                     message_id=orig_msg_id,
-                    callback_query_id=cb_id
+                    callback_query_id=cb_id,
+                    user_id=caller_user_id
                 )
             else:
                 await handle_view_favorites(
                     chat_id=user_chat_id,
-                    callback_query_id=cb_id
+                    callback_query_id=cb_id,
+                    user_id=caller_user_id
                 )
             return
 
@@ -1308,20 +1450,45 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
                 callback_query_id=cb_id,
                 trend_id=save_id,
                 message_id=orig_msg_id,
-                current_reply_markup=msg_obj.get("reply_markup")
+                current_reply_markup=msg_obj.get("reply_markup"),
+                user_id=caller_user_id
             )
         elif action in ("VIEW_FAVS", "view_favorites") or data == "VIEW_FAVS":
             await handle_view_favorites(
                 chat_id=user_chat_id,
                 callback_query_id=cb_id,
-                message_id=orig_msg_id
+                message_id=orig_msg_id,
+                user_id=caller_user_id
             )
         elif action in ("VIEW_FAV", "LOAD_FAV", "GOTO_FAV", "goto_fav"):
-            await handle_view_favorite_card(chat_id=user_chat_id, callback_query_id=cb_id, fav_id=trend_id)
+            await handle_view_favorite_card(
+                chat_id=user_chat_id,
+                fav_id=trend_id,
+                callback_query_id=cb_id,
+                user_id=caller_user_id
+            )
         elif action in ("GET_CHART", "view_chart") or data.startswith("GET_CHART"):
             clean_tid = data.replace("GET_CHART_", "").replace("GET_CHART:", "").replace("view_chart:", "").strip()
             chart_id = int(clean_tid) if clean_tid.isdigit() else trend_id
-            await handle_get_chart(chat_id=user_chat_id, callback_query_id=cb_id, trend_id=chart_id)
+            await handle_get_chart(
+                chat_id=user_chat_id,
+                callback_query_id=cb_id,
+                trend_id=chart_id,
+                message_id=orig_msg_id,
+                current_reply_markup=msg_obj.get("reply_markup"),
+                to_original=False
+            )
+        elif action in ("TOGGLE_DM_ORIGINAL", "toggle_dm_original") or data.startswith("TOGGLE_DM_ORIGINAL"):
+            clean_tid = data.replace("TOGGLE_DM_ORIGINAL_", "").replace("TOGGLE_DM_ORIGINAL:", "").strip()
+            chart_id = int(clean_tid) if clean_tid.isdigit() else trend_id
+            await handle_get_chart(
+                chat_id=user_chat_id,
+                callback_query_id=cb_id,
+                trend_id=chart_id,
+                message_id=orig_msg_id,
+                current_reply_markup=msg_obj.get("reply_markup"),
+                to_original=True
+            )
         elif action in ("GET_STACK", "get_stack") or data.startswith("GET_STACK"):
             clean_tid = data.replace("GET_STACK_", "").replace("GET_STACK:", "").replace("get_stack:", "").strip()
             stack_id = int(clean_tid) if clean_tid.isdigit() else trend_id
@@ -1384,43 +1551,29 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
 
         # 3. Onboarding Secuencial y Validación NLP en chat privado (DM)
         if chat_type == "private" and not text.startswith("/"):
-            from app.database import get_user_zone, get_user_industry, set_user_zone, set_user_industry
+            # Feedback visual instantáneo para el usuario
+            asyncio.create_task(send_chat_action(action="typing", chat_id=user_chat_id))
+
+            from app.database import (
+                get_user_zone, get_user_industry, set_user_zone, set_user_industry,
+                get_user_onboarding_step, reset_user_config
+            )
             from app.llm_service import validate_zone, classify_user_input
 
-            curr_zone = get_user_zone(user_chat_id)
-            curr_ind = get_user_industry(user_chat_id)
+            fsm_step = get_user_onboarding_step(user_chat_id)
+            logger.info(f"[Telegram Bot FSM] Usuario {user_chat_id} en estado '{fsm_step}'. Mensaje recibido: '{text}'")
 
-            # Paso 1: Si zona_preferida está vacía -> Validar región con Gemma
-            if not curr_zone:
-                logger.info(f"[Telegram Bot] Validando zona en Paso 1: '{text}' para chat {user_chat_id}")
-                val_res = await validate_zone(text)
-                if not val_res.get("valido"):
-                    razon = val_res.get("razon_rechazo") or "La región especificada no es válida o reconocible."
-                    msg_reject = (
-                        f"⚠️ {razon}\n\n"
-                        f"{STEP1_ZONE_MSG}"
-                    )
-                    await send_telegram_message(text=msg_reject, chat_id=user_chat_id)
-                    return
-
-                zona_norm = val_res.get("zona_normalizada") or text.strip().title()
-                z_local = val_res.get("zona_local") or zona_norm
-                z_pais = val_res.get("zona_pais") or "México"
-                set_user_zone(user_chat_id, zone=zona_norm, zona_local=z_local, zona_pais=z_pais)
-
-                # Si es localidad menor escalada, enviar mensaje explicativo primero
-                if val_res.get("es_localidad_menor") and val_res.get("mensaje_escalado"):
-                    await send_telegram_message(text=val_res["mensaje_escalado"], chat_id=user_chat_id)
-
-                # Paso 2: Preguntar por la industria en la zona local seleccionada
-                msg_step2 = f"💼 Perfecto. ¿De qué industria quieres conocer las tendencias en {z_local}?"
-                await send_telegram_message(text=msg_step2, chat_id=user_chat_id)
-                return
-
-            # Paso 2: Si zona_preferida ya está definida pero industria está vacía -> Clasificar industria con Gemma
-            if not curr_ind:
-                logger.info(f"[Telegram Bot] Clasificando industria en Paso 2: '{text}' para chat {user_chat_id}")
+            # ESTADO 2: ESPERANDO INDUSTRIA (Paso 2)
+            # REGLA INQUEBRANTABLE: Si el estado del usuario es "Esperando Industria" (Paso 2),
+            # el mensaje entrante DEBE procesarse EXCLUSIVAMENTE con el validador de industria. 
+            # Bloquea cualquier posibilidad de que el texto ingresado en el Paso 2 vuelva a pasar por validate_zone
+            # o que reescriba las variables de sesión zona_local y zona_pais que ya fueron guardadas en el Paso 1.
+            if fsm_step == "STEP_INDUSTRY":
+                logger.info(f"[Telegram Bot] Procesando EXCLUSIVAMENTE industria en Paso 2 para chat {user_chat_id}: '{text}'")
                 class_res = await classify_user_input(text)
+
+                curr_zone = get_user_zone(user_chat_id) or "tu región seleccionada"
+
                 if not class_res.get("valido", False):
                     razon = class_res.get("razon_rechazo") or "El texto ingresado no es una industria o sector comercial válido."
                     msg_reject = (
@@ -1428,6 +1581,7 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
                         f"💼 ¿De qué industria te interesa conocer las tendencias en {curr_zone}? (Ej. Fintech, Salud, E-Commerce, Inteligencia Artificial, Logística)."
                     )
                     await send_telegram_message(text=msg_reject, chat_id=user_chat_id)
+                    # Bloqueo total: No retroceder de paso, no llamar a validate_zone, no tocar zona_local ni zona_pais
                     return
 
                 detected_industry = class_res.get("industria_exacta") or class_res.get("industria") or "TI & Software B2B"
@@ -1460,7 +1614,48 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
                 )
                 return
 
-            # Paso 3 ya completado previamente: el bot no vuelve a pedir configuración
+            # ESTADO 1: ESPERANDO ZONA GEOGRÁFICA (Paso 1)
+            if fsm_step == "STEP_ZONE":
+                logger.info(f"[Telegram Bot] Validando zona en Paso 1: '{text}' para chat {user_chat_id}")
+                val_res = await validate_zone(text)
+                if not val_res.get("valido"):
+                    razon = val_res.get("razon_rechazo") or "La región especificada no es válida o reconocible."
+                    msg_reject = (
+                        f"⚠️ {razon}\n\n"
+                        f"{STEP1_ZONE_MSG}"
+                    )
+                    await send_telegram_message(text=msg_reject, chat_id=user_chat_id)
+                    return
+
+                zona_norm = val_res.get("zona_normalizada") or text.strip().title()
+                z_local = val_res.get("zona_local")
+                z_pais = val_res.get("zona_pais") or ""
+                zonas_list = val_res.get("zonas") or []
+                set_user_zone(user_chat_id, zone=zona_norm, zona_local=z_local, zona_pais=z_pais, zonas=zonas_list)
+
+                # Si es localidad menor escalada, enviar mensaje explicativo primero
+                if val_res.get("es_localidad_menor") and val_res.get("mensaje_escalado"):
+                    await send_telegram_message(text=val_res["mensaje_escalado"], chat_id=user_chat_id)
+
+                # Lógica de Renderizado Limpio (Capa UI):
+                # - Si zona_local es null o vacía, imprime solo zona_pais (ej. "en Tailandia?")
+                # - Si ambas existen, imprímelas juntas (ej. "en Monterrey, México?")
+                if z_local and str(z_local).strip() and str(z_local).strip().lower() not in ("none", "null"):
+                    if z_pais and str(z_pais).strip() and str(z_pais).strip().lower() != str(z_local).strip().lower() and str(z_pais).strip().lower() not in str(z_local).strip().lower():
+                        display_zone = f"{str(z_local).strip()}, {str(z_pais).strip()}"
+                    else:
+                        display_zone = str(z_local).strip()
+                else:
+                    display_zone = str(z_pais).strip() if (z_pais and str(z_pais).strip().lower() not in ("none", "null")) else text.strip().title()
+
+                # Paso 2: Preguntar por la industria en la zona seleccionada
+                msg_step2 = f"💼 Perfecto. ¿De qué industria quieres conocer las tendencias en {display_zone}?"
+                await send_telegram_message(text=msg_step2, chat_id=user_chat_id)
+                return
+
+            # ESTADO: COMPLETED (Perfil activo ya configurado previamente)
+            curr_zone = get_user_zone(user_chat_id) or "Global"
+            curr_ind = get_user_industry(user_chat_id) or "TI & Software B2B"
             ready_msg = (
                 f"💡 Tu perfil activo está configurado para <b>{curr_zone}</b> e industria <b>{curr_ind}</b>.\n\n"
                 "• Usa <code>/radar</code> para consultar una nueva tendencia de hoy.\n"
@@ -1471,10 +1666,9 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
 
         # Si el usuario ejecuta /start puro en DM y no tiene configuración completa (o primera vez)
         if text == "/start" and chat_type == "private":
-            from app.database import get_user_zone, get_user_industry, reset_user_config
-            curr_zone = get_user_zone(user_chat_id)
-            curr_ind = get_user_industry(user_chat_id)
-            if not curr_zone or not curr_ind:
+            from app.database import get_user_onboarding_step, reset_user_config
+            fsm_step = get_user_onboarding_step(user_chat_id)
+            if fsm_step != "COMPLETED":
                 reset_user_config(user_chat_id)
                 await send_telegram_message(text=WELCOME_INTRO_MSG, chat_id=user_chat_id)
                 await send_telegram_message(text=STEP1_ZONE_MSG, chat_id=user_chat_id)
@@ -1497,7 +1691,9 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
                     chat_id=user_chat_id
                 )
             else:
-                await handle_view_favorites(chat_id=user_chat_id)
+                msg_from_user = msg.get("from", {})
+                caller_user_id = msg_from_user.get("id") or (int(user_chat_id) if user_chat_id.isdigit() else user_chat_id)
+                await handle_view_favorites(chat_id=user_chat_id, user_id=caller_user_id)
         elif text.startswith("/grafica") or text.startswith("/chart"):
             await handle_get_chart(chat_id=user_chat_id)
         elif text.startswith("/profundizar") or text.startswith("/deepdive"):
@@ -1594,7 +1790,7 @@ async def start_bot_polling() -> None:
 
 
 async def stop_bot_polling() -> None:
-    """Detiene limpiamente el listener de Long Polling y cierra la sesión HTTP persistente."""
+    """Detiene limpiamente el listener de Long Polling y cierra la conexion HTTP persistente."""
     global _polling_active, _polling_task
     _polling_active = False
     if _polling_task:

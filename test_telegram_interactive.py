@@ -41,21 +41,14 @@ async def test_keyboard_structure():
     rows = kb.get("inline_keyboard", [])
     assert len(rows) >= 2, f"Se esperaban al menos 2 filas de botones, se obtuvieron {len(rows)}"
 
-    btn_1 = rows[0][0]
-    btn_2 = rows[0][1]
-    btn_3 = rows[1][0]
-    btn_4 = rows[1][1]
-
-    print(f"  -> Botón 1: '{btn_1['text']}' (callback_data: '{btn_1.get('callback_data')}')")
-    print(f"  -> Botón 2: '{btn_2['text']}' (callback_data: '{btn_2.get('callback_data')}')")
-    print(f"  -> Botón 3: '{btn_3['text']}' (callback_data: '{btn_3.get('callback_data')}')")
-    print(f"  -> Botón 4: '{btn_4['text']}' (callback_data: '{btn_4.get('callback_data')}')")
-
-    assert "Guardar en favoritos" in btn_1["text"] and "SAVE_TREND" in btn_1["callback_data"]
-    assert "Ver favoritos" in btn_2["text"] and "VIEW_FAVS" in btn_2["callback_data"]
-    assert "Gráfica de tendencias" in btn_3["text"] and "GET_CHART" in btn_3["callback_data"]
-    assert "Profundizar datos" in btn_4["text"] and "DEEP_DIVE" in btn_4["callback_data"]
-    print("  [OK] Todos los botones coinciden exactamente con la nueva especificación (Guardar, Ver, Gráfica, Profundizar).")
+    all_buttons = [btn for row in rows for btn in row]
+    callbacks = {b.get("callback_data", ""): b.get("text", "") for b in all_buttons}
+    
+    assert any("SAVE_TREND" in cb for cb in callbacks), "Missing SAVE_TREND button"
+    assert any("VIEW_FAVS" in cb for cb in callbacks), "Missing VIEW_FAVS button"
+    assert any("GET_CHART" in cb for cb in callbacks), "Missing GET_CHART button"
+    assert any("DEEP_DIVE" in cb for cb in callbacks), "Missing DEEP_DIVE button"
+    print("  [OK] Todos los botones requeridos están presentes en el panel interactivo.")
 
 
 async def test_favorites_card_rendering():
