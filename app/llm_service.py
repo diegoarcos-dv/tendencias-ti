@@ -634,6 +634,8 @@ async def _classify_user_input_impl(
         }
 
     lower_text = cleaned_input.lower().strip()
+    # Normalización de consonantes dobles accidentales (ej. 'viddeojuegos' -> 'videojuegos', 'finttech' -> 'fintech')
+    normalized_typo_text = re.sub(r'([bdfgjklmnpstvwxyz])\1+', r'\1', lower_text)
 
     # 1. Filtro estricto previo de groserías, palabras basura o entradas inválidas evidentes
     profanities = [
@@ -665,10 +667,39 @@ async def _classify_user_input_impl(
 
     # 3. Mapeo determinista prioritario de alta granularidad (precisión inmediata)
     known_granular_map = {
+        # Videojuegos & Gaming (reconocimiento directo y tolerancia a typos)
+        "videojuegos": ("Industria de Videojuegos & Gaming", "tech"),
+        "videojuego": ("Industria de Videojuegos & Gaming", "tech"),
+        "viddeojuegos": ("Industria de Videojuegos & Gaming", "tech"),
+        "video juegos": ("Industria de Videojuegos & Gaming", "tech"),
+        "video juego": ("Industria de Videojuegos & Gaming", "tech"),
+        "gaming": ("Industria de Videojuegos & Gaming", "tech"),
+        "gamedev": ("Industria de Videojuegos & Gaming", "tech"),
+        "juegos": ("Industria de Videojuegos & Gaming", "tech"),
+        "esports": ("E-Sports & Gaming", "tech"),
+        "e-sports": ("E-Sports & Gaming", "tech"),
+        # Sectores primarios e industriales
         "pesca": ("Industria Pesquera", "general"),
         "pesquero": ("Industria Pesquera", "general"),
         "pesquera": ("Industria Pesquera", "general"),
         "industria pesquera": ("Industria Pesquera", "general"),
+        "agricultura": ("Agricultura", "general"),
+        "agro": ("Agroindustria & Agricultura", "general"),
+        "agrotech": ("Agrotech", "tech"),
+        "ganaderia": ("Ganadería", "general"),
+        "ganadería": ("Ganadería", "general"),
+        "mineria": ("Industria Minera", "general"),
+        "minería": ("Industria Minera", "general"),
+        "manufactura": ("Manufactura & Industria 4.0", "general"),
+        "industrial": ("Manufactura & Industria 4.0", "general"),
+        "construccion": ("Construcción & Infraestructura", "general"),
+        "construcción": ("Construcción & Infraestructura", "general"),
+        "energia": ("Energía & CleanTech", "general"),
+        "energía": ("Energía & CleanTech", "general"),
+        "cleantech": ("Energía & CleanTech", "tech"),
+        "automotriz": ("Industria Automotriz & Movilidad", "general"),
+        "autos": ("Industria Automotriz & Movilidad", "general"),
+        # Tecnología & Digital
         "tic's": ("Tecnologías de la Información", "tech"),
         "tics": ("Tecnologías de la Información", "tech"),
         "tic": ("Tecnologías de la Información", "tech"),
@@ -682,44 +713,56 @@ async def _classify_user_input_impl(
         "cadena de bloques": ("Tecnología Blockchain", "tech"),
         "cripto": ("Tecnología Blockchain", "tech"),
         "criptomonedas": ("Tecnología Blockchain", "tech"),
-        "agricultura": ("Agricultura", "general"),
-        "agro": ("Agroindustria & Agricultura", "general"),
-        "agrotech": ("Agrotech", "tech"),
-        "ganaderia": ("Ganadería", "general"),
-        "ganadería": ("Ganadería", "general"),
-        "mineria": ("Industria Minera", "general"),
-        "minería": ("Industria Minera", "general"),
-        "fintech": ("Fintech & Servicios Financieros", "tech"),
-        "finanzas": ("Fintech & Servicios Financieros", "tech"),
-        "banca": ("Banca & Servicios Financieros", "tech"),
-        "ecommerce": ("E-Commerce & Comercio Digital", "retail"),
-        "e-commerce": ("E-Commerce & Comercio Digital", "retail"),
-        "comercio electronico": ("E-Commerce & Comercio Digital", "retail"),
-        "comercio electrónico": ("E-Commerce & Comercio Digital", "retail"),
-        "retail": ("Retail & Comercio Minorista", "retail"),
         "ciberseguridad": ("Ciberseguridad", "tech"),
         "seguridad informatica": ("Ciberseguridad", "tech"),
         "seguridad informática": ("Ciberseguridad", "tech"),
         "software": ("Software & SaaS", "tech"),
         "saas": ("Software & SaaS", "tech"),
+        "fintech": ("Fintech & Servicios Financieros", "tech"),
+        "finanzas": ("Fintech & Servicios Financieros", "tech"),
+        "banca": ("Banca & Servicios Financieros", "tech"),
+        "seguros": ("InsurTech & Seguros", "tech"),
+        "insurtech": ("InsurTech & Seguros", "tech"),
+        "ecommerce": ("E-Commerce & Comercio Digital", "retail"),
+        "e-commerce": ("E-Commerce & Comercio Digital", "retail"),
+        "comercio electronico": ("E-Commerce & Comercio Digital", "retail"),
+        "comercio electrónico": ("E-Commerce & Comercio Digital", "retail"),
+        "retail": ("Retail & Comercio Minorista", "retail"),
+        "marketing": ("Marketing Digital & MarTech", "tech"),
+        "martech": ("Marketing Digital & MarTech", "tech"),
+        "publicidad": ("Marketing Digital & Publicidad", "tech"),
+        "medios": ("Medios & Entretenimiento Digital", "tech"),
+        "entretenimiento": ("Medios & Entretenimiento Digital", "tech"),
+        "inmobiliaria": ("PropTech & Bienes Raíces", "tech"),
+        "inmobiliario": ("PropTech & Bienes Raíces", "tech"),
+        "proptech": ("PropTech & Bienes Raíces", "tech"),
+        "telecomunicaciones": ("Telecomunicaciones", "tech"),
+        "telecom": ("Telecomunicaciones", "tech"),
+        # Salud, Servicios y Educación
         "salud": ("Sector Salud & Medicina", "general"),
         "medicina": ("Sector Salud & Medicina", "general"),
         "healthtech": ("Healthtech & Salud Digital", "tech"),
+        "farmaceutica": ("Biotecnología & Farmacéutica", "tech"),
+        "farmacéutica": ("Biotecnología & Farmacéutica", "tech"),
+        "biotech": ("Biotecnología & Farmacéutica", "tech"),
         "logistica": ("Logística & Cadena de Suministro", "general"),
         "logística": ("Logística & Cadena de Suministro", "general"),
-        "construccion": ("Construcción & Infraestructura", "general"),
-        "construcción": ("Construcción & Infraestructura", "general"),
         "turismo": ("Turismo & Hospitalidad", "general"),
         "gastronomia": ("Gastronomía & Restauración", "general"),
         "gastronomía": ("Gastronomía & Restauración", "general"),
         "educacion": ("Sector Educación", "general"),
         "educación": ("Sector Educación", "general"),
-        "edtech": ("EdTech", "tech")
+        "edtech": ("EdTech", "tech"),
+        "legal": ("LegalTech & Sector Legal", "tech"),
+        "legaltech": ("LegalTech & Sector Legal", "tech"),
+        "recursos humanos": ("HRTech & Recursos Humanos", "tech"),
+        "rrhh": ("HRTech & Recursos Humanos", "tech"),
+        "hrtech": ("HRTech & Recursos Humanos", "tech")
     }
 
-    # Revisión directa de exact match o contención en el mapeo granular
+    # Revisión directa de exact match o match con corrección de typos
     for kw, (sec_name, cat) in known_granular_map.items():
-        if kw == lower_text:
+        if kw == lower_text or kw == normalized_typo_text:
             return {
                 "valido": True,
                 "industria_exacta": sec_name,
@@ -841,9 +884,9 @@ async def _classify_user_input_impl(
     except Exception as e:
         logger.warning(f"Error en classify_user_input con Ollama ({e}).")
 
-    # Mapeo determinista secundario (si kw está contenido en lower_text)
+    # Mapeo determinista secundario (si kw está contenido en lower_text o normalized_typo_text)
     for kw, (sec_name, cat) in known_granular_map.items():
-        if kw in lower_text:
+        if kw in lower_text or kw in normalized_typo_text:
             return {
                 "valido": True,
                 "industria_exacta": sec_name,
