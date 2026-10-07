@@ -182,11 +182,11 @@ async def test_5_llm_analysis_mock():
 
     if ollama_online:
         print("  -> Modo REAL: enviando tendencia a Ollama/Gemma...")
-        result = await analyze_trend_impact(trend_dict)
+        result = await analyze_trend_impact(trend_dict, zona_preferida="Global", user_industry="TI & Software B2B")
     else:
         print("  -> Modo MOCK: Ollama no disponible, inyectando respuesta sintética...")
         with patch("app.llm_service._call_ollama", new=AsyncMock(return_value=MOCK_LLM_RESPONSE)):
-            result = await analyze_trend_impact(trend_dict)
+            result = await analyze_trend_impact(trend_dict, zona_preferida="Global", user_industry="TI & Software B2B")
 
     # Verificar contrato de datos
     required_keys = ["titulo", "categoria", "impacto_comercial",

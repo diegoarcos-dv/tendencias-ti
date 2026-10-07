@@ -199,7 +199,11 @@ async def test_deep_dive_report_generation():
         }
     }
 
-    report = await generate_deep_dive_report(sample_trend)
+    report = await generate_deep_dive_report(
+        trend_data=sample_trend,
+        zona_preferida="Global",
+        user_industry="TI & Software B2B"
+    )
     print(f"  -> Reporte generado ({len(report)} caracteres):")
     print(report[:400] + "...\n")
 

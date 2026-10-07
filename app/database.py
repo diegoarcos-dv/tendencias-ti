@@ -367,6 +367,33 @@ def get_recent_sent_trends(limit: int = 20) -> List[Dict[str, Any]]:
         return [dict(r) for r in rows]
 
 
+def get_daily_catalog_trends(limit: int = 5) -> List[Dict[str, Any]]:
+    """Retorna el lote de 3 a 5 tendencias del catálogo más reciente en orden cronológico (id ASC)."""
+    with _get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, url, title, source, category, score, sent_at, card_data
+            FROM (
+                SELECT * FROM historial_envios
+                ORDER BY id DESC
+                LIMIT ?
+            )
+            ORDER BY id ASC
+            """,
+            (max(3, min(limit, 5)),)
+        ).fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            if d.get("card_data"):
+                try:
+                    d["card_data"] = json.loads(d["card_data"]) if isinstance(d["card_data"], str) else d["card_data"]
+                except Exception:
+                    pass
+            result.append(d)
+        return result
+
+
 def mark_as_favorite(trend_id: int, message_id: Optional[int] = None, user_id: Optional[Any] = None) -> bool:
     """Copia una entrada del historial a tendencias_guardadas como favorito, asociando user_id y message_id."""
     if user_id is None:

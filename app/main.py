@@ -59,10 +59,9 @@ from app.telegram_bot import (
     clear_chart_cache,
 )
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-)
+from app.logger import setup_logging
+
+setup_logging()
 logger = logging.getLogger("app.main")
 
 # Instancia global del Scheduler asíncrono
@@ -148,60 +147,156 @@ def select_top_trend(
     return top_1
 
 
+def select_top_trends(
+    trends: List[TrendItem],
+    count: int = 5,
+    days_cooldown: Optional[int] = None,
+    industry: Optional[str] = None
+) -> List[TrendItem]:
+    """Scoring Engine: Selecciona el lote Top 3 a 5 de tendencias del día para el Catálogo Interactivo."""
+    if not trends:
+        return []
+    init_db()
+    cooldown = days_cooldown if days_cooldown is not None else settings.DEDUPLICATION_WINDOW_DAYS
+    fresh_trends: List[TrendItem] = []
+    for item in trends:
+        if not trend_exists(url=item.url, title=item.title, days_cooldown=cooldown):
+            fresh_trends.append(item)
+
+    if not fresh_trends:
+        fresh_trends = trends
+
+    def calculate_tool_score(item: TrendItem) -> float:
+        affinity_score = 5000.0 if item.business_relevant else 0.0
+        industry_bonus = 0.0
+        if industry and industry.lower() not in ("global", "ti & software b2b"):
+            ind_words = [w.lower() for w in industry.replace("&", " ").split() if len(w) > 3]
+            item_text = f"{item.title} {item.summary} {item.category}".lower()
+            if any(w in item_text for w in ind_words):
+                industry_bonus = 3000.0
+        tool_bonus = 0.0
+        if item.source == "product_hunt":
+            tool_bonus = 2500.0
+        elif item.source == "reddit":
+            tool_bonus = 1500.0
+        normalized_traction = min(item.metric_score, 1000.0)
+        return affinity_score + industry_bonus + tool_bonus + normalized_traction
+
+    sorted_trends = sorted(fresh_trends, key=calculate_tool_score, reverse=True)
+    target_count = max(3, min(count, 5))
+
+    # Asegurar diversidad temática: no repetir títulos similares o del mismo nicho exacto
+    chosen: List[TrendItem] = []
+    seen_titles: set = set()
+    for item in sorted_trends:
+        norm_t = item.title.strip().lower()
+        if any(norm_t in s or s in norm_t for s in seen_titles):
+            continue
+        chosen.append(item)
+        seen_titles.add(norm_t)
+        if len(chosen) >= target_count:
+            break
+
+    if len(chosen) < target_count:
+        for item in sorted_trends:
+            if item not in chosen:
+                chosen.append(item)
+                if len(chosen) >= target_count:
+                    break
+
+    return chosen
+
+
 # ============================================================================
 # Pipelines: Grupo Público vs. Chat Privado (DM) y Caducidad TTL
 # ============================================================================
 
 async def run_group_pipeline(chat_id: Optional[str] = None) -> Dict[str, Any]:
-    """1. Pipeline de Grupo: Alcance 100% Global, teclado con un ÚNICO botón deep link.
-    Horarios estrictos: 10:00, 14:00 y 18:00.
-    """
+    """1. Pipeline de Grupo: Publica el Catálogo Interactivo de 3 a 5 Tendencias con navegación in-situ."""
     target_chat = chat_id or settings.TELEGRAM_GROUP_CHAT_ID
     start_time = datetime.now()
     clear_chart_cache()
     logger.info("=" * 60)
-    logger.info(f"INICIANDO PIPELINE DE GRUPO (GLOBAL) [{start_time}] -> Chat: {target_chat}")
+    logger.info(f"[Pipeline Grupo] INICIO Catálogo Interactivo [{start_time.strftime('%H:%M:%S')}] -> Chat: {target_chat}")
     logger.info("=" * 60)
 
-    # 1. Ingesta con alcance Global
-    all_trends = fetch_all_trends(zone="Global")
-    top_trend = select_top_trend(all_trends)
-    if not top_trend:
-        logger.error("[Pipeline Grupo] No hay tendencias frescas disponibles.")
+    # 1. Ingesta estricta de TI & Software B2B para el grupo corporativo y selección de 3 a 5 tendencias diversas
+    all_trends = fetch_all_trends(
+        zone="Global",
+        industry="TI & Software B2B",
+        categoria_api="tech",
+        industria_exacta="TI & Software B2B"
+    )
+    catalog_trends = select_top_trends(all_trends, count=5, industry="TI & Software B2B")
+    if not catalog_trends:
+        single = select_top_trend(all_trends)
+        catalog_trends = [single] if single else []
+
+    if not catalog_trends:
+        logger.error("[Pipeline Grupo] No hay tendencias frescas disponibles para el catálogo.")
         return {"status": "error", "message": "No fresh trends available"}
 
-    # 2. Análisis con Gemma enfocado en Global
-    trend_dict = {**top_trend.model_dump(), "geo_region": "Global"}
-    card_data = await generate_trend_card_data(
-        trend_data=trend_dict,
-        business_context_text=business_context.raw_content
-    )
+    # 2. Análisis con Gemma, persistencia y pre-renderizado del lote completo
+    saved_catalog = []
+    first_png = None
+    for idx, trend_item in enumerate(catalog_trends):
+        trend_dict = {**trend_item.model_dump(), "geo_region": "Global"}
+        card_data = await generate_trend_card_data(
+            trend_data=trend_dict,
+            zona_preferida="Global",
+            user_industry=trend_item.category or "TI & Software B2B",
+            business_context_text=business_context.raw_content
+        )
+        t_id = save_trend(trend_data=trend_item.model_dump(), card_data=card_data)
+        trend_png = settings.BASE_DIR / f"temp_trend_{t_id}.png"
+        await create_png_card(data=card_data, output_path=trend_png)
+        if idx == 0:
+            first_png = trend_png
+        saved_catalog.append({"id": t_id, "trend": trend_item, "card_data": card_data, "png": trend_png})
 
-    # 3. Renderizado con Playwright
-    target_png = settings.BASE_DIR / "temp_group_card.png"
-    await create_png_card(data=card_data, output_path=target_png)
+    # Pre-renderizar tarjetas auxiliares (Demanda B2B, Eventos CDMX, Gráfica) para navegación instantánea
+    try:
+        from app.b2b_demand import get_latest_b2b_demand
+        from app.events_cdmx import get_latest_events_cdmx
+        from app.visual_engine import create_b2b_demand_png_card, create_events_cdmx_png_card, create_chart_png_card
 
-    # 4. Persistencia en SQLite
-    trend_id = save_trend(trend_data=top_trend.model_dump(), card_data=card_data)
+        demand_png = settings.BASE_DIR / "temp_demand.png"
+        await create_b2b_demand_png_card(output_path=demand_png, data=get_latest_b2b_demand())
 
-    # 5. Envío al grupo con botones deep-link hacia el DM ("🔍 Profundizar" y "🤖 Personalizar alertas")
-    group_markup = build_group_keyboard(trend_id=trend_id)
+        events_png = settings.BASE_DIR / "temp_events.png"
+        await create_events_cdmx_png_card(output_path=events_png, data=get_latest_events_cdmx())
+
+        chart_png = settings.BASE_DIR / "temp_chart.png"
+        await create_chart_png_card(output_path=chart_png)
+        logger.info("[Pipeline Grupo] Tarjetas auxiliares (Demanda, Eventos, Gráfica) pre-renderizadas con éxito.")
+    except Exception as ex_aux:
+        logger.warning(f"[Pipeline Grupo] Advertencia al pre-renderizar tarjetas auxiliares: {ex_aux}")
+
+    # 3. Envío al grupo del primer elemento configurado con el Catálogo Interactivo
+    first_item = saved_catalog[0]
+    first_trend_id = first_item["id"]
+    from app.telegram_bot import build_catalog_keyboard, set_catalog_cached_file_id
+    catalog_markup = build_catalog_keyboard(current_index=0, total_items=len(saved_catalog), trend_id=first_trend_id)
     telegram_result = await send_telegram_notification(
-        photo_path=target_png,
+        photo_path=first_png or (settings.BASE_DIR / "temp_group_card.png"),
         caption="",
-        reply_markup=group_markup,
+        reply_markup=catalog_markup,
         chat_id=target_chat,
         chat_type="group",
-        trend_id=trend_id
+        trend_id=first_trend_id
     )
 
+    if telegram_result.get("file_id"):
+        set_catalog_cached_file_id(f"trend_{first_trend_id}", telegram_result["file_id"])
+
     duration = (datetime.now() - start_time).total_seconds()
-    logger.info(f"PIPELINE DE GRUPO COMPLETADO EN {duration:.2f}s")
+    logger.info(f"[Pipeline Grupo] Éxito: Catálogo ({len(saved_catalog)} tendencias) enviado a {target_chat} en {duration:.2f}s")
     return {
         "status": "success",
         "chat_type": "group",
         "chat_id": target_chat,
-        "trend_id": trend_id,
+        "catalog_size": len(saved_catalog),
+        "first_trend_id": first_trend_id,
         "duration_seconds": duration,
         "telegram_result": telegram_result
     }
@@ -229,7 +324,7 @@ async def run_individual_pipeline(chat_id: Optional[str] = None, ignore_daily_li
         }
 
     logger.info("=" * 60)
-    logger.info(f"INICIANDO PIPELINE INDIVIDUAL [{start_time}] -> Chat: {target_chat} (Envío {daily_count + 1}/{max_daily})")
+    logger.info(f"[Pipeline Individual] INICIO ciclo -> Chat: {target_chat} (Envío {daily_count + 1}/{max_daily})")
     logger.info("=" * 60)
     clear_chart_cache()
 
@@ -311,6 +406,8 @@ async def run_individual_pipeline(chat_id: Optional[str] = None, ignore_daily_li
     }
     card_data = await generate_trend_card_data(
         trend_data=trend_dict,
+        zona_preferida=effective_zone,
+        user_industry=user_exact_industry,
         business_context_text=business_context.raw_content
     )
     card_data["fallback_activado"] = fallback_activado
@@ -345,8 +442,8 @@ async def run_individual_pipeline(chat_id: Optional[str] = None, ignore_daily_li
 
     duration = (datetime.now() - start_time).total_seconds()
     logger.info(
-        f"PIPELINE INDIVIDUAL COMPLETADO EN {duration:.2f}s "
-        f"(Zona: {effective_zone} [Fallback: {fallback_activado}] | Industria: {user_industry})"
+        f"[Pipeline Individual] Éxito: Tarjeta enviada a {target_chat} (trend_id={trend_id}) en {duration:.2f}s "
+        f"| Zona: {effective_zone} | Industria: {user_industry}"
     )
     return {
         "status": "success",
@@ -445,16 +542,16 @@ async def lifespan(app: FastAPI):
     # Iniciar Long Polling de Telegram en segundo plano para escuchar botones y comandos
     await start_bot_polling()
 
-    # 1. Cronograma Estricto del Grupo Público: 10:00, 14:00 y 18:00
+    # 1. Cronograma del Grupo Público: Catálogo Diario a las 10:00 AM
     scheduler.add_job(
         run_group_pipeline,
-        trigger=CronTrigger(hour="10,14,18", minute=0),
-        id="group_intelligence_pipeline_10_14_18",
-        name="Pipeline Grupo TI (10:00, 14:00, 18:00)",
+        trigger=CronTrigger(hour=10, minute=0),
+        id="group_intelligence_catalog_daily_10am",
+        name="Catálogo Diario Grupo TI (10:00 AM)",
         replace_existing=True,
         misfire_grace_time=3600
     )
-    logger.info("Cron de Grupo programado: estrictamente a las 10:00, 14:00 y 18:00.")
+    logger.info("Cron de Grupo programado: Catálogo interactivo diario a las 10:00 AM.")
 
     # 2. Cronograma de Notificaciones Individuales (DMs): Todos los días a las 10:00 AM
     scheduler.add_job(
@@ -482,10 +579,12 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    logger.info("Deteniendo Long Polling de Telegram, APScheduler y Navegador Caliente...")
+    logger.info("Deteniendo Long Polling de Telegram, APScheduler, Navegador Caliente y Cliente HTTP...")
     await stop_bot_polling()
     from app.visual_engine import close_browser_singleton
     await close_browser_singleton()
+    from app.llm_service import close_http_client
+    await close_http_client()
     scheduler.shutdown(wait=False)
 
 

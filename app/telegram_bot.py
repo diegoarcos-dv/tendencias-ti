@@ -16,6 +16,7 @@ import logging
 import asyncio
 import json
 import os
+import time
 import httpx
 from dotenv import load_dotenv
 
@@ -44,9 +45,44 @@ _polling_task: Optional[asyncio.Task] = None
 # Cliente HTTP persistente para evitar handshakes TLS repetitivos
 _http_client: Optional[httpx.AsyncClient] = None
 
-# Caché en memoria del file_id de Telegram para la gráfica de tendencias y tarjetas
+# Caché en memoria y persistente del file_id de Telegram para gráfica y tarjetas
 _chart_file_id_cache: Dict[str, str] = {}
 _trend_card_file_id_cache: Dict[Any, str] = {}
+_CATALOG_CACHE_FILE = settings.DATA_DIR / "telegram_file_cache.json"
+
+
+def _load_catalog_file_id_cache() -> Dict[str, str]:
+    if _CATALOG_CACHE_FILE.exists():
+        try:
+            with open(_CATALOG_CACHE_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+
+def _save_catalog_file_id_cache(cache: Dict[str, str]) -> None:
+    try:
+        _CATALOG_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(_CATALOG_CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump(cache, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logger.warning(f"Error persistiendo telegram_file_cache.json: {e}")
+
+
+_catalog_file_id_cache: Dict[str, str] = _load_catalog_file_id_cache()
+
+
+def set_catalog_cached_file_id(key: str, file_id: str) -> None:
+    """Registra un file_id de Telegram en la caché de catálogo para navegación instantánea."""
+    if file_id:
+        _catalog_file_id_cache[str(key)] = str(file_id)
+        _save_catalog_file_id_cache(_catalog_file_id_cache)
+
+
+def get_catalog_cached_file_id(key: str) -> Optional[str]:
+    """Obtiene un file_id de Telegram de la caché de catálogo."""
+    return _catalog_file_id_cache.get(str(key))
 
 
 def get_http_client() -> httpx.AsyncClient:
@@ -179,28 +215,91 @@ def build_group_keyboard(
     config_url = f"https://t.me/{clean_username}?start=config"
 
     if showing_chart:
-        # Estado 2 (Imagen Gráfica): [ 🔍 Profundizar ], [ 🤖 Personalizar alertas ] y [ 📍 Tendencia original ]
-        buttons = [
+        return build_chart_keyboard(return_index=0)
+    return build_catalog_keyboard(current_index=0, total_items=5, trend_id=trend_id, bot_username=bot_username)
+
+
+def build_catalog_keyboard(
+    current_index: int = 0,
+    total_items: int = 5,
+    trend_id: Optional[Any] = None,
+    bot_username: Optional[str] = None
+) -> Dict[str, Any]:
+    """Genera el teclado interactivo del Catálogo con diseño limpio y sin saturación:
+    - Fila 1 (Carrusel compacto): [ ◀️ ] [ 📍 X / Total ] [ ▶️ ]
+    - Fila 2 (Detalles):          [ 📈 Gráfica ] [ 🛠️ Stack ]
+    - Fila 3 (Categorías):        [ 🏢 Demanda B2B ] [ 🎟️ Eventos CDMX ]
+    - Fila 4 (Personalización):   [ ⚙️ Personalizar radar ] -> Chatbot en privado
+    """
+    total = max(1, total_items)
+    idx = current_index % total
+    tid_str = str(trend_id) if trend_id is not None else ""
+    username = (bot_username or settings.TELEGRAM_BOT_USERNAME or "Tendencias_DiegoBot").lstrip("@")
+    config_url = f"https://t.me/{username}?start=config"
+
+    return {
+        "inline_keyboard": [
             [
-                {"text": "🔍 Profundizar", "url": deepdive_url},
-                {"text": "🤖 Personalizar alertas", "url": config_url}
+                {"text": "◀️", "callback_data": f"CATALOG_NAV:prev:{idx}"},
+                {"text": f"📍 {idx + 1} / {total}", "callback_data": f"CATALOG_INFO:{idx}"},
+                {"text": "▶️", "callback_data": f"CATALOG_NAV:next:{idx}"}
             ],
             [
-                {"text": "📍 Tendencia original", "callback_data": f"TOGGLE_CHART_{tid_str}:original"}
-            ]
-        ]
-    else:
-        # Estado 1 (Imagen Original): [ 🔍 Profundizar ], [ 🤖 Personalizar alertas ] y [ 📈 Gráfica de tendencias ]
-        buttons = [
-            [
-                {"text": "🔍 Profundizar", "url": deepdive_url},
-                {"text": "🤖 Personalizar alertas", "url": config_url}
+                {"text": "📈 Gráfica", "callback_data": f"CATALOG_CHART:{idx}:{tid_str}"},
+                {"text": "🛠️ Stack", "callback_data": f"GET_STACK:{tid_str}"}
             ],
             [
-                {"text": "📈 Gráfica de tendencias", "callback_data": f"TOGGLE_CHART_{tid_str}"}
+                {"text": "🏢 Demanda B2B", "callback_data": f"NAV_DEMANDA:{idx}"},
+                {"text": "🎟️ Eventos CDMX", "callback_data": f"NAV_EVENTOS:{idx}"}
+            ],
+            [
+                {"text": "⚙️ Personalizar radar", "url": config_url}
             ]
         ]
-    return {"inline_keyboard": buttons}
+    }
+
+
+def build_demand_keyboard(return_index: int = 0, source_url: Optional[str] = None) -> Dict[str, Any]:
+    """Teclado contextual para Demanda B2B con botón Inicio claro."""
+    url = source_url or "https://news.ycombinator.com"
+    return {
+        "inline_keyboard": [
+            [
+                {"text": "🌐 Ver Fuente", "url": url}
+            ],
+            [
+                {"text": "🏠 Inicio", "callback_data": f"CATALOG_GOTO:{return_index}"}
+            ]
+        ]
+    }
+
+
+def build_events_keyboard(return_index: int = 0, registration_url: Optional[str] = None) -> Dict[str, Any]:
+    """Teclado contextual para Eventos CDMX con botón Inicio claro."""
+    url = registration_url or "https://lu.ma/cdmx"
+    return {
+        "inline_keyboard": [
+            [
+                {"text": "🌐 Registro Oficial", "url": url}
+            ],
+            [
+                {"text": "🏠 Inicio", "callback_data": f"CATALOG_GOTO:{return_index}"}
+            ]
+        ]
+    }
+
+
+def build_chart_keyboard(return_index: int = 0) -> Dict[str, Any]:
+    """Teclado contextual para Gráfica con botón Inicio claro."""
+    return {
+        "inline_keyboard": [
+            [
+                {"text": "🏠 Inicio", "callback_data": f"CATALOG_GOTO:{return_index}"}
+            ]
+        ]
+    }
+
+
 
 
 async def edit_telegram_media(
@@ -265,6 +364,9 @@ async def edit_telegram_media(
             photos = res_json.get("result", {}).get("photo", [])
             returned_file_id = photos[-1].get("file_id") if photos else (str(photo_path) if is_file_id else None)
             return {"success": True, "result": res_json, "file_id": returned_file_id}
+        elif "message is not modified" in str(res_json.get("description", "")):
+            logger.debug(f"[editMessageMedia] Mensaje {message_id} ya tenía este contenido exacto.")
+            return {"success": True, "result": res_json, "file_id": str(photo_path) if is_file_id else None}
         else:
             logger.error(f"[editMessageMedia] Error de Telegram ({resp.status_code}): {res_json}")
             return {"success": False, "error": res_json}
@@ -592,8 +694,8 @@ async def send_telegram_notification(
                 res_json = response.json()
 
             if response.status_code == 200 and res_json.get("ok"):
-                logger.info(f"Imagen enviada exitosamente a Telegram ({resolved_chat_type} {c_chat}).")
                 sent_msg_id = res_json.get("result", {}).get("message_id")
+                logger.info(f"[Telegram] Tarjeta PNG enviada exitosamente a chat={c_chat} (msg_id={sent_msg_id}, tipo={resolved_chat_type}).")
                 if sent_msg_id:
                     try:
                         record_sent_card(
@@ -1249,13 +1351,19 @@ async def handle_deep_dive(
     from app.database import get_user_zone, get_user_industry
     user_zone = get_user_zone(chat_id)
     user_ind = get_user_industry(chat_id)
+    effective_zone = str(user_zone or trend.get("geo_region") or "Global")
+    effective_ind = str(user_ind or trend.get("target_industry") or trend.get("category") or "TI & Software B2B")
     if user_zone:
         trend["geo_region"] = user_zone
     if user_ind:
         trend["target_industry"] = user_ind
 
     from app.llm_service import generate_deep_dive_report
-    report = await generate_deep_dive_report(trend)
+    report = await generate_deep_dive_report(
+        trend_data=trend,
+        zona_preferida=effective_zone,
+        user_industry=effective_ind
+    )
     target_trend_id = trend.get("id") or trend_id
     reply_markup = build_interactive_keyboard(trend_id=target_trend_id)
 
@@ -1328,6 +1436,34 @@ async def handle_set_zone(
     await send_telegram_message(text=msg, chat_id=chat_id)
 
 
+# Cache en memoria de tendencias de catálogo para navegación instantánea
+_cached_catalog_trends: List[Dict[str, Any]] = []
+_last_catalog_cache_time: float = 0.0
+_recent_callbacks: Dict[str, float] = {}
+
+def get_cached_catalog_trends() -> List[Dict[str, Any]]:
+    """Devuelve las 5 tendencias del catálogo desde memoria si están frescas (< 60s)."""
+    global _cached_catalog_trends, _last_catalog_cache_time
+    now = time.time()
+    if not _cached_catalog_trends or (now - _last_catalog_cache_time) > 60:
+        from app.database import get_daily_catalog_trends
+        _cached_catalog_trends = get_daily_catalog_trends(limit=5)
+        _last_catalog_cache_time = now
+    return _cached_catalog_trends
+
+def is_duplicate_callback(cb_key: str, window: float = 0.6) -> bool:
+    """Evita ejecuciones concurrentes o doble clics rápidos en Telegram."""
+    global _recent_callbacks
+    now = time.time()
+    last = _recent_callbacks.get(cb_key, 0.0)
+    if (now - last) < window:
+        return True
+    _recent_callbacks[cb_key] = now
+    # Limpieza periódica
+    if len(_recent_callbacks) > 100:
+        _recent_callbacks = {k: v for k, v in _recent_callbacks.items() if (now - v) < 5.0}
+    return False
+
 WELCOME_INTRO_MSG = (
     "👋 ¡Hola! Bienvenido a tu espacio analítico privado. Para no saturar el grupo público, aquí te entregaré reportes detallados y alertas personalizadas.\n\n"
     "Para que la información sea exacta, vamos a configurar tu radar."
@@ -1355,12 +1491,185 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
         # Extraer ID del usuario llamante (query.from_user.id)
         from_user = cq.get("from", {})
         caller_user_id = from_user.get("id") or (int(user_chat_id) if user_chat_id.isdigit() else user_chat_id)
+        logger.info(f"[Telegram Bot] CallbackQuery recibido: '{data}' de user_id={caller_user_id} (chat={user_chat_id}, tipo={chat_type})")
+
+        # 0. Agradecimiento no-bloqueante inmediato para apagar el spinner en el cliente de Telegram al instante
+        if not action.startswith("SET_ZONE") and action != "RESET_CONFIG":
+            asyncio.create_task(answer_callback_query(cb_id))
+
+        # Manejo de CATALOG_INFO:{idx}
+        if action == "CATALOG_INFO":
+            info_idx = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
+            asyncio.create_task(answer_callback_query(cb_id, text=f"📍 Tendencia {info_idx + 1}. Usa ◀️ y ▶️ para explorar el catálogo."))
+            return
+
+        # Manejo de CATALOG_NAV:prev:{idx} o CATALOG_NAV:next:{idx}
+        if action == "CATALOG_NAV":
+            # Debounce de doble clic rápido
+            debounce_key = f"{user_chat_id}:{orig_msg_id}:{data}"
+            if is_duplicate_callback(debounce_key):
+                return
+
+            direction = parts[1] if len(parts) > 1 else "next"
+            curr_idx = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
+            trends = get_cached_catalog_trends()
+            if not trends:
+                return
+            total_items = len(trends)
+            new_idx = (curr_idx + 1) % total_items if direction == "next" else (curr_idx - 1) % total_items
+            target_trend = trends[new_idx]
+            target_tid = target_trend["id"]
+
+            cache_key = f"trend_{target_tid}"
+            cached_file_id = get_catalog_cached_file_id(cache_key)
+
+            if cached_file_id:
+                photo_to_use = cached_file_id
+            else:
+                target_png = settings.BASE_DIR / f"temp_trend_{target_tid}.png"
+                if not target_png.exists():
+                    card_dict = target_trend.get("card_data") or {}
+                    if card_dict:
+                        from app.visual_engine import create_png_card
+                        await create_png_card(data=card_dict, output_path=target_png)
+                photo_to_use = target_png if target_png.exists() else (settings.BASE_DIR / "temp_card.png")
+
+            kb = build_catalog_keyboard(current_index=new_idx, total_items=total_items, trend_id=target_tid)
+            res = await edit_telegram_media(chat_id=user_chat_id, message_id=orig_msg_id, photo_path=photo_to_use, reply_markup=kb)
+            if res.get("file_id"):
+                set_catalog_cached_file_id(cache_key, res["file_id"])
+            return
+
+        # Manejo de CATALOG_GOTO:{idx} (Retorno in-situ al catálogo / Menú Principal 🏠)
+        if action == "CATALOG_GOTO":
+            asyncio.create_task(answer_callback_query(cb_id))
+            
+            debounce_key = f"{user_chat_id}:{orig_msg_id}:{data}"
+            if is_duplicate_callback(debounce_key):
+                return
+
+            target_idx = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
+            trends = get_cached_catalog_trends()
+            if not trends:
+                return
+            total_items = len(trends)
+            target_idx = target_idx % total_items
+            target_trend = trends[target_idx]
+            target_tid = target_trend["id"]
+
+            cache_key = f"trend_{target_tid}"
+            cached_file_id = get_catalog_cached_file_id(cache_key)
+
+            if cached_file_id:
+                photo_to_use = cached_file_id
+            else:
+                target_png = settings.BASE_DIR / f"temp_trend_{target_tid}.png"
+                if not target_png.exists():
+                    card_dict = target_trend.get("card_data") or {}
+                    if card_dict:
+                        from app.visual_engine import create_png_card
+                        await create_png_card(data=card_dict, output_path=target_png)
+                photo_to_use = target_png if target_png.exists() else (settings.BASE_DIR / "temp_card.png")
+
+            kb = build_catalog_keyboard(current_index=target_idx, total_items=total_items, trend_id=target_tid)
+            res = await edit_telegram_media(chat_id=user_chat_id, message_id=orig_msg_id, photo_path=photo_to_use, reply_markup=kb)
+            if res.get("file_id"):
+                set_catalog_cached_file_id(cache_key, res["file_id"])
+            return
+
+        # Manejo de NAV_DEMANDA:{return_idx} (Edición in-situ a Demanda B2B)
+        if action == "NAV_DEMANDA":
+            asyncio.create_task(answer_callback_query(cb_id))
+            
+            debounce_key = f"{user_chat_id}:{orig_msg_id}:{data}"
+            if is_duplicate_callback(debounce_key):
+                return
+
+            ret_idx = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
+            from app.b2b_demand import get_latest_b2b_demand
+            demand_data = get_latest_b2b_demand()
+
+            cache_key = "demand_b2b"
+            cached_file_id = get_catalog_cached_file_id(cache_key)
+
+            if cached_file_id:
+                photo_to_use = cached_file_id
+            else:
+                target_png = settings.BASE_DIR / "temp_demand.png"
+                if not target_png.exists():
+                    from app.visual_engine import create_b2b_demand_png_card
+                    await create_b2b_demand_png_card(output_path=target_png, data=demand_data)
+                photo_to_use = target_png
+
+            kb = build_demand_keyboard(return_index=ret_idx, source_url=demand_data.get("source_url"))
+            res = await edit_telegram_media(chat_id=user_chat_id, message_id=orig_msg_id, photo_path=photo_to_use, reply_markup=kb)
+            if res.get("file_id"):
+                set_catalog_cached_file_id(cache_key, res["file_id"])
+            return
+
+        # Manejo de NAV_EVENTOS:{return_idx} (Edición in-situ a Eventos TI CDMX)
+        if action == "NAV_EVENTOS":
+            asyncio.create_task(answer_callback_query(cb_id))
+            
+            debounce_key = f"{user_chat_id}:{orig_msg_id}:{data}"
+            if is_duplicate_callback(debounce_key):
+                return
+
+            ret_idx = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
+            from app.events_cdmx import get_latest_events_cdmx
+            events_data = get_latest_events_cdmx()
+
+            cache_key = "events_cdmx"
+            cached_file_id = get_catalog_cached_file_id(cache_key)
+
+            if cached_file_id:
+                photo_to_use = cached_file_id
+            else:
+                target_png = settings.BASE_DIR / "temp_events.png"
+                if not target_png.exists():
+                    from app.visual_engine import create_events_cdmx_png_card
+                    await create_events_cdmx_png_card(output_path=target_png, data=events_data)
+                photo_to_use = target_png
+
+            kb = build_events_keyboard(return_index=ret_idx, registration_url=events_data.get("registration_url"))
+            res = await edit_telegram_media(chat_id=user_chat_id, message_id=orig_msg_id, photo_path=photo_to_use, reply_markup=kb)
+            if res.get("file_id"):
+                set_catalog_cached_file_id(cache_key, res["file_id"])
+            return
+
+        # Manejo de CATALOG_CHART:{idx}:{trend_id} (Edición in-situ a Gráfica de Tracción)
+        if action == "CATALOG_CHART":
+            asyncio.create_task(answer_callback_query(cb_id))
+            
+            debounce_key = f"{user_chat_id}:{orig_msg_id}:{data}"
+            if is_duplicate_callback(debounce_key):
+                return
+
+            ret_idx = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
+
+            cache_key = "chart_traction"
+            cached_file_id = get_catalog_cached_file_id(cache_key)
+
+            if cached_file_id:
+                photo_to_use = cached_file_id
+            else:
+                target_png = settings.BASE_DIR / "temp_chart.png"
+                if not target_png.exists():
+                    from app.visual_engine import create_chart_png_card
+                    await create_chart_png_card(output_path=target_png)
+                photo_to_use = target_png
+
+            kb = build_chart_keyboard(return_index=ret_idx)
+            res = await edit_telegram_media(chat_id=user_chat_id, message_id=orig_msg_id, photo_path=photo_to_use, reply_markup=kb)
+            if res.get("file_id"):
+                set_catalog_cached_file_id(cache_key, res["file_id"])
+            return
 
         # Manejo de RESET_CONFIG
         if action == "RESET_CONFIG":
             from app.database import reset_user_config
             reset_user_config(user_chat_id)
-            await answer_callback_query(cb_id, text="⚙️ Configuración reiniciada.")
+            asyncio.create_task(answer_callback_query(cb_id, text="⚙️ Configuración reiniciada."))
             await send_telegram_message(text=WELCOME_INTRO_MSG, chat_id=user_chat_id)
             await send_telegram_message(text=STEP1_ZONE_MSG, chat_id=user_chat_id)
             return
@@ -1659,9 +1968,15 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
             ready_msg = (
                 f"💡 Tu perfil activo está configurado para <b>{curr_zone}</b> e industria <b>{curr_ind}</b>.\n\n"
                 "• Usa <code>/radar</code> para consultar una nueva tendencia de hoy.\n"
-                "• Usa el botón <b>⚙️ Configuración</b> debajo de la tarjeta para redefinir tu región e industria."
+                "• Presiona <b>⚙️ Reconfigurar radar</b> si deseas cambiar tu región o industria."
             )
-            await send_telegram_message(text=ready_msg, chat_id=user_chat_id)
+            reconfig_kb = {
+                "inline_keyboard": [
+                    [{"text": "⚙️ Reconfigurar radar", "callback_data": "RESET_CONFIG"}],
+                    [{"text": "🚀 Consultar radar ahora", "callback_data": "RUN_RADAR"}]
+                ]
+            }
+            await send_telegram_message(text=ready_msg, chat_id=user_chat_id, reply_markup=reconfig_kb)
             return
 
         # Si el usuario ejecuta /start puro en DM y no tiene configuración completa (o primera vez)

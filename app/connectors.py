@@ -764,6 +764,9 @@ def fetch_all_trends(
         target_cat_api = "general"
 
     all_items: List[TrendItem] = []
+    ph_items: List[TrendItem] = []
+    reddit_items: List[TrendItem] = []
+    trends_items: List[TrendItem] = []
 
     # 1. Product Hunt: Se enciende ÚNICAMENTE si categoria_api == 'tech'
     if target_cat_api == "tech":
@@ -804,4 +807,8 @@ def fetch_all_trends(
     except Exception as e:
         logger.error(f"Error ingestando Google Trends: {e}")
 
+    logger.info(
+        f"[Ingesta] Recolectados {len(all_items)} ítems en total "
+        f"(Product Hunt: {len(ph_items)}, Reddit: {len(reddit_items)}, Google Trends: {len(trends_items)})."
+    )
     return all_items
