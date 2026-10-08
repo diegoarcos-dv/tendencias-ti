@@ -17,6 +17,7 @@ import asyncio
 import json
 import os
 import time
+from datetime import datetime
 import httpx
 from dotenv import load_dotenv
 
@@ -102,10 +103,13 @@ async def close_http_client() -> None:
 
 
 def clear_chart_cache() -> None:
-    """Invalida la caché de la gráfica para forzar un nuevo renderizado."""
-    global _chart_file_id_cache
+    """Invalida la caché de la gráfica y tarjetas auxiliares para forzar un nuevo renderizado."""
+    global _chart_file_id_cache, _catalog_file_id_cache
     _chart_file_id_cache.clear()
-    logger.info("[Telegram Bot] Caché de file_id de gráfica invalidada.")
+    for aux_key in ("demand_b2b", "events_cdmx", "chart_traction"):
+        _catalog_file_id_cache.pop(aux_key, None)
+    _save_catalog_file_id_cache(_catalog_file_id_cache)
+    logger.info("[Telegram Bot] Caché de file_id de gráfica y tarjetas auxiliares (Demanda B2B, Eventos) invalidada.")
 
 
 def _get_credentials() -> tuple[str, str]:
@@ -119,36 +123,69 @@ def _get_credentials() -> tuple[str, str]:
 def build_interactive_keyboard(
     trend_id: Optional[int] = None,
     source_url: Optional[str] = None,
-    showing_chart: bool = False
+    showing_chart: bool = False,
+    current_index: Optional[int] = None,
+    total_items: Optional[int] = None
 ) -> Dict[str, Any]:
     """Genera la estructura del panel interactivo para chats privados (DM) con los botones interactivos:
+    - ◀️ Anterior | 📌 N de Total | Siguiente ▶️ (carrusel de tendencias)
     - 📈 Ver gráfica / 📍 Tendencia original (alternable binario)
     - 🛠️ Stack técnico (callback_data: GET_STACK)
     - ⭐ Guardar en favoritos (callback_data: SAVE_TREND)
     - 🔍 Profundizar datos (callback_data: DEEP_DIVE)
-    - 📁 Ver favoritos (callback_data: VIEW_FAVS)
+    - 💼 Proyectos Freelance (callback_data: GET_FREELANCE)
+    - 📁 Mis favoritos (callback_data: VIEW_FAVS)
+    - ⚡ Nueva tendencia ahora (callback_data: RUN_RADAR)
     - ⚙️ Configuración (callback_data: RESET_CONFIG)
     """
     id_suffix = f":{trend_id}" if trend_id is not None else ""
     chart_btn_text = "📍 Tendencia original" if showing_chart else "📈 Ver gráfica"
     chart_cb = f"TOGGLE_DM_ORIGINAL{id_suffix}" if showing_chart else f"GET_CHART{id_suffix}"
 
-    return {
-        "inline_keyboard": [
-            [
-                {"text": chart_btn_text, "callback_data": chart_cb},
-                {"text": "🛠️ Stack técnico", "callback_data": f"GET_STACK{id_suffix}"}
-            ],
-            [
-                {"text": "⭐ Guardar en favoritos", "callback_data": f"SAVE_TREND{id_suffix}"},
-                {"text": "🔍 Profundizar datos", "callback_data": f"DEEP_DIVE{id_suffix}"}
-            ],
-            [
-                {"text": "📁 Ver favoritos", "callback_data": "VIEW_FAVS"},
-                {"text": "⚙️ Configuración", "callback_data": "RESET_CONFIG"}
-            ]
-        ]
-    }
+    rows = []
+
+    # Fila 1: Paginación de carrusel (si hay múltiples tendencias)
+    if total_items and total_items > 1 and current_index is not None:
+        idx = current_index % total_items
+        rows.append([
+            {"text": "◀️ Anterior", "callback_data": f"CATALOG_NAV:prev:{idx}"},
+            {"text": f"📌 {idx + 1} de {total_items}", "callback_data": f"CATALOG_INFO:{idx}"},
+            {"text": "Siguiente ▶️", "callback_data": f"CATALOG_NAV:next:{idx}"}
+        ])
+
+    # Fila 2: Gráfica y Stack
+    rows.append([
+        {"text": chart_btn_text, "callback_data": chart_cb},
+        {"text": "🛠️ Stack técnico", "callback_data": f"GET_STACK{id_suffix}"}
+    ])
+
+    # Fila 3: Guardar en favoritos y Profundizar datos
+    rows.append([
+        {"text": "⭐ Guardar en favoritos", "callback_data": f"SAVE_TREND{id_suffix}"},
+        {"text": "🔍 Profundizar datos", "callback_data": f"DEEP_DIVE{id_suffix}"}
+    ])
+
+    # Fila 4: Mis favoritos y Generar ahora
+    rows.append([
+        {"text": "📁 Mis favoritos", "callback_data": "VIEW_FAVS"},
+        {"text": "⚡ Nueva tendencia ahora", "callback_data": "RUN_RADAR"}
+    ])
+
+    # Fila 5: Configuración
+    rows.append([
+        {"text": "⚙️ Configuración", "callback_data": "RESET_CONFIG"}
+    ])
+
+    # Fila 6: Botón único para regresar al grupo público (Rama A)
+    group_chat_id = os.getenv("TELEGRAM_GROUP_CHAT_ID", "-1004339114906")
+    if group_chat_id:
+        clean_cid = str(group_chat_id).replace("-100", "").lstrip("-")
+        group_url = f"https://t.me/c/{clean_cid}"
+        rows.append([
+            {"text": "👥 Ir al Grupo TI", "url": group_url}
+        ])
+
+    return {"inline_keyboard": rows}
 
 
 def update_dm_keyboard_chart_toggle(
@@ -259,13 +296,37 @@ def build_catalog_keyboard(
     }
 
 
-def build_demand_keyboard(return_index: int = 0, source_url: Optional[str] = None) -> Dict[str, Any]:
-    """Teclado contextual para Demanda B2B con botón Inicio claro."""
-    url = source_url or "https://news.ycombinator.com"
+def build_demand_keyboard(
+    current_index: int = 0,
+    total_items: int = 5,
+    return_index: int = 0,
+    linkedin_url: Optional[str] = None
+) -> Dict[str, Any]:
+    """Teclado interactivo para Catálogo de Empresas Demandantes B2B:
+    - Fila 1: Paginación de empresas
+    - Fila 2: Ver Alcance & SOW
+    - Fila 3: Opción 2 - Simular Cotización & Margen TI
+    - Fila 4: Opción 3 - Identificar Tomadores de Decisión (LinkedIn México)
+    - Fila 5: Volver a Inicio
+    """
+    total = max(1, total_items)
+    idx = current_index % total
+    lk_url = linkedin_url or "https://www.linkedin.com/search/results/people/"
     return {
         "inline_keyboard": [
             [
-                {"text": "🌐 Ver Fuente", "url": url}
+                {"text": "◀️", "callback_data": f"NAV_DEMANDA_PAGE:prev:{idx}:{return_index}"},
+                {"text": f"🏢 Empresa {idx + 1} / {total}", "callback_data": f"DEMANDA_INFO:{idx}"},
+                {"text": "▶️", "callback_data": f"NAV_DEMANDA_PAGE:next:{idx}:{return_index}"}
+            ],
+            [
+                {"text": "📋 Ver Alcance & SOW", "callback_data": f"DEMANDA_SCOPE:{idx}:{return_index}"}
+            ],
+            [
+                {"text": "📊 Simular Cotización & Margen TI", "callback_data": f"DEMANDA_QUOTE:{idx}:{return_index}"}
+            ],
+            [
+                {"text": "🎯 Tomadores de Decisión (LinkedIn)", "url": lk_url}
             ],
             [
                 {"text": "🏠 Inicio", "callback_data": f"CATALOG_GOTO:{return_index}"}
@@ -274,11 +335,23 @@ def build_demand_keyboard(return_index: int = 0, source_url: Optional[str] = Non
     }
 
 
-def build_events_keyboard(return_index: int = 0, registration_url: Optional[str] = None) -> Dict[str, Any]:
-    """Teclado contextual para Eventos CDMX con botón Inicio claro."""
+def build_events_keyboard(
+    current_index: int = 0,
+    total_items: int = 5,
+    return_index: int = 0,
+    registration_url: Optional[str] = None
+) -> Dict[str, Any]:
+    """Teclado interactivo para Calendario de Eventos TI CDMX (especial jóvenes) con paginación."""
+    total = max(1, total_items)
+    idx = current_index % total
     url = registration_url or "https://lu.ma/cdmx"
     return {
         "inline_keyboard": [
+            [
+                {"text": "◀️", "callback_data": f"NAV_EVENTOS_PAGE:prev:{idx}:{return_index}"},
+                {"text": f"📅 Evento {idx + 1} / {total}", "callback_data": f"EVENTOS_INFO:{idx}"},
+                {"text": "▶️", "callback_data": f"NAV_EVENTOS_PAGE:next:{idx}:{return_index}"}
+            ],
             [
                 {"text": "🌐 Registro Oficial", "url": url}
             ],
@@ -298,6 +371,9 @@ def build_chart_keyboard(return_index: int = 0) -> Dict[str, Any]:
             ]
         ]
     }
+
+
+
 
 
 
@@ -825,15 +901,23 @@ async def handle_view_favorites(
         empty_msg = (
             "📁 <b>Portafolio de Favoritos</b>\n\n"
             "Aún no tienes tecnologías guardadas en tus favoritos.\n\n"
-            "Utiliza el botón <b>⭐ Añadir a favoritos</b> al finalizar un análisis profundo (Deep-Dive) "
-            "o en el radar diario para guardar las soluciones más relevantes."
+            "Utiliza el botón <b>⭐ Guardar en favoritos</b> en tus tarjetas del radar "
+            "o al profundizar para guardar las soluciones más relevantes."
         )
+        empty_kb = {
+            "inline_keyboard": [
+                [
+                    {"text": "🔙 Volver al radar", "callback_data": "CATALOG_GOTO:0"},
+                    {"text": "⚡ Nueva tendencia ahora", "callback_data": "RUN_RADAR"}
+                ]
+            ]
+        }
         if message_id:
-            res = await edit_telegram_message_text(chat_id=chat_id, message_id=message_id, text=empty_msg)
+            res = await edit_telegram_message_text(chat_id=chat_id, message_id=message_id, text=empty_msg, reply_markup=empty_kb)
             if not res.get("success"):
-                await send_telegram_message(text=empty_msg, chat_id=chat_id)
+                await send_telegram_message(text=empty_msg, chat_id=chat_id, reply_markup=empty_kb)
         else:
-            await send_telegram_message(text=empty_msg, chat_id=chat_id)
+            await send_telegram_message(text=empty_msg, chat_id=chat_id, reply_markup=empty_kb)
         return
 
     # 1. Limpieza de Texto: Solo un texto introductorio breve sin URLs ni enlaces crudos
@@ -850,6 +934,11 @@ async def handle_view_favorites(
     # 3. Respetar Menú de Gestión: Mantener "🗑️ Gestionar favoritos" intacto al final
     buttons.append([
         {"text": "🗑️ Gestionar favoritos", "callback_data": "MANAGE_FAVS"}
+    ])
+    # 4. Navegación bidireccional: Retorno garantizado
+    buttons.append([
+        {"text": "🔙 Volver al radar", "callback_data": "CATALOG_GOTO:0"},
+        {"text": "⚡ Nueva tendencia ahora", "callback_data": "RUN_RADAR"}
     ])
 
     reply_markup = {"inline_keyboard": buttons}
@@ -1027,8 +1116,11 @@ async def handle_view_favorite_card(
     card_data = trend.get("card_data")
     buttons = [
         [
-            {"text": "🔍 Profundizar datos", "callback_data": f"DEEP_DIVE:{trend.get('id', fav_id)}"},
-            {"text": "📁 Ver favoritos", "callback_data": "VIEW_FAVS"}
+            {"text": "🔍 Profundizar datos", "callback_data": f"DEEP_DIVE:{trend.get('id', fav_id)}"}
+        ],
+        [
+            {"text": "📁 Volver a favoritos", "callback_data": "VIEW_FAVS"},
+            {"text": "🏠 Catálogo de hoy", "callback_data": "CATALOG_GOTO:0"}
         ]
     ]
     reply_markup = {"inline_keyboard": buttons}
@@ -1365,7 +1457,21 @@ async def handle_deep_dive(
         user_industry=effective_ind
     )
     target_trend_id = trend.get("id") or trend_id
-    reply_markup = build_interactive_keyboard(trend_id=target_trend_id)
+    reply_markup = {
+        "inline_keyboard": [
+            [
+                {"text": "⭐ Guardar en favoritos", "callback_data": f"SAVE_TREND:{target_trend_id}"}
+            ],
+            [
+                {"text": "🔙 Volver a la tarjeta", "callback_data": "CATALOG_GOTO:0"},
+                {"text": "📁 Mis favoritos", "callback_data": "VIEW_FAVS"}
+            ],
+            [
+                {"text": "⚡ Nueva tendencia ahora", "callback_data": "RUN_RADAR"},
+                {"text": "⚙️ Configuración", "callback_data": "RESET_CONFIG"}
+            ]
+        ]
+    }
 
     await send_telegram_message(
         text=report,
@@ -1534,7 +1640,10 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
                         await create_png_card(data=card_dict, output_path=target_png)
                 photo_to_use = target_png if target_png.exists() else (settings.BASE_DIR / "temp_card.png")
 
-            kb = build_catalog_keyboard(current_index=new_idx, total_items=total_items, trend_id=target_tid)
+            if chat_type == "private":
+                kb = build_interactive_keyboard(trend_id=target_tid, current_index=new_idx, total_items=total_items)
+            else:
+                kb = build_catalog_keyboard(current_index=new_idx, total_items=total_items, trend_id=target_tid)
             res = await edit_telegram_media(chat_id=user_chat_id, message_id=orig_msg_id, photo_path=photo_to_use, reply_markup=kb)
             if res.get("file_id"):
                 set_catalog_cached_file_id(cache_key, res["file_id"])
@@ -1571,13 +1680,131 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
                         await create_png_card(data=card_dict, output_path=target_png)
                 photo_to_use = target_png if target_png.exists() else (settings.BASE_DIR / "temp_card.png")
 
-            kb = build_catalog_keyboard(current_index=target_idx, total_items=total_items, trend_id=target_tid)
+            if chat_type == "private":
+                kb = build_interactive_keyboard(trend_id=target_tid, current_index=target_idx, total_items=total_items)
+            else:
+                kb = build_catalog_keyboard(current_index=target_idx, total_items=total_items, trend_id=target_tid)
             res = await edit_telegram_media(chat_id=user_chat_id, message_id=orig_msg_id, photo_path=photo_to_use, reply_markup=kb)
             if res.get("file_id"):
                 set_catalog_cached_file_id(cache_key, res["file_id"])
             return
 
-        # Manejo de NAV_DEMANDA:{return_idx} (Edición in-situ a Demanda B2B)
+        # Manejo de DEMANDA_INFO:{idx}
+        if action == "DEMANDA_INFO":
+            info_idx = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
+            asyncio.create_task(answer_callback_query(cb_id, text=f"🏢 Empresa demandante {info_idx + 1}. Usa ◀️ y ▶️ para comparar requerimientos."))
+            return
+
+        # Manejo de DEMANDA_SCOPE:{idx}:{return_trend_idx} (Envío de Ficha Técnica Detallada en Español)
+        if action == "DEMANDA_SCOPE":
+            info_idx = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
+            ret_idx = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
+            asyncio.create_task(answer_callback_query(cb_id, text="📋 Abriendo alcance técnico y propuesta..."))
+
+            from app.b2b_demand import get_b2b_demand_by_index
+            company_info = get_b2b_demand_by_index(info_idx)
+            scope_text = company_info.get("scope_summary") or "Ficha técnica no disponible."
+
+            back_kb = {
+                "inline_keyboard": [
+                    [
+                        {"text": "📊 Simular Cotización & Margen", "callback_data": f"DEMANDA_QUOTE:{info_idx}:{ret_idx}"}
+                    ],
+                    [
+                        {"text": "🎯 Tomadores de Decisión (LinkedIn)", "url": company_info.get("linkedin_search_url", "https://www.linkedin.com")}
+                    ],
+                    [
+                        {"text": "🔙 Volver a la Empresa", "callback_data": f"NAV_DEMANDA_PAGE:curr:{info_idx}:{ret_idx}"},
+                        {"text": "🏠 Inicio", "callback_data": f"CATALOG_GOTO:{ret_idx}"}
+                    ]
+                ]
+            }
+            await send_telegram_message(
+                text=scope_text,
+                chat_id=user_chat_id,
+                parse_mode="HTML",
+                reply_markup=back_kb
+            )
+            return
+
+        # Manejo de DEMANDA_QUOTE:{idx}:{return_trend_idx} (Envío de Simulación Financiera & Margen TI)
+        if action == "DEMANDA_QUOTE":
+            info_idx = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
+            ret_idx = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
+            asyncio.create_task(answer_callback_query(cb_id, text="📊 Calculando costos y márgenes de desarrollo..."))
+
+            from app.b2b_demand import get_b2b_demand_by_index
+            company_info = get_b2b_demand_by_index(info_idx)
+            quote_text = company_info.get("financial_quote") or "Simulación financiera no disponible."
+
+            quote_kb = {
+                "inline_keyboard": [
+                    [
+                        {"text": "🎯 Tomadores de Decisión (LinkedIn)", "url": company_info.get("linkedin_search_url", "https://www.linkedin.com")}
+                    ],
+                    [
+                        {"text": "📋 Ver Alcance & SOW", "callback_data": f"DEMANDA_SCOPE:{info_idx}:{ret_idx}"}
+                    ],
+                    [
+                        {"text": "🔙 Volver a la Empresa", "callback_data": f"NAV_DEMANDA_PAGE:curr:{info_idx}:{ret_idx}"},
+                        {"text": "🏠 Inicio", "callback_data": f"CATALOG_GOTO:{ret_idx}"}
+                    ]
+                ]
+            }
+            await send_telegram_message(
+                text=quote_text,
+                chat_id=user_chat_id,
+                parse_mode="HTML",
+                reply_markup=quote_kb
+            )
+            return
+
+        # Manejo de NAV_DEMANDA_PAGE:{prev/next}:{curr_idx}:{return_trend_idx} (Carrusel de Empresas Demandantes)
+        if action == "NAV_DEMANDA_PAGE":
+            debounce_key = f"{user_chat_id}:{orig_msg_id}:{data}"
+            if is_duplicate_callback(debounce_key):
+                return
+            asyncio.create_task(answer_callback_query(cb_id))
+
+            direction = parts[1] if len(parts) > 1 else "next"
+            curr_idx = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
+            ret_idx = int(parts[3]) if len(parts) > 3 and parts[3].isdigit() else 0
+
+            from app.b2b_demand import get_all_b2b_demand_companies, get_b2b_demand_by_index
+            companies = get_all_b2b_demand_companies()
+            total_items = len(companies)
+            if direction == "next":
+                new_idx = (curr_idx + 1) % total_items
+            elif direction == "prev":
+                new_idx = (curr_idx - 1) % total_items
+            else:
+                new_idx = curr_idx % total_items
+
+            demand_data = get_b2b_demand_by_index(new_idx)
+            cache_key = f"demand_b2b_{new_idx}"
+            cached_file_id = get_catalog_cached_file_id(cache_key)
+
+            if cached_file_id:
+                photo_to_use = cached_file_id
+            else:
+                target_png = settings.BASE_DIR / f"temp_demand_{new_idx}.png"
+                if not target_png.exists():
+                    from app.visual_engine import create_b2b_demand_png_card
+                    await create_b2b_demand_png_card(output_path=target_png, data=demand_data)
+                photo_to_use = target_png
+
+            kb = build_demand_keyboard(
+                current_index=new_idx,
+                total_items=total_items,
+                return_index=ret_idx,
+                linkedin_url=demand_data.get("linkedin_search_url")
+            )
+            res = await edit_telegram_media(chat_id=user_chat_id, message_id=orig_msg_id, photo_path=photo_to_use, reply_markup=kb)
+            if res.get("file_id"):
+                set_catalog_cached_file_id(cache_key, res["file_id"])
+            return
+
+        # Manejo de NAV_DEMANDA:{return_idx} (Entrada in-situ a Catálogo de Empresas Demandantes)
         if action == "NAV_DEMANDA":
             asyncio.create_task(answer_callback_query(cb_id))
             
@@ -1586,28 +1813,81 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
                 return
 
             ret_idx = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
-            from app.b2b_demand import get_latest_b2b_demand
-            demand_data = get_latest_b2b_demand()
+            from app.b2b_demand import get_all_b2b_demand_companies, get_b2b_demand_by_index
+            companies = get_all_b2b_demand_companies()
+            total_items = len(companies)
 
-            cache_key = "demand_b2b"
+            demand_data = get_b2b_demand_by_index(0)
+            cache_key = "demand_b2b_0"
             cached_file_id = get_catalog_cached_file_id(cache_key)
 
             if cached_file_id:
                 photo_to_use = cached_file_id
             else:
-                target_png = settings.BASE_DIR / "temp_demand.png"
+                target_png = settings.BASE_DIR / "temp_demand_0.png"
                 if not target_png.exists():
                     from app.visual_engine import create_b2b_demand_png_card
                     await create_b2b_demand_png_card(output_path=target_png, data=demand_data)
                 photo_to_use = target_png
 
-            kb = build_demand_keyboard(return_index=ret_idx, source_url=demand_data.get("source_url"))
+            kb = build_demand_keyboard(
+                current_index=0,
+                total_items=total_items,
+                return_index=ret_idx,
+                linkedin_url=demand_data.get("linkedin_search_url")
+            )
             res = await edit_telegram_media(chat_id=user_chat_id, message_id=orig_msg_id, photo_path=photo_to_use, reply_markup=kb)
             if res.get("file_id"):
                 set_catalog_cached_file_id(cache_key, res["file_id"])
             return
 
-        # Manejo de NAV_EVENTOS:{return_idx} (Edición in-situ a Eventos TI CDMX)
+        # Manejo de EVENTOS_INFO:{idx}
+        if action == "EVENTOS_INFO":
+            info_idx = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
+            asyncio.create_task(answer_callback_query(cb_id, text=f"📅 Evento CDMX {info_idx + 1}. Usa ◀️ y ▶️ para explorar el calendario."))
+            return
+
+        # Manejo de NAV_EVENTOS_PAGE:{prev/next}:{curr_idx}:{return_trend_idx} (Carrusel de Calendario de Eventos)
+        if action == "NAV_EVENTOS_PAGE":
+            debounce_key = f"{user_chat_id}:{orig_msg_id}:{data}"
+            if is_duplicate_callback(debounce_key):
+                return
+            asyncio.create_task(answer_callback_query(cb_id))
+
+            direction = parts[1] if len(parts) > 1 else "next"
+            curr_idx = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
+            ret_idx = int(parts[3]) if len(parts) > 3 and parts[3].isdigit() else 0
+
+            from app.events_cdmx import get_all_events_cdmx, get_events_cdmx_by_index
+            events_list = get_all_events_cdmx()
+            total_items = len(events_list)
+            new_idx = (curr_idx + 1) % total_items if direction == "next" else (curr_idx - 1) % total_items
+
+            events_data = get_events_cdmx_by_index(new_idx)
+            cache_key = f"events_cdmx_{new_idx}"
+            cached_file_id = get_catalog_cached_file_id(cache_key)
+
+            if cached_file_id:
+                photo_to_use = cached_file_id
+            else:
+                target_png = settings.BASE_DIR / f"temp_events_{new_idx}.png"
+                if not target_png.exists():
+                    from app.visual_engine import create_events_cdmx_png_card
+                    await create_events_cdmx_png_card(output_path=target_png, data=events_data)
+                photo_to_use = target_png
+
+            kb = build_events_keyboard(
+                current_index=new_idx,
+                total_items=total_items,
+                return_index=ret_idx,
+                registration_url=events_data.get("registration_url")
+            )
+            res = await edit_telegram_media(chat_id=user_chat_id, message_id=orig_msg_id, photo_path=photo_to_use, reply_markup=kb)
+            if res.get("file_id"):
+                set_catalog_cached_file_id(cache_key, res["file_id"])
+            return
+
+        # Manejo de NAV_EVENTOS:{return_idx} (Entrada in-situ a Calendario de Eventos CDMX)
         if action == "NAV_EVENTOS":
             asyncio.create_task(answer_callback_query(cb_id))
             
@@ -1616,22 +1896,29 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
                 return
 
             ret_idx = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
-            from app.events_cdmx import get_latest_events_cdmx
-            events_data = get_latest_events_cdmx()
+            from app.events_cdmx import get_all_events_cdmx, get_events_cdmx_by_index
+            events_list = get_all_events_cdmx()
+            total_items = len(events_list)
 
-            cache_key = "events_cdmx"
+            events_data = get_events_cdmx_by_index(0)
+            cache_key = "events_cdmx_0"
             cached_file_id = get_catalog_cached_file_id(cache_key)
 
             if cached_file_id:
                 photo_to_use = cached_file_id
             else:
-                target_png = settings.BASE_DIR / "temp_events.png"
+                target_png = settings.BASE_DIR / "temp_events_0.png"
                 if not target_png.exists():
                     from app.visual_engine import create_events_cdmx_png_card
                     await create_events_cdmx_png_card(output_path=target_png, data=events_data)
                 photo_to_use = target_png
 
-            kb = build_events_keyboard(return_index=ret_idx, registration_url=events_data.get("registration_url"))
+            kb = build_events_keyboard(
+                current_index=0,
+                total_items=total_items,
+                return_index=ret_idx,
+                registration_url=events_data.get("registration_url")
+            )
             res = await edit_telegram_media(chat_id=user_chat_id, message_id=orig_msg_id, photo_path=photo_to_use, reply_markup=kb)
             if res.get("file_id"):
                 set_catalog_cached_file_id(cache_key, res["file_id"])
@@ -1664,6 +1951,8 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
             if res.get("file_id"):
                 set_catalog_cached_file_id(cache_key, res["file_id"])
             return
+
+
 
         # Manejo de RESET_CONFIG
         if action == "RESET_CONFIG":
@@ -1807,13 +2096,13 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
             dd_id = int(clean_tid) if clean_tid.isdigit() else trend_id
             await handle_deep_dive(chat_id=user_chat_id, callback_query_id=cb_id, trend_id=dd_id)
         elif action in ("RUN_RADAR", "run_radar"):
-            await answer_callback_query(cb_id, text="🚀 Ejecutando radar diario...")
+            await answer_callback_query(cb_id, text="🚀 Ejecutando radar...")
             if chat_type in ("group", "supergroup"):
                 from app.main import run_group_pipeline
                 asyncio.create_task(run_group_pipeline(chat_id=user_chat_id))
             else:
                 from app.main import run_individual_pipeline
-                asyncio.create_task(run_individual_pipeline(chat_id=user_chat_id))
+                asyncio.create_task(run_individual_pipeline(chat_id=user_chat_id, ignore_daily_limit=True))
         else:
             await answer_callback_query(cb_id, text="Acción recibida.")
         return
@@ -1865,18 +2154,60 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
 
             from app.database import (
                 get_user_zone, get_user_industry, set_user_zone, set_user_industry,
+                set_user_schedule, get_user_schedule,
                 get_user_onboarding_step, reset_user_config
             )
-            from app.llm_service import validate_zone, classify_user_input
+            from app.llm_service import validate_zone, classify_user_input, parse_schedule_time
 
             fsm_step = get_user_onboarding_step(user_chat_id)
             logger.info(f"[Telegram Bot FSM] Usuario {user_chat_id} en estado '{fsm_step}'. Mensaje recibido: '{text}'")
 
+
+
+            # ESTADO 3: ESPERANDO HORARIO (Paso 3 y Final)
+            if fsm_step == "STEP_SCHEDULE":
+                logger.info(f"[Telegram Bot] Procesando horario en Paso 3 para chat {user_chat_id}: '{text}'")
+                sched_res = await parse_schedule_time(text)
+
+                if not sched_res.get("valido"):
+                    razon = sched_res.get("razon_rechazo") or "Por favor especifica una hora del día válida."
+                    msg_reject = (
+                        f"⚠️ {razon}\n\n"
+                        "⏰ ¿A qué hora te gustaría recibir tu entrega diaria? (Ej. 08:30 AM, 2 de la tarde, 14:00)."
+                    )
+                    await send_telegram_message(text=msg_reject, chat_id=user_chat_id)
+                    return
+
+                norm_hora = sched_res.get("hora") or "10:00"
+                set_user_schedule(user_chat_id, schedule_time=norm_hora)
+
+                curr_zone = get_user_zone(user_chat_id) or "Global"
+                curr_ind = get_user_industry(user_chat_id) or "TI & Software B2B"
+
+                conf_msg = (
+                    "✅ <b>¡Configuración completada! Tu radar está 100% activo.</b>\n\n"
+                    f"• 🌎 <b>Mercado objetivo:</b> {curr_zone}\n"
+                    f"• 💼 <b>Industria / Nicho:</b> {curr_ind}\n"
+                    f"• ⏰ <b>Horario de entrega:</b> {norm_hora} hrs (diario)\n\n"
+                    "<i>No tienes que esperar a tu hora programada para empezar a explorar hoy:</i>"
+                )
+                menu_kb = {
+                    "inline_keyboard": [
+                        [{"text": "⚡ Generar mis tendencias ahora", "callback_data": "RUN_RADAR"}],
+                        [
+                            {"text": "📁 Mis favoritos", "callback_data": "VIEW_FAVS"},
+                            {"text": "⚙️ Configuración", "callback_data": "RESET_CONFIG"}
+                        ]
+                    ]
+                }
+                await send_telegram_message(
+                    text=conf_msg,
+                    chat_id=user_chat_id,
+                    reply_markup=menu_kb
+                )
+                return
+
             # ESTADO 2: ESPERANDO INDUSTRIA (Paso 2)
-            # REGLA INQUEBRANTABLE: Si el estado del usuario es "Esperando Industria" (Paso 2),
-            # el mensaje entrante DEBE procesarse EXCLUSIVAMENTE con el validador de industria. 
-            # Bloquea cualquier posibilidad de que el texto ingresado en el Paso 2 vuelva a pasar por validate_zone
-            # o que reescriba las variables de sesión zona_local y zona_pais que ya fueron guardadas en el Paso 1.
             if fsm_step == "STEP_INDUSTRY":
                 logger.info(f"[Telegram Bot] Procesando EXCLUSIVAMENTE industria en Paso 2 para chat {user_chat_id}: '{text}'")
                 class_res = await classify_user_input(text)
@@ -1890,7 +2221,6 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
                         f"💼 ¿De qué industria te interesa conocer las tendencias en {curr_zone}? (Ej. Fintech, Salud, E-Commerce, Inteligencia Artificial, Logística)."
                     )
                     await send_telegram_message(text=msg_reject, chat_id=user_chat_id)
-                    # Bloqueo total: No retroceder de paso, no llamar a validate_zone, no tocar zona_local ni zona_pais
                     return
 
                 detected_industry = class_res.get("industria_exacta") or class_res.get("industria") or "TI & Software B2B"
@@ -1902,25 +2232,13 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
                     categoria_api=categoria_api
                 )
 
-                # Confirmación inmediata con menú completo de 4 botones
-                conf_msg = (
-                    "✅ Configuración completada. Tu radar está activo.\n\n"
-                    f"Recibirás la tendencia más relevante de {detected_industry} en {curr_zone} todos los días a las 10:00 AM."
+                # Transición natural al Paso 3: Horario diario
+                msg_step3 = (
+                    f"💼 Registramos la industria: <b>{detected_industry}</b>.\n\n"
+                    "⏰ <b>Paso 3 de 3:</b> ¿A qué hora del día te gustaría recibir tu reporte diario de tendencias?\n\n"
+                    "<i>(Ej. 08:30 AM, 2 de la tarde, 14:00, 9 am)</i>"
                 )
-                group_url = getattr(settings, "TELEGRAM_GROUP_INVITE_LINK", "https://t.me/+KzJZD9mDqAdkZmIx")
-                menu_kb = {
-                    "inline_keyboard": [
-                        [{"text": "⭐ Ver favoritos", "callback_data": "MANAGE_FAVS"}],
-                        [{"text": "📈 Ver gráfica", "callback_data": "GET_CHART"}],
-                        [{"text": "🏠 Regresar al grupo", "url": group_url}],
-                        [{"text": "⚙️ Configuración", "callback_data": "RESET_CONFIG"}]
-                    ]
-                }
-                await send_telegram_message(
-                    text=conf_msg,
-                    chat_id=user_chat_id,
-                    reply_markup=menu_kb
-                )
+                await send_telegram_message(text=msg_step3, chat_id=user_chat_id)
                 return
 
             # ESTADO 1: ESPERANDO ZONA GEOGRÁFICA (Paso 1)

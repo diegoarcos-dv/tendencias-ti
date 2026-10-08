@@ -12,7 +12,7 @@ import sqlite3
 import hashlib
 import json
 import re
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from datetime import datetime, date, timedelta
 from pathlib import Path
 from urllib.parse import urlparse, parse_qsl, urlunparse
@@ -75,16 +75,20 @@ def init_db(db_path: Optional[str] = None) -> None:
             );
 
             CREATE TABLE IF NOT EXISTS configuracion_usuario (
-                chat_id          TEXT PRIMARY KEY,
-                zona_preferida   TEXT NOT NULL DEFAULT 'Global',
-                zona_local       TEXT NOT NULL DEFAULT '',
-                zona_pais        TEXT NOT NULL DEFAULT '',
-                zonas_json       TEXT NOT NULL DEFAULT '[]',
-                industria        TEXT NOT NULL DEFAULT 'TI & Software B2B',
-                industria_exacta TEXT NOT NULL DEFAULT '',
-                categoria_api    TEXT NOT NULL DEFAULT 'general',
-                onboarding_step  TEXT NOT NULL DEFAULT '',
-                updated_at       TEXT NOT NULL
+                chat_id            TEXT PRIMARY KEY,
+                zona_preferida     TEXT NOT NULL DEFAULT 'Global',
+                zona_local         TEXT NOT NULL DEFAULT '',
+                zona_pais          TEXT NOT NULL DEFAULT '',
+                zonas_json         TEXT NOT NULL DEFAULT '[]',
+                industria          TEXT NOT NULL DEFAULT 'TI & Software B2B',
+                industria_exacta   TEXT NOT NULL DEFAULT '',
+                categoria_api      TEXT NOT NULL DEFAULT 'general',
+                schedule_time      TEXT NOT NULL DEFAULT '10:00',
+                freelance_role     TEXT NOT NULL DEFAULT '',
+                freelance_skills   TEXT NOT NULL DEFAULT '[]',
+                freelance_keywords TEXT NOT NULL DEFAULT '',
+                onboarding_step    TEXT NOT NULL DEFAULT '',
+                updated_at         TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS registro_tarjetas_enviadas (
@@ -139,6 +143,14 @@ def init_db(db_path: Optional[str] = None) -> None:
             conn.execute("ALTER TABLE configuracion_usuario ADD COLUMN industria_exacta TEXT DEFAULT ''")
         if "categoria_api" not in cfg_cols and cfg_cols:
             conn.execute("ALTER TABLE configuracion_usuario ADD COLUMN categoria_api TEXT DEFAULT 'general'")
+        if "schedule_time" not in cfg_cols and cfg_cols:
+            conn.execute("ALTER TABLE configuracion_usuario ADD COLUMN schedule_time TEXT NOT NULL DEFAULT '10:00'")
+        if "freelance_role" not in cfg_cols and cfg_cols:
+            conn.execute("ALTER TABLE configuracion_usuario ADD COLUMN freelance_role TEXT NOT NULL DEFAULT ''")
+        if "freelance_skills" not in cfg_cols and cfg_cols:
+            conn.execute("ALTER TABLE configuracion_usuario ADD COLUMN freelance_skills TEXT NOT NULL DEFAULT '[]'")
+        if "freelance_keywords" not in cfg_cols and cfg_cols:
+            conn.execute("ALTER TABLE configuracion_usuario ADD COLUMN freelance_keywords TEXT NOT NULL DEFAULT ''")
         if "onboarding_step" not in cfg_cols and cfg_cols:
             conn.execute("ALTER TABLE configuracion_usuario ADD COLUMN onboarding_step TEXT NOT NULL DEFAULT ''")
 
@@ -666,7 +678,7 @@ def set_user_industry(
     industria_exacta: Optional[str] = None,
     categoria_api: Optional[str] = None
 ) -> None:
-    """Guarda o actualiza la industria preferida, la industria exacta y la categoría de API del usuario en SQLite."""
+    """Guarda o actualiza la industria preferida, la industria exacta y la categoría de API del usuario en SQLite, y avanza a STEP_SCHEDULE."""
     val = str(industry).strip() if industry else ""
     exact_val = str(industria_exacta).strip() if industria_exacta else val
     cat_val = str(categoria_api).strip().lower() if categoria_api else "general"
@@ -677,16 +689,96 @@ def set_user_industry(
         conn.execute(
             """
             INSERT INTO configuracion_usuario (chat_id, zona_preferida, industria, industria_exacta, categoria_api, onboarding_step, updated_at)
-            VALUES (?, '', ?, ?, ?, 'COMPLETED', ?)
+            VALUES (?, '', ?, ?, ?, 'STEP_SCHEDULE', ?)
             ON CONFLICT(chat_id) DO UPDATE SET
                 industria = excluded.industria,
                 industria_exacta = excluded.industria_exacta,
                 categoria_api = excluded.categoria_api,
-                onboarding_step = 'COMPLETED',
+                onboarding_step = 'STEP_SCHEDULE',
                 updated_at = excluded.updated_at
             """,
             (str(chat_id), val, exact_val, cat_val, datetime.utcnow().isoformat())
         )
+
+
+def set_user_schedule(chat_id: str, schedule_time: str) -> None:
+    """Guarda la hora preferida del usuario (formato HH:MM) y finaliza el onboarding marcando COMPLETED."""
+    val = str(schedule_time).strip() or "10:00"
+    with _get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO configuracion_usuario (chat_id, schedule_time, onboarding_step, updated_at)
+            VALUES (?, ?, 'COMPLETED', ?)
+            ON CONFLICT(chat_id) DO UPDATE SET
+                schedule_time = excluded.schedule_time,
+                onboarding_step = 'COMPLETED',
+                updated_at = excluded.updated_at
+            """,
+            (str(chat_id), val, datetime.utcnow().isoformat())
+        )
+
+
+def get_user_schedule(chat_id: Optional[str] = None, default: str = "10:00") -> str:
+    """Obtiene la hora programada del usuario (formato HH:MM, por defecto 10:00)."""
+    with _get_connection() as conn:
+        if chat_id:
+            row = conn.execute(
+                "SELECT schedule_time FROM configuracion_usuario WHERE chat_id = ?",
+                (str(chat_id),)
+            ).fetchone()
+            if row and row["schedule_time"] and str(row["schedule_time"]).strip():
+                return str(row["schedule_time"]).strip()
+        return default
+
+
+def set_user_freelance_profile(
+    chat_id: str,
+    role: str,
+    skills: Union[List[str], str],
+    keywords: str = ""
+) -> None:
+    """Guarda el perfil profesional freelance del usuario y finaliza exitosamente el onboarding (COMPLETED)."""
+    if isinstance(skills, list):
+        skills_json = json.dumps(skills, ensure_ascii=False)
+    else:
+        skills_json = json.dumps([s.strip() for s in str(skills).split(",") if s.strip()], ensure_ascii=False)
+
+    with _get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO configuracion_usuario (chat_id, freelance_role, freelance_skills, freelance_keywords, onboarding_step, updated_at)
+            VALUES (?, ?, ?, ?, 'COMPLETED', ?)
+            ON CONFLICT(chat_id) DO UPDATE SET
+                freelance_role = excluded.freelance_role,
+                freelance_skills = excluded.freelance_skills,
+                freelance_keywords = excluded.freelance_keywords,
+                onboarding_step = 'COMPLETED',
+                updated_at = excluded.updated_at
+            """,
+            (str(chat_id), str(role).strip(), skills_json, str(keywords).strip(), datetime.utcnow().isoformat())
+        )
+
+
+def get_user_freelance_profile(chat_id: Optional[str] = None) -> Dict[str, Any]:
+    """Obtiene el perfil profesional freelance configurado del usuario."""
+    with _get_connection() as conn:
+        if chat_id:
+            row = conn.execute(
+                "SELECT freelance_role, freelance_skills, freelance_keywords FROM configuracion_usuario WHERE chat_id = ?",
+                (str(chat_id),)
+            ).fetchone()
+            if row:
+                raw_skills = row["freelance_skills"] or "[]"
+                try:
+                    skills_list = json.loads(raw_skills) if isinstance(raw_skills, str) else []
+                except Exception:
+                    skills_list = []
+                return {
+                    "role": str(row["freelance_role"] or "").strip(),
+                    "skills": skills_list if isinstance(skills_list, list) else [],
+                    "keywords": str(row["freelance_keywords"] or "").strip()
+                }
+        return {"role": "", "skills": [], "keywords": ""}
 
 
 def get_user_industry(chat_id: Optional[str] = None, default: Optional[str] = None) -> Optional[str]:
@@ -744,13 +836,13 @@ def get_user_categoria_api(chat_id: Optional[str] = None, default: str = "genera
 
 def get_user_onboarding_step(chat_id: Optional[str] = None) -> str:
     """Retorna el estado actual de la máquina de estados (FSM) de onboarding:
-    'STEP_ZONE', 'STEP_INDUSTRY' o 'COMPLETED'.
+    'STEP_ZONE', 'STEP_INDUSTRY', 'STEP_SCHEDULE', 'STEP_FREELANCE_PROFILE' o 'COMPLETED'.
     """
     if not chat_id:
         return "STEP_ZONE"
     with _get_connection() as conn:
         row = conn.execute(
-            "SELECT onboarding_step, zona_preferida, zona_local, zona_pais, industria FROM configuracion_usuario WHERE chat_id = ?",
+            "SELECT onboarding_step, zona_preferida, zona_local, zona_pais, industria, schedule_time, freelance_role FROM configuracion_usuario WHERE chat_id = ?",
             (str(chat_id),)
         ).fetchone()
         if not row:
@@ -758,7 +850,7 @@ def get_user_onboarding_step(chat_id: Optional[str] = None) -> str:
         keys = row.keys()
         if "onboarding_step" in keys and row["onboarding_step"]:
             st = str(row["onboarding_step"]).strip().upper()
-            if st in ("STEP_ZONE", "STEP_INDUSTRY", "COMPLETED"):
+            if st in ("STEP_ZONE", "STEP_INDUSTRY", "STEP_SCHEDULE", "STEP_FREELANCE_PROFILE", "COMPLETED"):
                 return st
         # Inferencia de respaldo para registros preexistentes
         z_pref = str(row["zona_preferida"] or "").strip()
@@ -767,9 +859,14 @@ def get_user_onboarding_step(chat_id: Optional[str] = None) -> str:
         ind = str(row["industria"] or "").strip()
         has_zone = bool(z_pref or z_loc or z_pais)
         has_ind = bool(ind)
-        if has_zone and has_ind:
+        has_sched = bool(str(row["schedule_time"] or "").strip())
+        has_free = bool(str(row["freelance_role"] or "").strip())
+
+        if has_zone and has_ind and has_sched:
             return "COMPLETED"
-        elif has_zone and not has_ind:
+        elif has_zone and has_ind:
+            return "STEP_SCHEDULE"
+        elif has_zone:
             return "STEP_INDUSTRY"
         return "STEP_ZONE"
 
@@ -791,12 +888,17 @@ def set_user_onboarding_step(chat_id: str, step: str) -> None:
 
 
 def reset_user_config(chat_id: str) -> None:
-    """Borra zona_preferida, zona_local, zona_pais, zonas_json, industria e industria_exacta del usuario en SQLite para reiniciar el onboarding."""
+    """Borra todos los campos de configuración del usuario en SQLite para reiniciar el onboarding desde STEP_ZONE."""
     with _get_connection() as conn:
         conn.execute(
             """
-            INSERT INTO configuracion_usuario (chat_id, zona_preferida, zona_local, zona_pais, zonas_json, industria, industria_exacta, categoria_api, onboarding_step, updated_at)
-            VALUES (?, '', '', '', '[]', '', '', 'general', 'STEP_ZONE', ?)
+            INSERT INTO configuracion_usuario (
+                chat_id, zona_preferida, zona_local, zona_pais, zonas_json,
+                industria, industria_exacta, categoria_api,
+                schedule_time, freelance_role, freelance_skills, freelance_keywords,
+                onboarding_step, updated_at
+            )
+            VALUES (?, '', '', '', '[]', '', '', 'general', '10:00', '', '[]', '', 'STEP_ZONE', ?)
             ON CONFLICT(chat_id) DO UPDATE SET
                 zona_preferida = '',
                 zona_local = '',
@@ -805,11 +907,57 @@ def reset_user_config(chat_id: str) -> None:
                 industria = '',
                 industria_exacta = '',
                 categoria_api = 'general',
+                schedule_time = '10:00',
+                freelance_role = '',
+                freelance_skills = '[]',
+                freelance_keywords = '',
                 onboarding_step = 'STEP_ZONE',
                 updated_at = excluded.updated_at
             """,
             (str(chat_id), datetime.utcnow().isoformat())
         )
+
+
+def get_users_by_schedule(time_str: str) -> List[Dict[str, Any]]:
+    """Consulta en SQLite todos los usuarios con perfil COMPLETED cuyo schedule_time coincida exactamente con time_str (HH:MM)."""
+    norm_time = time_str.strip()
+    with _get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT chat_id,
+                   COALESCE(NULLIF(TRIM(zona_preferida), ''), 'Global') AS zona_preferida,
+                   COALESCE(NULLIF(TRIM(zona_local), ''), NULLIF(TRIM(zona_preferida), ''), 'Global') AS zona_local,
+                   COALESCE(NULLIF(TRIM(zona_pais), ''), NULLIF(TRIM(zona_preferida), ''), 'Global') AS zona_pais,
+                   COALESCE(NULLIF(TRIM(zonas_json), ''), '[]') AS zonas_json,
+                   COALESCE(NULLIF(TRIM(industria_exacta), ''), NULLIF(TRIM(industria), ''), 'TI & Software B2B') AS industria,
+                   COALESCE(NULLIF(TRIM(industria_exacta), ''), NULLIF(TRIM(industria), ''), 'TI & Software B2B') AS industria_exacta,
+                   COALESCE(NULLIF(TRIM(categoria_api), ''), 'general') AS categoria_api,
+                   COALESCE(NULLIF(TRIM(schedule_time), ''), '10:00') AS schedule_time,
+                   COALESCE(NULLIF(TRIM(freelance_role), ''), '') AS freelance_role,
+                   COALESCE(NULLIF(TRIM(freelance_skills), ''), '[]') AS freelance_skills,
+                   COALESCE(NULLIF(TRIM(freelance_keywords), ''), '') AS freelance_keywords,
+                   updated_at
+            FROM configuracion_usuario
+            WHERE chat_id IS NOT NULL AND TRIM(chat_id) != ''
+              AND onboarding_step = 'COMPLETED'
+              AND (schedule_time = ? OR (schedule_time = '10:00' AND ? = '10:00'))
+            ORDER BY updated_at DESC
+            """,
+            (norm_time, norm_time)
+        ).fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            raw_z = d.get("zonas_json") or "[]"
+            try:
+                parsed_z = json.loads(raw_z)
+                d["zonas"] = parsed_z if isinstance(parsed_z, list) else []
+            except Exception:
+                d["zonas"] = []
+            if not d["zonas"]:
+                d["zonas"] = [{"zona_local": d.get("zona_local", "Global"), "zona_pais": d.get("zona_pais", "Global")}]
+            result.append(d)
+        return result
 
 
 def get_all_configured_users() -> List[Dict[str, Any]]:
