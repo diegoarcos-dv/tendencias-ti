@@ -300,18 +300,18 @@ def build_demand_keyboard(
     current_index: int = 0,
     total_items: int = 5,
     return_index: int = 0,
-    linkedin_url: Optional[str] = None
+    company_linkedin_url: Optional[str] = None
 ) -> Dict[str, Any]:
     """Teclado interactivo para Catálogo de Empresas Demandantes B2B:
     - Fila 1: Paginación de empresas
     - Fila 2: Ver Alcance & SOW
     - Fila 3: Opción 2 - Simular Cotización & Margen TI
-    - Fila 4: Opción 3 - Identificar Tomadores de Decisión (LinkedIn México)
+    - Fila 4: Opción C - Perfil Oficial en LinkedIn de la Empresa (acceso público sin bloqueo)
     - Fila 5: Volver a Inicio
     """
     total = max(1, total_items)
     idx = current_index % total
-    lk_url = linkedin_url or "https://www.linkedin.com/search/results/people/"
+    lk_url = company_linkedin_url or "https://www.linkedin.com"
     return {
         "inline_keyboard": [
             [
@@ -326,7 +326,7 @@ def build_demand_keyboard(
                 {"text": "📊 Simular Cotización & Margen TI", "callback_data": f"DEMANDA_QUOTE:{idx}:{return_index}"}
             ],
             [
-                {"text": "🎯 Tomadores de Decisión (LinkedIn)", "url": lk_url}
+                {"text": "🏢 Perfil Oficial en LinkedIn", "url": lk_url}
             ],
             [
                 {"text": "🏠 Inicio", "callback_data": f"CATALOG_GOTO:{return_index}"}
@@ -1714,7 +1714,7 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
                         {"text": "📊 Simular Cotización & Margen", "callback_data": f"DEMANDA_QUOTE:{info_idx}:{ret_idx}"}
                     ],
                     [
-                        {"text": "🎯 Tomadores de Decisión (LinkedIn)", "url": company_info.get("linkedin_search_url", "https://www.linkedin.com")}
+                        {"text": "🏢 Perfil Oficial en LinkedIn", "url": company_info.get("linkedin_company_url") or company_info.get("linkedin_search_url", "https://www.linkedin.com")}
                     ],
                     [
                         {"text": "🔙 Volver a la Empresa", "callback_data": f"NAV_DEMANDA_PAGE:curr:{info_idx}:{ret_idx}"},
@@ -1743,7 +1743,7 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
             quote_kb = {
                 "inline_keyboard": [
                     [
-                        {"text": "🎯 Tomadores de Decisión (LinkedIn)", "url": company_info.get("linkedin_search_url", "https://www.linkedin.com")}
+                        {"text": "🏢 Perfil Oficial en LinkedIn", "url": company_info.get("linkedin_company_url") or company_info.get("linkedin_search_url", "https://www.linkedin.com")}
                     ],
                     [
                         {"text": "📋 Ver Alcance & SOW", "callback_data": f"DEMANDA_SCOPE:{info_idx}:{ret_idx}"}
@@ -1800,7 +1800,7 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
                 current_index=new_idx,
                 total_items=total_items,
                 return_index=ret_idx,
-                linkedin_url=demand_data.get("linkedin_search_url")
+                company_linkedin_url=demand_data.get("linkedin_company_url") or demand_data.get("linkedin_search_url")
             )
             res = await edit_telegram_media(chat_id=user_chat_id, message_id=orig_msg_id, photo_path=photo_to_use, reply_markup=kb)
             if res.get("file_id"):
@@ -1837,7 +1837,7 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
                 current_index=0,
                 total_items=total_items,
                 return_index=ret_idx,
-                linkedin_url=demand_data.get("linkedin_search_url")
+                company_linkedin_url=demand_data.get("linkedin_company_url") or demand_data.get("linkedin_search_url")
             )
             res = await edit_telegram_media(chat_id=user_chat_id, message_id=orig_msg_id, photo_path=photo_to_use, reply_markup=kb)
             if res.get("file_id"):

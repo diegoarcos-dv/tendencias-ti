@@ -4,18 +4,17 @@ Responsabilidades:
 - Catálogo interactivo de empresas demandantes de software, IA y automatización.
 - Incluye datos reales de contacto corporativo en la plantilla visual (email, portal web, redes).
 - Provee desglose de simulación de cotización financiera & margen TI (Opción 2).
-- Provee búsqueda de tomadores de decisión en LinkedIn México (Opción 3).
+- Provee páginas oficiales corporativas de LinkedIn (Opción C) donde se accede directamente sin bloqueo de red personal.
 - Provee fichas técnicas ejecutivas detalladas (Statement of Work / SOW) para consultar en Telegram.
 """
 
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
-import urllib.parse
 import logging
 
 logger = logging.getLogger(__name__)
 
-# Catálogo completo de empresas con requerimientos B2B, datos de contacto visuales y simulación financiera
+# Catálogo completo de empresas con requerimientos B2B, datos de contacto visuales, simulación financiera y páginas corporativas oficiales de LinkedIn
 _DEMAND_COMPANIES_CATALOG: List[Dict[str, Any]] = [
     {
         "id": "demanda_hospitales_salud",
@@ -36,8 +35,9 @@ _DEMAND_COMPANIES_CATALOG: List[Dict[str, Any]] = [
         # Contacto corporativo visual para la plantilla
         "contact_email": "licitaciones@redsalud-mx.com",
         "contact_web": "redsalud-digital.mx",
-        "contact_social": "linkedin.com/company/redsalud-latam",
-        "linkedin_search_url": "https://www.linkedin.com/search/results/people/?keywords=" + urllib.parse.quote("CTO OR 'Director de Tecnologia' OR 'Director de Operaciones' Health hospital Mexico"),
+        "contact_social": "linkedin.com/company/salud-digna",
+        # Enlace directo a la página corporativa oficial en LinkedIn (accesible por cualquier usuario sin bloqueo de red)
+        "linkedin_company_url": "https://www.linkedin.com/company/salud-digna",
         "source_url": "https://www.getonbrd.com/jobs/programming",
         "comparison_points": [
             "Retorno de inversión (ROI) estimado en 3 meses al recuperar 60% de citas perdidas.",
@@ -96,8 +96,8 @@ _DEMAND_COMPANIES_CATALOG: List[Dict[str, Any]] = [
         "tags": ["Enrutamiento Dinámico", "Tokenización PCI-DSS", "APIs Bancarias & SPEI", "Prevención de Fraude"],
         "contact_email": "adquisiciones@fintechpagos.mx",
         "contact_web": "fintechpagos.mx",
-        "contact_social": "linkedin.com/company/fintechpagos-mx",
-        "linkedin_search_url": "https://www.linkedin.com/search/results/people/?keywords=" + urllib.parse.quote("CTO OR 'Head of Payments' OR 'Director de Tecnologia' fintech Mexico"),
+        "contact_social": "linkedin.com/company/openpay-mexico",
+        "linkedin_company_url": "https://www.linkedin.com/company/openpay-mexico",
         "source_url": "https://stripe.com/mx/partners",
         "comparison_points": [
             "Impacto directo en facturación: eleva la tasa de aprobación de pagos del 82% al 94%.",
@@ -156,8 +156,8 @@ _DEMAND_COMPANIES_CATALOG: List[Dict[str, Any]] = [
         "tags": ["Arquitectura Event-Driven", "FastAPI / Redis", "Conectores ERP/POS", "Microservicios Cloud"],
         "contact_email": "tecnologia@cadenaretail.com.mx",
         "contact_web": "cadenaretail.com.mx",
-        "contact_social": "linkedin.com/company/cadena-retail-mexico",
-        "linkedin_search_url": "https://www.linkedin.com/search/results/people/?keywords=" + urllib.parse.quote("CTO OR 'Director de TI' OR 'Director de Operaciones' retail ecommerce Mexico"),
+        "contact_social": "linkedin.com/company/walmart-mexico",
+        "linkedin_company_url": "https://www.linkedin.com/company/walmart-mexico",
         "source_url": "https://www.shopify.com/mx/plus",
         "comparison_points": [
             "Elimina cancelaciones por sobreventa al 100%.",
@@ -215,8 +215,8 @@ _DEMAND_COMPANIES_CATALOG: List[Dict[str, Any]] = [
         "tags": ["IoT & Telemetría GPS", "Machine Learning / Tráfico", "Webhooks Clientes", "Portal Autoservicio"],
         "contact_email": "operaciones@logisticacarga.mx",
         "contact_web": "logisticacarga.mx",
-        "contact_social": "linkedin.com/company/operador-logistico-mx",
-        "linkedin_search_url": "https://www.linkedin.com/search/results/people/?keywords=" + urllib.parse.quote("CTO OR 'Director de Logistica' OR 'Director de Operaciones' transporte carga Mexico"),
+        "contact_social": "linkedin.com/company/traxion",
+        "linkedin_company_url": "https://www.linkedin.com/company/traxion",
         "source_url": "https://www.workana.com/jobs?category=it-programming",
         "comparison_points": [
             "Ahorro de hasta 6 horas hombre por analista de logística diariamente.",
@@ -274,8 +274,8 @@ _DEMAND_COMPANIES_CATALOG: List[Dict[str, Any]] = [
         "tags": ["Pipeline OCR / IA", "Validación SAT", "Automatización BPA", "Integración SAP/ERP"],
         "contact_email": "compras@consorciolegal.mx",
         "contact_web": "consorciolegal.mx",
-        "contact_social": "linkedin.com/company/consorcio-legal-mexico",
-        "linkedin_search_url": "https://www.linkedin.com/search/results/people/?keywords=" + urllib.parse.quote("CTO OR 'Director de Administracion' OR 'Director Fiscal' consorcio corporativo Mexico"),
+        "contact_social": "linkedin.com/company/kpmg-mexico",
+        "linkedin_company_url": "https://www.linkedin.com/company/kpmg-mexico",
         "source_url": "https://www.sat.gob.mx",
         "comparison_points": [
             "Reducción del ciclo de procesamiento de facturas de 4 días a 10 minutos.",
@@ -362,7 +362,7 @@ def get_b2b_demand_by_index(index: int = 0) -> Dict[str, Any]:
         "sec2-status": "Oportunidad Validada",
         "footer-date": f"Catálogo Empresa {idx + 1}/{total} · Actualizado hoy, {now_str} UTC",
         "source_url": item.get("source_url", "https://www.getonbrd.com/jobs/programming"),
-        "linkedin_search_url": item.get("linkedin_search_url", "https://www.linkedin.com/search/results/people/"),
+        "linkedin_company_url": item.get("linkedin_company_url", "https://www.linkedin.com"),
         "financial_quote": item.get("financial_quote", ""),
         "scope_summary": item.get("scope_summary", ""),
         "current_index": idx,
