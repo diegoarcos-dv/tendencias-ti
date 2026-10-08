@@ -12,7 +12,24 @@ from contextlib import asynccontextmanager
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 import asyncio
+import sys
 import logging
+
+# Configuración obligatoria en Windows para soporte nativo de subprocesos y Playwright
+if sys.platform == "win32":
+    try:
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+    except Exception:
+        pass
+
+
+def proactor_loop_factory(*args, **kwargs):
+    """Factory de bucle para Uvicorn en Windows: garantiza ProactorEventLoop y elimina NotImplementedError."""
+    if sys.platform == "win32":
+        return lambda: asyncio.ProactorEventLoop()
+    return lambda: asyncio.new_event_loop()
+
+
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
@@ -256,21 +273,21 @@ async def run_group_pipeline(chat_id: Optional[str] = None) -> Dict[str, Any]:
 
     # Pre-renderizar tarjetas auxiliares (Demanda B2B, Eventos CDMX, Gráfica) para navegación instantánea
     try:
-        from app.b2b_demand import get_latest_b2b_demand
-        from app.events_cdmx import get_latest_events_cdmx
+        from app.b2b_demand import get_b2b_demand_by_index
+        from app.events_cdmx import get_events_cdmx_by_index
         from app.visual_engine import create_b2b_demand_png_card, create_events_cdmx_png_card, create_chart_png_card
 
-        demand_png = settings.BASE_DIR / "temp_demand.png"
-        await create_b2b_demand_png_card(output_path=demand_png, data=get_latest_b2b_demand())
+        demand_png = settings.BASE_DIR / "temp_demand_0.png"
+        await create_b2b_demand_png_card(output_path=demand_png, data=get_b2b_demand_by_index(0))
 
-        events_png = settings.BASE_DIR / "temp_events.png"
-        await create_events_cdmx_png_card(output_path=events_png, data=get_latest_events_cdmx())
+        events_png = settings.BASE_DIR / "temp_events_0.png"
+        await create_events_cdmx_png_card(output_path=events_png, data=get_events_cdmx_by_index(0))
 
         chart_png = settings.BASE_DIR / "temp_chart.png"
         await create_chart_png_card(output_path=chart_png)
-        logger.info("[Pipeline Grupo] Tarjetas auxiliares (Demanda, Eventos, Gráfica) pre-renderizadas con éxito.")
+        logger.info("[Pipeline Grupo] Catálogos auxiliares (Empresas Demandantes, Calendario Eventos Jóvenes, Gráfica) pre-renderizados con éxito.")
     except Exception as ex_aux:
-        logger.warning(f"[Pipeline Grupo] Advertencia al pre-renderizar tarjetas auxiliares: {ex_aux}")
+        logger.warning(f"[Pipeline Grupo] Advertencia al pre-renderizar catálogos auxiliares: {ex_aux}")
 
     # 3. Envío al grupo del primer elemento configurado con el Catálogo Interactivo
     first_item = saved_catalog[0]
@@ -337,27 +354,32 @@ async def run_individual_pipeline(chat_id: Optional[str] = None, ignore_daily_li
     top_trend = None
     fallback_activado = False
     chosen_zone_local = ""
+    selected_candidates: List[TrendItem] = []
+    fallback_activado = False
+    chosen_zone_local = ""
     chosen_zone_pais = ""
     effective_zone = ""
 
-    # Iterar sobre la lista de zonas configuradas del usuario,
-    # deteniéndose y enviando la tendencia en cuanto encuentre resultados válidos en alguna de ellas:
+    # Iterar sobre la lista de zonas configuradas del usuario:
     for z_entry in user_zones:
         cur_local = str(z_entry.get("zona_local") or "").strip() or "Global"
         cur_pais = str(z_entry.get("zona_pais") or "").strip() or cur_local
 
-        logger.info(f"[Pipeline Individual] Buscando tendencias para '{user_exact_industry}' en zona: '{cur_local}'...")
+        logger.info(f"[Pipeline Individual] Buscando lote de tendencias para '{user_exact_industry}' en zona: '{cur_local}'...")
         all_trends = fetch_all_trends(
             zone=cur_local,
             industry=user_exact_industry,
             categoria_api=user_categoria_api,
             industria_exacta=user_exact_industry
         )
-        candidate = select_top_trend(all_trends, industry=user_exact_industry)
-        cur_fallback = False
+        cands = select_top_trends(all_trends, count=4, industry=user_exact_industry)
+        if not cands:
+            single = select_top_trend(all_trends, industry=user_exact_industry)
+            cands = [single] if single else []
 
-        # Búsqueda con Rescate: si la búsqueda local arroja 0 resultados y difiere del país macro:
-        if not candidate and cur_local.strip().lower() != cur_pais.strip().lower():
+        cur_fallback = False
+        # Búsqueda con Rescate si la zona local no arrojó resultados y difiere del país macro:
+        if not cands and cur_local.strip().lower() != cur_pais.strip().lower():
             logger.warning(
                 f"[Pipeline Individual] 0 tendencias encontradas para '{cur_local}'. "
                 f"Ejecutando búsqueda de rescate ampliada a nivel país macro: '{cur_pais}'..."
@@ -368,73 +390,94 @@ async def run_individual_pipeline(chat_id: Optional[str] = None, ignore_daily_li
                 categoria_api=user_categoria_api,
                 industria_exacta=user_exact_industry
             )
-            candidate = select_top_trend(rescue_trends, industry=user_exact_industry)
-            if candidate:
+            cands = select_top_trends(rescue_trends, count=4, industry=user_exact_industry)
+            if not cands:
+                single_r = select_top_trend(rescue_trends, industry=user_exact_industry)
+                cands = [single_r] if single_r else []
+            if cands:
                 cur_fallback = True
                 logger.info(
-                    f"[Pipeline Individual] Búsqueda de rescate exitosa en '{cur_pais}' para '{user_exact_industry}'."
+                    f"[Pipeline Individual] Búsqueda de rescate exitosa ({len(cands)} tendencias) en '{cur_pais}' para '{user_exact_industry}'."
                 )
 
-        if candidate:
-            top_trend = candidate
+        if cands:
+            selected_candidates = cands
             fallback_activado = cur_fallback
             chosen_zone_local = cur_local
             chosen_zone_pais = cur_pais
             effective_zone = cur_pais if cur_fallback else cur_local
             logger.info(
-                f"[Pipeline Individual] Tendencia válida encontrada en '{effective_zone}'. "
-                f"Deteniendo iteración multizona para proceder al envío."
+                f"[Pipeline Individual] Lote de {len(cands)} tendencias válidas encontradas en '{effective_zone}'. "
+                f"Deteniendo iteración multizona para proceder al envío del carrusel."
             )
             break
 
-    if not top_trend:
+    if not selected_candidates:
         logger.error(
             f"[Pipeline Individual] No hay tendencias frescas disponibles para {user_exact_industry} "
             f"en ninguna de las zonas configuradas: {[z.get('zona_local') for z in user_zones]}."
         )
         return {"status": "error", "message": "No fresh trends available"}
 
-    # 2. Análisis con Gemma enfocado en la zona e industria del usuario
-    trend_dict = {
-        **top_trend.model_dump(),
-        "geo_region": effective_zone,
-        "category": user_exact_industry,
-        "industria_exacta": user_exact_industry,
-        "fallback_activado": fallback_activado,
-        "zona_local": chosen_zone_local,
-        "zona_pais": chosen_zone_pais
-    }
-    card_data = await generate_trend_card_data(
-        trend_data=trend_dict,
-        zona_preferida=effective_zone,
-        user_industry=user_exact_industry,
-        business_context_text=business_context.raw_content
-    )
-    card_data["fallback_activado"] = fallback_activado
-    card_data["zona_local"] = chosen_zone_local
-    card_data["zona_pais"] = chosen_zone_pais
+    # 2. Análisis con Gemma, renderizado con Playwright y persistencia del lote de tendencias (3 a 5)
+    saved_catalog = []
+    first_png = None
+    first_trend_id = None
+    first_candidate = selected_candidates[0]
 
-    # 3. Renderizado con Playwright
-    target_png = settings.BASE_DIR / "temp_card.png"
-    await create_png_card(data=card_data, output_path=target_png)
+    for idx, cand in enumerate(selected_candidates):
+        trend_dict = {
+            **cand.model_dump(),
+            "geo_region": effective_zone,
+            "category": user_exact_industry,
+            "industria_exacta": user_exact_industry,
+            "fallback_activado": fallback_activado,
+            "zona_local": chosen_zone_local,
+            "zona_pais": chosen_zone_pais
+        }
+        card_data = await generate_trend_card_data(
+            trend_data=trend_dict,
+            zona_preferida=effective_zone,
+            user_industry=user_exact_industry,
+            business_context_text=business_context.raw_content
+        )
+        card_data["fallback_activado"] = fallback_activado
+        card_data["zona_local"] = chosen_zone_local
+        card_data["zona_pais"] = chosen_zone_pais
 
-    # 4. Persistencia en SQLite
-    trend_id = save_trend(trend_data=top_trend.model_dump(), card_data=card_data)
+        t_id = save_trend(trend_data=cand.model_dump(), card_data=card_data)
+        trend_png = settings.BASE_DIR / f"temp_trend_{t_id}.png"
+        await create_png_card(data=card_data, output_path=trend_png)
 
-    # 5. Notificación Transparente y Envío a Telegram con panel interactivo
+        if idx == 0:
+            first_png = trend_png
+            first_trend_id = t_id
+
+        saved_catalog.append({"id": t_id, "trend": cand, "card_data": card_data, "png": trend_png})
+
+    # Registrar el catálogo en memoria para la navegación interactiva fluida (◀️ / ▶️)
+    from app.telegram_bot import set_cached_catalog_trends
+    set_cached_catalog_trends(saved_catalog)
+
+    # 3. Notificación y Envío del primer elemento del carrusel a Telegram
     caption = ""
     if fallback_activado:
         caption = f"📍 *Nota del radar: No detectamos volumen suficiente de datos en {chosen_zone_local} hoy, por lo que hemos ampliado el análisis a nivel {chosen_zone_pais}.*"
 
-    reply_markup = build_interactive_keyboard(trend_id=trend_id, source_url=top_trend.url)
+    reply_markup = build_interactive_keyboard(
+        trend_id=first_trend_id,
+        source_url=first_candidate.url,
+        current_index=0,
+        total_items=len(saved_catalog)
+    )
     telegram_result = await send_telegram_notification(
-        photo_path=target_png,
+        photo_path=first_png or (settings.BASE_DIR / "temp_card.png"),
         caption=caption,
         parse_mode="Markdown" if fallback_activado else "HTML",
         reply_markup=reply_markup,
         chat_id=target_chat,
         chat_type="private",
-        trend_id=trend_id,
+        trend_id=first_trend_id,
         fallback_activado=fallback_activado,
         zona_local=chosen_zone_local,
         zona_pais=chosen_zone_pais
@@ -442,8 +485,8 @@ async def run_individual_pipeline(chat_id: Optional[str] = None, ignore_daily_li
 
     duration = (datetime.now() - start_time).total_seconds()
     logger.info(
-        f"[Pipeline Individual] Éxito: Tarjeta enviada a {target_chat} (trend_id={trend_id}) en {duration:.2f}s "
-        f"| Zona: {effective_zone} | Industria: {user_industry}"
+        f"[Pipeline Individual] Éxito: Carrusel ({len(saved_catalog)} tendencias) enviado a {target_chat} "
+        f"(trend_id={first_trend_id}) en {duration:.2f}s | Zona: {effective_zone} | Industria: {user_industry}"
     )
     return {
         "status": "success",
@@ -524,6 +567,19 @@ async def run_all_individual_pipelines() -> Dict[str, Any]:
     }
 
 
+async def run_hourly_scheduled_individual_pipelines() -> None:
+    """Dispatcher horario: revisa si hay usuarios cuyo schedule_time coincida con la hora actual."""
+    now_hh_mm = datetime.now().strftime("%H:00")
+    from app.database import get_users_by_schedule
+    users = get_users_by_schedule(now_hh_mm)
+    if users:
+        logger.info(f"[Dispatcher Horario {now_hh_mm}] Despachando tendencias para {len(users)} usuarios programados a esta hora.")
+        for u in users:
+            cid = u.get("chat_id")
+            if cid:
+                asyncio.create_task(run_individual_pipeline(chat_id=cid, ignore_daily_limit=True))
+
+
 # Alias de compatibilidad
 run_daily_pipeline = run_individual_pipeline
 
@@ -574,6 +630,17 @@ async def lifespan(app: FastAPI):
         misfire_grace_time=3600
     )
     logger.info("Cron de Caducidad (TTL 7 días) programado: diariamente a las 03:00 AM.")
+
+    # 4. Dispatcher Horario para entregas personalizadas por usuario: Cada hora
+    scheduler.add_job(
+        run_hourly_scheduled_individual_pipelines,
+        trigger=CronTrigger(minute=0),
+        id="individual_hourly_dispatcher",
+        name="Dispatcher Horario de Notificaciones Individuales (Cada Hora)",
+        replace_existing=True,
+        misfire_grace_time=1800
+    )
+    logger.info("Dispatcher Horario activo: monitorea las horas configuradas por cada usuario cada hora.")
 
     scheduler.start()
 

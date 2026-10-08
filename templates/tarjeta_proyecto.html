@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Oportunidad de Proyecto Freelance / Remoto</title>
+<style>
+  :root {
+    --bg: #0a0d16;
+    --surface: #121629;
+    --surface-2: #161b32;
+    --surface-accent: #19203c;
+    --border: rgba(255, 255, 255, .08);
+    --border-strong: rgba(255, 255, 255, .15);
+
+    --cyan: #06b6d4;
+    --cyan-soft: rgba(6, 182, 212, .15);
+    --violet: #8b5cf6;
+    --violet-soft: rgba(139, 92, 246, .16);
+    --mint: #10b981;
+    --mint-soft: rgba(16, 185, 129, .15);
+    --amber: #f59e0b;
+    --amber-soft: rgba(245, 158, 11, .16);
+    --blue: #3b82f6;
+    --blue-soft: rgba(59, 130, 246, .15);
+
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+
+    --font-display: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
+    --font-body: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 1080px;
+    height: 1080px;
+    background: var(--bg);
+    font-family: var(--font-body);
+    color: var(--text-primary);
+    overflow: hidden;
+  }
+
+  .card {
+    position: relative;
+    width: 1080px;
+    height: 1080px;
+    background: var(--bg);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 48px 52px;
+  }
+
+  /* Orbes decorativos de fondo */
+  .glow-top {
+    position: absolute;
+    top: -120px;
+    right: -100px;
+    width: 540px;
+    height: 540px;
+    background: radial-gradient(circle, rgba(6, 182, 212, 0.22) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .glow-bottom {
+    position: absolute;
+    bottom: -140px;
+    left: -100px;
+    width: 520px;
+    height: 520px;
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.18) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  /* Encabezado */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 22px;
+    position: relative;
+    z-index: 2;
+  }
+
+  .brand-group {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .icon-badge {
+    width: 54px;
+    height: 54px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--cyan), var(--blue));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 24px rgba(6, 182, 212, .35);
+  }
+
+  .icon-badge svg { width: 30px; height: 30px; color: #fff; }
+
+  .header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .eyebrow {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2.2px;
+    color: var(--cyan);
+  }
+
+  .title {
+    font-size: 32px;
+    font-weight: 700;
+    font-family: var(--font-display);
+    color: var(--text-primary);
+    letter-spacing: -0.5px;
+  }
+
+  .status-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 999px;
+    background: var(--mint-soft);
+    border: 1px solid rgba(16, 185, 129, .4);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--mint);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .status-badge .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--mint);
+    box-shadow: 0 0 10px var(--mint);
+  }
+
+  /* Contenedor Principal */
+  .main-section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    position: relative;
+    z-index: 2;
+    flex: 1;
+    margin-top: 24px;
+  }
+
+  /* Tarjeta Central Destacada */
+  .lead-card {
+    background: linear-gradient(145deg, var(--surface), var(--surface-2));
+    border: 1px solid var(--border-strong);
+    border-radius: 20px;
+    padding: 32px 36px;
+    box-shadow: 0 14px 36px rgba(0, 0, 0, .35);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    flex: 1;
+  }
+
+  .lead-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .company-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .company-name {
+    font-size: 22px;
+    font-weight: 700;
+    font-family: var(--font-display);
+    color: var(--text-primary);
+  }
+
+  .source-pill {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 5px 12px;
+    border-radius: 8px;
+    background: var(--violet-soft);
+    color: var(--violet);
+    border: 1px solid rgba(139, 92, 246, .3);
+  }
+
+  .match-pill {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--amber);
+    background: var(--amber-soft);
+    border: 1px solid rgba(245, 158, 11, .35);
+    padding: 6px 14px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .project-title {
+    font-size: 28px;
+    font-weight: 800;
+    font-family: var(--font-display);
+    color: #fff;
+    line-height: 1.25;
+    letter-spacing: -0.3px;
+  }
+
+  /* Grid de Compensación y Modalidad */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .metric-card {
+    background: rgba(10, 13, 22, 0.65);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .metric-card.accent-budget {
+    border-left: 4px solid var(--mint);
+  }
+
+  .metric-card.accent-loc {
+    border-left: 4px solid var(--cyan);
+  }
+
+  .field-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+  }
+
+  .metric-value {
+    font-size: 20px;
+    font-weight: 700;
+    font-family: var(--font-display);
+    color: var(--text-primary);
+  }
+
+  .metric-value.highlight-mint {
+    color: var(--mint);
+  }
+
+  .metric-value.highlight-cyan {
+    color: var(--cyan);
+  }
+
+  /* Caja de Descripción / Alcance */
+  .desc-box {
+    background: rgba(10, 13, 22, 0.55);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .desc-text {
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+  }
+
+  /* Stack Tecnológico */
+  .skills-box {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .tags-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .tag-item {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 7px 14px;
+    border-radius: 8px;
+    background: var(--surface-accent);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    letter-spacing: 0.3px;
+  }
+
+  .tag-item.primary {
+    background: var(--cyan-soft);
+    color: var(--cyan);
+    border-color: rgba(6, 182, 212, .3);
+  }
+
+  /* Pie de tarjeta */
+  .footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--border);
+    padding-top: 20px;
+    position: relative;
+    z-index: 2;
+  }
+
+  .footer-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  .footer-left strong {
+    color: var(--cyan);
+  }
+
+  .footer-date {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="glow-top"></div>
+  <div class="glow-bottom"></div>
+
+  <!-- ENCABEZADO -->
+  <header class="header">
+    <div class="brand-group">
+      <div class="icon-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+        </svg>
+      </div>
+      <div class="header-left">
+        <div class="eyebrow">OPORTUNIDAD TECH • CDMX &amp; REMOTO</div>
+        <div class="title">Proyecto &amp; Contrato Profesional</div>
+      </div>
+    </div>
+    <div class="status-badge">
+      <span class="dot"></span>
+      <span data-field="project-badge">CONVOCATORIA ABIERTA</span>
+    </div>
+  </header>
+
+  <!-- SECCIÓN PRINCIPAL -->
+  <main class="main-section">
+    <div class="lead-card">
+      <div class="lead-header">
+        <div class="company-meta">
+          <span class="company-name" data-field="project-company">Empresa Tecnológica B2B</span>
+          <span class="source-pill" data-field="project-source">Get on Board LATAM</span>
+        </div>
+        <div class="match-pill" data-field="project-match">
+          ★ 96% Match con tu perfil
+        </div>
+      </div>
+
+      <h1 class="project-title" data-field="project-title">
+        Desarrollador de Agentes de IA &amp; LLM Engineer
+      </h1>
+
+      <div class="metrics-grid">
+        <div class="metric-card accent-budget">
+          <div class="field-label">Presupuesto / Compensación Estimada</div>
+          <div class="metric-value highlight-mint" data-field="project-budget">
+            $3,500 - $5,000 USD / mes
+          </div>
+        </div>
+
+        <div class="metric-card accent-loc">
+          <div class="field-label">Modalidad &amp; Zona Horaria</div>
+          <div class="metric-value highlight-cyan" data-field="project-location">
+            Remoto (CDMX / Edoméx - CST)
+          </div>
+        </div>
+      </div>
+
+      <div class="desc-box">
+        <div class="field-label">Alcance del Proyecto &amp; Responsabilidades</div>
+        <div class="desc-text" data-field="project-description">
+          Desarrollo e integración de agentes autónomos basados en modelos de lenguaje (LLMs) y APIs avanzadas. Construcción de flujos automatizados con herramientas y conexión a servicios cloud.
+        </div>
+      </div>
+
+      <div class="skills-box">
+        <div class="field-label">Stack Tecnológico &amp; Habilidades Clave</div>
+        <div class="tags-row" data-field="project-skills">
+          <span class="tag-item primary">Python</span>
+          <span class="tag-item primary">Agentes IA</span>
+          <span class="tag-item">LangChain</span>
+          <span class="tag-item">APIs LLM</span>
+          <span class="tag-item">FastAPI</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- PIE DE TARJETA -->
+  <footer class="footer">
+    <div class="footer-left">
+      <span>🔗 Consulta y postulación directa: <strong>Usa el botón inferior en Telegram</strong></span>
+    </div>
+    <div class="footer-date" data-field="footer-date">
+      Actualizado hoy, 08/10/2026
+    </div>
+  </footer>
+</div>
+</body>
+</html>

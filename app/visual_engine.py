@@ -490,6 +490,7 @@ async def create_favorites_png_card(
 
 B2B_DEMAND_TEMPLATE_PATH: Path = settings.TEMPLATES_DIR / "tarjeta_demanda_b2b.html"
 EVENTS_CDMX_TEMPLATE_PATH: Path = settings.TEMPLATES_DIR / "tarjeta_eventos_cdmx.html"
+PROJECT_TEMPLATE_PATH: Path = settings.TEMPLATES_DIR / "tarjeta_proyecto.html"
 
 
 async def create_b2b_demand_png_card(
@@ -564,5 +565,77 @@ async def create_events_cdmx_png_card(
 
     logger.info(f"[VisualEngine] Tarjeta de Eventos CDMX PNG renderizada en: {target_file}")
     return target_file
+
+
+def _render_sync_worker(html_content: str, output_path: str, data: Optional[Dict[str, Any]] = None):
+    """Fallback síncrono en hilo aislado que funciona en Windows bajo cualquier bucle de eventos."""
+    from playwright.sync_api import sync_playwright
+    import re
+
+    patched_html = html_content
+    if data:
+        for field, val in data.items():
+            pattern = re.compile(rf'(data-field="{re.escape(field)}"[^>]*>)(.*?)(</[^>]+>)', re.DOTALL)
+            if pattern.search(patched_html):
+                patched_html = pattern.sub(rf'\g<1>{val}\g<3>', patched_html)
+
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+    pattern_date = re.compile(r'(data-field="footer-date"[^>]*>)(.*?)(</[^>]+>)', re.DOTALL)
+    patched_html = pattern_date.sub(rf'\g<1>Actualizado hoy, {now_str}\g<3>', patched_html)
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=True,
+            args=["--disable-gpu", "--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
+        )
+        page = browser.new_page(viewport={"width": 1080, "height": 1080}, device_scale_factor=1)
+        page.set_content(patched_html, wait_until="domcontentloaded")
+        page.locator(".card").screenshot(path=output_path)
+        browser.close()
+
+
+async def create_project_png_card(
+    output_path: Optional[Path | str] = None,
+    data: Optional[Dict[str, Any]] = None,
+) -> Path:
+    """Renderiza la tarjeta visual de proyecto / contrato freelance (tarjeta_proyecto.html) como PNG."""
+    target_file = Path(output_path) if output_path else settings.BASE_DIR / "temp_project.png"
+    target_file.parent.mkdir(parents=True, exist_ok=True)
+
+    template_to_use = PROJECT_TEMPLATE_PATH if PROJECT_TEMPLATE_PATH.exists() else TEMPLATE_PATH
+    html_raw = template_to_use.read_text(encoding="utf-8")
+    html_patched = _patch_html_for_offline(html_raw)
+
+    try:
+        async with get_render_page() as page:
+            await page.set_content(html_patched, wait_until="domcontentloaded")
+
+            if data:
+                for field, val in data.items():
+                    selector = f'[data-field="{field}"]'
+                    if await page.locator(selector).count() > 0:
+                        if "<" in str(val) and ">" in str(val):
+                            await page.locator(selector).evaluate("(el, v) => el.innerHTML = v", str(val))
+                        else:
+                            await page.locator(selector).evaluate("(el, v) => el.textContent = v", str(val))
+
+            now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+            if await page.locator('[data-field="footer-date"]').count() > 0:
+                await page.locator('[data-field="footer-date"]').evaluate(
+                    "(el, v) => el.textContent = v",
+                    f"Actualizado hoy, {now_str}"
+                )
+
+            await page.locator(".card").screenshot(path=str(target_file))
+    except (NotImplementedError, Exception) as ex:
+        if isinstance(ex, NotImplementedError) or "subprocess" in str(ex).lower():
+            logger.info(f"[VisualEngine] Activando fallback síncrono para Windows por {ex}...")
+            await asyncio.to_thread(_render_sync_worker, html_patched, str(target_file), data)
+        else:
+            raise
+
+    logger.info(f"[VisualEngine] Tarjeta de Proyecto Freelance PNG renderizada en: {target_file}")
+    return target_file
+
 
 

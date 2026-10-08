@@ -286,7 +286,7 @@ def build_catalog_keyboard(
                 {"text": "🛠️ Stack", "callback_data": f"GET_STACK:{tid_str}"}
             ],
             [
-                {"text": "🏢 Demanda B2B", "callback_data": f"NAV_DEMANDA:{idx}"},
+                {"text": "🏢 Demanda", "callback_data": f"NAV_DEMANDA:{idx}"},
                 {"text": "🎟️ Eventos CDMX", "callback_data": f"NAV_EVENTOS:{idx}"}
             ],
             [
@@ -1580,6 +1580,30 @@ WELCOME_INTRO_MSG = (
 STEP1_ZONE_MSG = "🌎 ¿De qué país o región tecnológica te interesa recibir tendencias? (Ej. China, Silicon Valley, Europa, Global)"
 
 
+async def open_private_chat(user_id: str | int, payload: Dict[str, Any]) -> None:
+    """
+    Abre una conversación privada (DM) con el usuario y despacha la acción a la Rama B.
+    """
+    uid_str = str(user_id)
+    try:
+        from app.rama_b import process_private_action
+        await process_private_action(uid_str, payload)
+    except Exception as exc:
+        logger.exception(f"[open_private_chat] Error despachando a {uid_str}: {exc}")
+        bot_usr = (settings.TELEGRAM_BOT_USERNAME or "Tendencias_DiegoBot").lstrip("@")
+        deep_link = f"https://t.me/{bot_usr}?start=private"
+        fallback_kb = {
+            "inline_keyboard": [
+                [{"text": "🤖 Abrir chat privado con el bot", "url": deep_link}]
+            ]
+        }
+        await send_telegram_message(
+            text="⚠️ Para ver esta información en privado, por favor inicia primero conversación directa con el bot:",
+            chat_id=uid_str,
+            reply_markup=fallback_kb
+        )
+
+
 async def process_telegram_update(update: Dict[str, Any]) -> None:
     """Procesa una actualización entrante de Telegram (CallbackQuery o Message)."""
     # 1. Manejo de Botones del Inline Keyboard
@@ -1698,68 +1722,24 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
             asyncio.create_task(answer_callback_query(cb_id, text=f"🏢 Empresa demandante {info_idx + 1}. Usa ◀️ y ▶️ para comparar requerimientos."))
             return
 
-        # Manejo de DEMANDA_SCOPE:{idx}:{return_trend_idx} (Envío de Ficha Técnica Detallada en Español)
+        # Manejo de DEMANDA_SCOPE:{idx}:{return_trend_idx} (Redirige a Rama B - Chat Privado)
         if action == "DEMANDA_SCOPE":
             info_idx = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
             ret_idx = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
-            asyncio.create_task(answer_callback_query(cb_id, text="📋 Abriendo alcance técnico y propuesta..."))
+            asyncio.create_task(answer_callback_query(cb_id, text="📋 Abriendo alcance técnico en privado..."))
 
-            from app.b2b_demand import get_b2b_demand_by_index
-            company_info = get_b2b_demand_by_index(info_idx)
-            scope_text = company_info.get("scope_summary") or "Ficha técnica no disponible."
-
-            back_kb = {
-                "inline_keyboard": [
-                    [
-                        {"text": "📊 Simular Cotización & Margen", "callback_data": f"DEMANDA_QUOTE:{info_idx}:{ret_idx}"}
-                    ],
-                    [
-                        {"text": "🏢 Perfil Oficial en LinkedIn", "url": company_info.get("linkedin_company_url") or company_info.get("linkedin_search_url", "https://www.linkedin.com")}
-                    ],
-                    [
-                        {"text": "🔙 Volver a la Empresa", "callback_data": f"NAV_DEMANDA_PAGE:curr:{info_idx}:{ret_idx}"},
-                        {"text": "🏠 Inicio", "callback_data": f"CATALOG_GOTO:{ret_idx}"}
-                    ]
-                ]
-            }
-            await send_telegram_message(
-                text=scope_text,
-                chat_id=user_chat_id,
-                parse_mode="HTML",
-                reply_markup=back_kb
-            )
+            payload = {"action": "DEMANDA_SCOPE", "idx": info_idx, "return_idx": ret_idx}
+            await open_private_chat(caller_user_id, payload)
             return
 
-        # Manejo de DEMANDA_QUOTE:{idx}:{return_trend_idx} (Envío de Simulación Financiera & Margen TI)
+        # Manejo de DEMANDA_QUOTE:{idx}:{return_trend_idx} (Redirige a Rama B - Chat Privado)
         if action == "DEMANDA_QUOTE":
             info_idx = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
             ret_idx = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
-            asyncio.create_task(answer_callback_query(cb_id, text="📊 Calculando costos y márgenes de desarrollo..."))
+            asyncio.create_task(answer_callback_query(cb_id, text="📊 Calculando simulación en privado..."))
 
-            from app.b2b_demand import get_b2b_demand_by_index
-            company_info = get_b2b_demand_by_index(info_idx)
-            quote_text = company_info.get("financial_quote") or "Simulación financiera no disponible."
-
-            quote_kb = {
-                "inline_keyboard": [
-                    [
-                        {"text": "🏢 Perfil Oficial en LinkedIn", "url": company_info.get("linkedin_company_url") or company_info.get("linkedin_search_url", "https://www.linkedin.com")}
-                    ],
-                    [
-                        {"text": "📋 Ver Alcance & SOW", "callback_data": f"DEMANDA_SCOPE:{info_idx}:{ret_idx}"}
-                    ],
-                    [
-                        {"text": "🔙 Volver a la Empresa", "callback_data": f"NAV_DEMANDA_PAGE:curr:{info_idx}:{ret_idx}"},
-                        {"text": "🏠 Inicio", "callback_data": f"CATALOG_GOTO:{ret_idx}"}
-                    ]
-                ]
-            }
-            await send_telegram_message(
-                text=quote_text,
-                chat_id=user_chat_id,
-                parse_mode="HTML",
-                reply_markup=quote_kb
-            )
+            payload = {"action": "DEMANDA_QUOTE", "idx": info_idx, "return_idx": ret_idx}
+            await open_private_chat(caller_user_id, payload)
             return
 
         # Manejo de NAV_DEMANDA_PAGE:{prev/next}:{curr_idx}:{return_trend_idx} (Carrusel de Empresas Demandantes)

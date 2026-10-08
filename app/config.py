@@ -70,3 +70,20 @@ class Settings:
 
 
 settings = Settings()
+
+# -------------------------------------------------------------------------
+#  SECTOR NORMALIZATION (para UI)
+# -------------------------------------------------------------------------
+SECTOR_ALIASES = {
+    "tics": "technology_and_information",
+    "ti": "technology_and_information",
+    "tecnologia": "technology_and_information",
+    "tecnología": "technology_and_information",
+}
+
+def normalize_sector(raw: str) -> str:
+    """Normaliza el sector ingresado por el usuario.
+    Si coincide con un alias, devuelve la clave estándar, si no, texto limpio.
+    """
+    key = (raw or "").strip().lower()
+    return SECTOR_ALIASES.get(key, key)
