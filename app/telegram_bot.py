@@ -344,7 +344,7 @@ def build_events_keyboard(
     """Teclado interactivo para Calendario de Eventos TI CDMX (especial jóvenes) con paginación."""
     total = max(1, total_items)
     idx = current_index % total
-    url = registration_url or "https://lu.ma/cdmx"
+    url = registration_url or "https://lu.ma/discover/mexico-city/tech"
     return {
         "inline_keyboard": [
             [
@@ -353,7 +353,10 @@ def build_events_keyboard(
                 {"text": "▶️", "callback_data": f"NAV_EVENTOS_PAGE:next:{idx}:{return_index}"}
             ],
             [
-                {"text": "🌐 Registro Oficial", "url": url}
+                {"text": "📋 Ver Logística & Dinámica", "callback_data": f"EVENTOS_DETAILS:{idx}:{return_index}"}
+            ],
+            [
+                {"text": "🎟️ Enlace Directo de Registro", "url": url}
             ],
             [
                 {"text": "🏠 Inicio", "callback_data": f"CATALOG_GOTO:{return_index}"}
@@ -1845,6 +1848,35 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
         if action == "EVENTOS_INFO":
             info_idx = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
             asyncio.create_task(answer_callback_query(cb_id, text=f"📅 Evento CDMX {info_idx + 1}. Usa ◀️ y ▶️ para explorar el calendario."))
+            return
+
+        # Manejo de EVENTOS_DETAILS:{idx}:{return_trend_idx} (Ficha Logística y de Registro)
+        if action == "EVENTOS_DETAILS":
+            info_idx = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
+            ret_idx = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
+            asyncio.create_task(answer_callback_query(cb_id, text="📋 Abriendo logística y detalles de asistencia..."))
+
+            from app.events_cdmx import get_events_cdmx_by_index
+            evt_info = get_events_cdmx_by_index(info_idx)
+            info_text = evt_info.get("info_summary") or "Detalles no disponibles."
+
+            back_kb = {
+                "inline_keyboard": [
+                    [
+                        {"text": "🎟️ Enlace Directo de Registro", "url": evt_info.get("registration_url", "https://lu.ma/discover/mexico-city/tech")}
+                    ],
+                    [
+                        {"text": "🔙 Volver al Evento", "callback_data": f"NAV_EVENTOS_PAGE:curr:{info_idx}:{ret_idx}"},
+                        {"text": "🏠 Inicio", "callback_data": f"CATALOG_GOTO:{ret_idx}"}
+                    ]
+                ]
+            }
+            await send_telegram_message(
+                text=info_text,
+                chat_id=user_chat_id,
+                parse_mode="HTML",
+                reply_markup=back_kb
+            )
             return
 
         # Manejo de NAV_EVENTOS_PAGE:{prev/next}:{curr_idx}:{return_trend_idx} (Carrusel de Calendario de Eventos)

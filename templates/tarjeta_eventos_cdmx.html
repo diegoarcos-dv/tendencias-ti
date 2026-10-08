@@ -289,6 +289,38 @@
     border: 1px solid var(--border);
   }
 
+  /* Bloque visual de Enlace y Plataforma de Registro */
+  .event-link-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(56, 189, 248, 0.08);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: 12px;
+    padding: 10px 18px;
+    margin-top: 2px;
+    gap: 12px;
+  }
+
+  .event-link-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .event-link-icon {
+    font-size: 15px;
+  }
+
+  .event-link-val {
+    color: var(--blue);
+    font-family: var(--font-display);
+    letter-spacing: -0.2px;
+  }
+
   /* Grid Secundario de Eventos */
   .grid-secondary {
     display: grid;
@@ -444,6 +476,22 @@
         <span class="tag-item">Inferencia con GPUs</span>
         <span class="tag-item">Networking CDMX</span>
         <span class="tag-item">Presencial</span>
+      </div>
+
+      <!-- Plataforma y Acceso de Registro Directo en la Plantilla -->
+      <div class="event-link-strip">
+        <div class="event-link-item">
+          <span class="event-link-icon">🎟️</span>
+          <span>Plataforma: <span class="event-link-val" data-field="feat-platform">Eventbrite CDMX</span></span>
+        </div>
+        <div class="event-link-item">
+          <span class="event-link-icon">🌐</span>
+          <span>Acceso: <span class="event-link-val" data-field="feat-domain">eventbrite.com.mx</span></span>
+        </div>
+        <div class="event-link-item">
+          <span class="event-link-icon">👥</span>
+          <span>Modalidad: <span class="event-link-val" data-field="feat-mode">Presencial · Entrada Libre</span></span>
+        </div>
       </div>
     </div>
 
