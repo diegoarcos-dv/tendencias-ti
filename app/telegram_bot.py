@@ -1331,7 +1331,7 @@ async def handle_get_stack(
     tid = trend.get("id") if trend else trend_id
     reply_markup = build_interactive_keyboard(trend_id=tid)
 
-    await send_telegram_message(
+    return await send_telegram_message(
         text=msg,
         chat_id=chat_id,
         parse_mode="HTML",
@@ -1580,28 +1580,52 @@ WELCOME_INTRO_MSG = (
 STEP1_ZONE_MSG = "🌎 ¿De qué país o región tecnológica te interesa recibir tendencias? (Ej. China, Silicon Valley, Europa, Global)"
 
 
-async def open_private_chat(user_id: str | int, payload: Dict[str, Any]) -> None:
+async def open_private_chat(
+    user_id: str | int,
+    payload: Dict[str, Any],
+    callback_query_id: Optional[str] = None
+) -> Dict[str, Any]:
     """
     Abre una conversación privada (DM) con el usuario y despacha la acción a la Rama B.
+    Si el usuario no ha iniciado chat con el bot, le notifica mediante alert visual en Telegram.
     """
     uid_str = str(user_id)
     try:
         from app.rama_b import process_private_action
-        await process_private_action(uid_str, payload)
+        res = await process_private_action(uid_str, payload)
+        
+        # Verificar si falló el envío (ej: usuario no ha iniciado el bot en privado)
+        if isinstance(res, dict) and not res.get("success"):
+            err_desc = str(res.get("error", {}))
+            logger.warning(f"[open_private_chat] Telegram rechazó mensaje a {uid_str}: {err_desc}")
+            if callback_query_id:
+                bot_usr = (settings.TELEGRAM_BOT_USERNAME or "Tendencias_DiegoBot").lstrip("@")
+                await answer_callback_query(
+                    callback_query_id,
+                    text=f"⚠️ Para recibir la información en privado, primero inicia chat con el bot aquí: @{bot_usr}",
+                    show_alert=True
+                )
+            return res
+        
+        # Si se envió con éxito, confirmar en el botón
+        if callback_query_id:
+            await answer_callback_query(
+                callback_query_id,
+                text="✅ ¡Te envié los detalles a tu chat privado!",
+                show_alert=False
+            )
+        return res if isinstance(res, dict) else {"success": True}
+
     except Exception as exc:
         logger.exception(f"[open_private_chat] Error despachando a {uid_str}: {exc}")
-        bot_usr = (settings.TELEGRAM_BOT_USERNAME or "Tendencias_DiegoBot").lstrip("@")
-        deep_link = f"https://t.me/{bot_usr}?start=private"
-        fallback_kb = {
-            "inline_keyboard": [
-                [{"text": "🤖 Abrir chat privado con el bot", "url": deep_link}]
-            ]
-        }
-        await send_telegram_message(
-            text="⚠️ Para ver esta información en privado, por favor inicia primero conversación directa con el bot:",
-            chat_id=uid_str,
-            reply_markup=fallback_kb
-        )
+        if callback_query_id:
+            bot_usr = (settings.TELEGRAM_BOT_USERNAME or "Tendencias_DiegoBot").lstrip("@")
+            await answer_callback_query(
+                callback_query_id,
+                text=f"⚠️ Abre chat privado con @{bot_usr} para recibir la información.",
+                show_alert=True
+            )
+        return {"success": False, "error": str(exc)}
 
 
 async def process_telegram_update(update: Dict[str, Any]) -> None:
@@ -1726,20 +1750,18 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
         if action == "DEMANDA_SCOPE":
             info_idx = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
             ret_idx = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
-            asyncio.create_task(answer_callback_query(cb_id, text="📋 Abriendo alcance técnico en privado..."))
 
             payload = {"action": "DEMANDA_SCOPE", "idx": info_idx, "return_idx": ret_idx}
-            await open_private_chat(caller_user_id, payload)
+            await open_private_chat(caller_user_id, payload, callback_query_id=cb_id)
             return
 
         # Manejo de DEMANDA_QUOTE:{idx}:{return_trend_idx} (Redirige a Rama B - Chat Privado)
         if action == "DEMANDA_QUOTE":
             info_idx = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
             ret_idx = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
-            asyncio.create_task(answer_callback_query(cb_id, text="📊 Calculando simulación en privado..."))
 
             payload = {"action": "DEMANDA_QUOTE", "idx": info_idx, "return_idx": ret_idx}
-            await open_private_chat(caller_user_id, payload)
+            await open_private_chat(caller_user_id, payload, callback_query_id=cb_id)
             return
 
         # Manejo de NAV_DEMANDA_PAGE:{prev/next}:{curr_idx}:{return_trend_idx} (Carrusel de Empresas Demandantes)
@@ -2102,7 +2124,8 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
         elif action in ("GET_STACK", "get_stack") or data.startswith("GET_STACK"):
             clean_tid = data.replace("GET_STACK_", "").replace("GET_STACK:", "").replace("get_stack:", "").strip()
             stack_id = int(clean_tid) if clean_tid.isdigit() else trend_id
-            await handle_get_stack(chat_id=user_chat_id, callback_query_id=cb_id, trend_id=stack_id)
+            payload = {"action": "GET_STACK", "trend_id": stack_id}
+            await open_private_chat(caller_user_id, payload, callback_query_id=cb_id)
         elif action in ("DEEP_DIVE", "deep_dive") or data.startswith("DEEP_DIVE"):
             clean_tid = data.replace("DEEP_DIVE_", "").replace("DEEP_DIVE:", "").replace("deep_dive:", "").strip()
             dd_id = int(clean_tid) if clean_tid.isdigit() else trend_id

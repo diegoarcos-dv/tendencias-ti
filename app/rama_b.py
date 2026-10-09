@@ -81,20 +81,19 @@ async def process_private_action(user_id: str, payload: Dict[str, Any]) -> None:
 
     elif action == "GET_STACK":
         from app.telegram_bot import handle_get_stack
-        await handle_get_stack(chat_id=user_id, trend_id=payload.get("trend_id"))
-        return
+        return await handle_get_stack(chat_id=user_id, trend_id=payload.get("trend_id"))
 
     else:
         logger.warning(f"[process_private_action] acción desconocida: {action}")
-        await send_telegram_message(
+        return await send_telegram_message(
             text="❓ Acción no reconocida en el canal privado.",
             chat_id=user_id,
         )
-        return
 
-    await send_telegram_message(
+    return await send_telegram_message(
         text=text,
         chat_id=user_id,
         parse_mode="HTML",
         reply_markup=kb,
     )
+
