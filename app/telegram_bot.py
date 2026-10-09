@@ -1578,6 +1578,12 @@ def get_cached_catalog_trends() -> List[Dict[str, Any]]:
         _last_catalog_cache_time = now
     return _cached_catalog_trends
 
+def set_cached_catalog_trends(trends: List[Dict[str, Any]]) -> None:
+    """Actualiza la caché en memoria del catálogo interactivo de tendencias."""
+    global _cached_catalog_trends, _last_catalog_cache_time
+    _cached_catalog_trends = list(trends)
+    _last_catalog_cache_time = time.time()
+
 def is_duplicate_callback(cb_key: str, window: float = 0.6) -> bool:
     """Evita ejecuciones concurrentes o doble clics rápidos en Telegram."""
     global _recent_callbacks

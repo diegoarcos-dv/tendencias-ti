@@ -422,21 +422,46 @@ async def run_individual_pipeline(chat_id: Optional[str] = None, ignore_daily_li
             break
 
     if not selected_candidates:
-        logger.error(
-            f"[Pipeline Individual] No hay tendencias frescas disponibles para {user_exact_industry} "
-            f"en ninguna de las zonas configuradas: {[z.get('zona_local') for z in user_zones]}."
+        logger.warning(
+            f"[Pipeline Individual] 0 tendencias encontradas para '{user_exact_industry}' en zonas del usuario. "
+            f"Activando rescate general con tendencias macro..."
         )
+        rescue_all = fetch_all_trends(
+            zone="Global",
+            industry="TI & Software B2B",
+            categoria_api="tech",
+            industria_exacta="TI & Software B2B"
+        )
+        selected_candidates = select_top_trends(rescue_all, count=4, industry="TI & Software B2B")
+        if not selected_candidates:
+            single = select_top_trend(rescue_all)
+            selected_candidates = [single] if single else []
+        effective_zone = "Global"
+        chosen_zone_local = "Global"
+        chosen_zone_pais = "Global"
+        fallback_activado = True
+
+    if not selected_candidates:
+        logger.error(
+            f"[Pipeline Individual] No hay tendencias frescas disponibles tras rescate para {user_exact_industry}."
+        )
+        try:
+            from app.telegram_notifier import send_telegram_message
+            err_msg = (
+                "ℹ️ <b>Radar de Tendencias</b>\n\n"
+                "No detectamos nuevas tendencias en este instante para tu selección. "
+                "Hemos reiniciado los rastreadores para tu próximo corte."
+            )
+            await send_telegram_message(text=err_msg, chat_id=target_chat)
+        except Exception:
+            pass
         return {"status": "error", "message": "No fresh trends available"}
 
-    # 2. Análisis con Gemma, renderizado con Playwright y persistencia del lote de tendencias (3 a 5)
-    saved_catalog = []
-    first_png = None
-    first_trend_id = None
-    first_candidate = selected_candidates[0]
-
-    for idx, cand in enumerate(selected_candidates):
-        trend_dict = {
-            **cand.model_dump(),
+    try:
+        # 2. Análisis prioritario del candidato 1 (envío inmediato sin demoras de minutos)
+        first_candidate = selected_candidates[0]
+        first_trend_dict = {
+            **first_candidate.model_dump(),
             "geo_region": effective_zone,
             "category": user_exact_industry,
             "industria_exacta": user_exact_industry,
@@ -444,72 +469,128 @@ async def run_individual_pipeline(chat_id: Optional[str] = None, ignore_daily_li
             "zona_local": chosen_zone_local,
             "zona_pais": chosen_zone_pais
         }
-        card_data = await generate_trend_card_data(
-            trend_data=trend_dict,
+        first_card_data = await generate_trend_card_data(
+            trend_data=first_trend_dict,
             zona_preferida=effective_zone,
             user_industry=user_exact_industry,
             business_context_text=business_context.raw_content
         )
-        card_data["fallback_activado"] = fallback_activado
-        card_data["zona_local"] = chosen_zone_local
-        card_data["zona_pais"] = chosen_zone_pais
+        first_card_data["fallback_activado"] = fallback_activado
+        first_card_data["zona_local"] = chosen_zone_local
+        first_card_data["zona_pais"] = chosen_zone_pais
 
-        t_id = save_trend(trend_data=cand.model_dump(), card_data=card_data)
-        trend_png = settings.BASE_DIR / f"temp_trend_{t_id}.png"
-        await create_png_card(data=card_data, output_path=trend_png)
+        first_trend_id = save_trend(trend_data=first_candidate.model_dump(), card_data=first_card_data)
+        first_png = settings.BASE_DIR / f"temp_trend_{first_trend_id}.png"
+        await create_png_card(data=first_card_data, output_path=first_png)
 
-        if idx == 0:
-            first_png = trend_png
-            first_trend_id = t_id
+        # Catálogo estructurado para el carrusel (el candidato 1 ya está renderizado)
+        saved_catalog = [{"id": first_trend_id, "trend": first_candidate, "card_data": first_card_data, "png": first_png}]
 
-        saved_catalog.append({"id": t_id, "trend": cand, "card_data": card_data, "png": trend_png})
+        # Para los candidatos secundarios (1..N), generamos estructura determinista rápida
+        # evitando bloqueos secuenciales de minutos al usuario
+        from app.llm_service import _build_fallback_trend_data
+        for cand in selected_candidates[1:]:
+            c_dict = {
+                **cand.model_dump(),
+                "geo_region": effective_zone,
+                "category": user_exact_industry,
+                "industria_exacta": user_exact_industry,
+                "fallback_activado": fallback_activado,
+                "zona_local": chosen_zone_local,
+                "zona_pais": chosen_zone_pais
+            }
+            sec_card_data = _build_fallback_trend_data(c_dict)
+            sec_card_data["fallback_activado"] = fallback_activado
+            sec_card_data["zona_local"] = chosen_zone_local
+            sec_card_data["zona_pais"] = chosen_zone_pais
+            sec_id = save_trend(trend_data=cand.model_dump(), card_data=sec_card_data)
+            sec_png = settings.BASE_DIR / f"temp_trend_{sec_id}.png"
+            saved_catalog.append({"id": sec_id, "trend": cand, "card_data": sec_card_data, "png": sec_png})
 
-    # Registrar el catálogo en memoria para la navegación interactiva fluida (◀️ / ▶️)
-    from app.telegram_bot import set_cached_catalog_trends
-    set_cached_catalog_trends(saved_catalog)
+        # Registrar el catálogo en memoria para la navegación interactiva fluida (◀️ / ▶️)
+        from app.telegram_bot import set_cached_catalog_trends
+        set_cached_catalog_trends(saved_catalog)
 
-    # 3. Notificación y Envío del primer elemento del carrusel a Telegram
-    caption = ""
-    if fallback_activado:
-        caption = f"📍 *Nota del radar: No detectamos volumen suficiente de datos en {chosen_zone_local} hoy, por lo que hemos ampliado el análisis a nivel {chosen_zone_pais}.*"
+        # Pre-renderizar tarjetas secundarias y catálogos en segundo plano (asíncrono, sin demorar al usuario)
+        async def _prerender_secondary(items: list):
+            try:
+                for item in items:
+                    png_path = item["png"]
+                    if not png_path.exists():
+                        await create_png_card(data=item["card_data"], output_path=png_path)
+                from datetime import timezone
+                today_str = datetime.now(timezone.utc).strftime("%Y%m%d")
+                dem_png = settings.BASE_DIR / f"temp_demand_0_{today_str}.png"
+                if not dem_png.exists():
+                    from app.b2b_demand import get_b2b_demand_by_index
+                    from app.visual_engine import create_b2b_demand_png_card
+                    await create_b2b_demand_png_card(output_path=dem_png, data=get_b2b_demand_by_index(0))
+                ev_png = settings.BASE_DIR / f"temp_events_0_{today_str}.png"
+                if not ev_png.exists():
+                    from app.events_cdmx import get_events_cdmx_by_index
+                    from app.visual_engine import create_events_cdmx_png_card
+                    await create_events_cdmx_png_card(output_path=ev_png, data=get_events_cdmx_by_index(0))
+            except Exception as e_pre:
+                logger.warning(f"[Pipeline Individual] Pre-renderizado secundario asíncrono: {e_pre}")
 
-    reply_markup = build_interactive_keyboard(
-        trend_id=first_trend_id,
-        source_url=first_candidate.url,
-        current_index=0,
-        total_items=len(saved_catalog)
-    )
-    telegram_result = await send_telegram_notification(
-        photo_path=first_png or (settings.BASE_DIR / "temp_card.png"),
-        caption=caption,
-        parse_mode="Markdown" if fallback_activado else "HTML",
-        reply_markup=reply_markup,
-        chat_id=target_chat,
-        chat_type="private",
-        trend_id=first_trend_id,
-        fallback_activado=fallback_activado,
-        zona_local=chosen_zone_local,
-        zona_pais=chosen_zone_pais
-    )
+        if len(saved_catalog) > 1:
+            asyncio.create_task(_prerender_secondary(saved_catalog[1:]))
 
-    duration = (datetime.now() - start_time).total_seconds()
-    logger.info(
-        f"[Pipeline Individual] Éxito: Carrusel ({len(saved_catalog)} tendencias) enviado a {target_chat} "
-        f"(trend_id={first_trend_id}) en {duration:.2f}s | Zona: {effective_zone} | Industria: {user_industry}"
-    )
-    return {
-        "status": "success",
-        "chat_type": "private",
-        "chat_id": target_chat,
-        "zone": effective_zone,
-        "zona_local": chosen_zone_local,
-        "zona_pais": chosen_zone_pais,
-        "fallback_activado": fallback_activado,
-        "industry": user_industry,
-        "trend_id": trend_id,
-        "duration_seconds": duration,
-        "telegram_result": telegram_result
-    }
+        # 3. Notificación y Envío del primer elemento del carrusel a Telegram INMEDIATO
+        caption = ""
+        if fallback_activado:
+            caption = f"📍 *Nota del radar: No detectamos volumen suficiente de datos en {chosen_zone_local} hoy, por lo que hemos ampliado el análisis a nivel {chosen_zone_pais}.*"
+
+        reply_markup = build_interactive_keyboard(
+            trend_id=first_trend_id,
+            source_url=first_candidate.url,
+            current_index=0,
+            total_items=len(saved_catalog)
+        )
+        telegram_result = await send_telegram_notification(
+            photo_path=first_png or (settings.BASE_DIR / "temp_card.png"),
+            caption=caption,
+            parse_mode="Markdown" if fallback_activado else "HTML",
+            reply_markup=reply_markup,
+            chat_id=target_chat,
+            chat_type="private",
+            trend_id=first_trend_id,
+            fallback_activado=fallback_activado,
+            zona_local=chosen_zone_local,
+            zona_pais=chosen_zone_pais
+        )
+
+        duration = (datetime.now() - start_time).total_seconds()
+        logger.info(
+            f"[Pipeline Individual] Éxito: Carrusel ({len(saved_catalog)} tendencias) enviado a {target_chat} "
+            f"(trend_id={first_trend_id}) en {duration:.2f}s | Zona: {effective_zone} | Industria: {user_industry}"
+        )
+        return {
+            "status": "success",
+            "chat_type": "private",
+            "chat_id": target_chat,
+            "zone": effective_zone,
+            "zona_local": chosen_zone_local,
+            "zona_pais": chosen_zone_pais,
+            "fallback_activado": fallback_activado,
+            "industry": user_industry,
+            "trend_id": first_trend_id,
+            "duration_seconds": duration,
+            "telegram_result": telegram_result
+        }
+    except Exception as e:
+        logger.exception(f"[Pipeline Individual] Error inesperado en pipeline para chat {target_chat}: {e}")
+        try:
+            from app.telegram_notifier import send_telegram_message
+            err_msg = (
+                "⚠️ <b>Radar de Tendencias</b>\n\n"
+                "Ocurrió una interrupción temporal al generar tu reporte. "
+                "Por favor presiona de nuevo <b>⚡ Recibir tendencia ahora</b> para obtener tu tarjeta de inmediato."
+            )
+            await send_telegram_message(text=err_msg, chat_id=target_chat)
+        except Exception:
+            pass
+        return {"status": "error", "message": str(e)}
 
 
 async def cleanup_expired_messages(days: Optional[int] = None) -> Dict[str, Any]:

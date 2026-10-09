@@ -270,7 +270,7 @@ Devuelve un JSON estrictamente válido en ESPAÑOL. El análisis debe coincidir 
     model_to_use = selected_model
     client = get_http_client()
     try:
-        tags_resp = await client.get(f"{settings.OLLAMA_BASE_URL}/api/tags")
+        tags_resp = await client.get(f"{settings.OLLAMA_BASE_URL}/api/tags", timeout=3.0)
         if tags_resp.status_code == 200:
             available_models = [m["name"] for m in tags_resp.json().get("models", [])]
             if selected_model not in available_models:
@@ -291,11 +291,11 @@ Devuelve un JSON estrictamente válido en ESPAÑOL. El análisis debe coincidir 
             "keep_alive": "60m",
             "options": {
                 "temperature": 0.2,
-                "num_predict": 380,
+                "num_predict": 480,
                 "num_ctx": 2048
             }
         }
-        res = await client.post(f"{settings.OLLAMA_BASE_URL}/api/chat", json=ollama_payload)
+        res = await client.post(f"{settings.OLLAMA_BASE_URL}/api/chat", json=ollama_payload, timeout=20.0)
         if res.status_code == 200:
             content = res.json().get("message", {}).get("content", "{}")
             clean_content = content.strip()
