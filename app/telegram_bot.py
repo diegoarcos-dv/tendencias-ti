@@ -2337,8 +2337,10 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
 
                 if not class_res.get("valido", False):
                     razon = class_res.get("razon_rechazo") or "El texto ingresado no es una industria o sector comercial válido."
+                    # ⏳ = fallo técnico del LLM (no es culpa del usuario); ⚠️ = la entrada no es una industria válida
+                    icono = "⏳" if class_res.get("error_tecnico") else "⚠️"
                     msg_reject = (
-                        f"⚠️ {razon}\n\n"
+                        f"{icono} {razon}\n\n"
                         f"💼 ¿De qué industria te interesa conocer las tendencias en {curr_zone}? (Ej. Fintech, Salud, E-Commerce, Inteligencia Artificial, Logística)."
                     )
                     await send_telegram_message(text=msg_reject, chat_id=user_chat_id)
