@@ -108,7 +108,7 @@ def clear_chart_cache() -> None:
     _chart_file_id_cache.clear()
     for aux_key in ("demand_b2b", "events_cdmx", "chart_traction"):
         _catalog_file_id_cache.pop(aux_key, None)
-    keys_to_remove = [k for k in list(_catalog_file_id_cache.keys()) if k.startswith("events_cdmx")]
+    keys_to_remove = [k for k in list(_catalog_file_id_cache.keys()) if k.startswith("events_cdmx") or k.startswith("demand_b2b")]
     for k in keys_to_remove:
         _catalog_file_id_cache.pop(k, None)
     _save_catalog_file_id_cache(_catalog_file_id_cache)
@@ -304,21 +304,31 @@ def build_demand_keyboard(
     current_index: int = 0,
     total_items: int = 5,
     return_index: int = 0,
-    company_linkedin_url: Optional[str] = None
+    company_linkedin_url: Optional[str] = None,
+    company_web_url: Optional[str] = None,
+    linkedin_status: str = "active"
 ) -> Dict[str, Any]:
     """Teclado interactivo para Catálogo de Empresas Demandantes B2B:
     - Fila 1: Paginación de empresas
     - Fila 2: Ver Alcance & SOW (Deep-link directo al chat privado de la Rama B)
     - Fila 3: Opción 2 - Simular Cotización & Margen TI (Deep-link directo al chat privado de la Rama B)
-    - Fila 4: Opción C - Perfil Oficial en LinkedIn de la Empresa
+    - Fila 4: Opción C - Perfil Oficial en LinkedIn de la Empresa (con fallback automático a Web Oficial)
     - Fila 5: Volver a Inicio
     """
     total = max(1, total_items)
     idx = current_index % total
     username = (settings.TELEGRAM_BOT_USERNAME or "Tendencias_DiegoBot").lstrip("@")
-    lk_url = company_linkedin_url or "https://www.linkedin.com"
     scope_url = f"https://t.me/{username}?start=scope_{idx}_{return_index}"
     quote_url = f"https://t.me/{username}?start=quote_{idx}_{return_index}"
+
+    # Fila 4: Perfil de LinkedIn o Fallback automático a Sitio Web Oficial si LinkedIn no está disponible
+    if linkedin_status == "active" and company_linkedin_url and "linkedin.com" in company_linkedin_url:
+        company_btn = {"text": "🏢 Perfil Oficial en LinkedIn", "url": company_linkedin_url}
+    else:
+        web_url = company_web_url or "https://www.google.com"
+        if not web_url.startswith("http://") and not web_url.startswith("https://"):
+            web_url = f"https://{web_url}"
+        company_btn = {"text": "🌐 Sitio Web Oficial", "url": web_url}
 
     return {
         "inline_keyboard": [
@@ -334,7 +344,7 @@ def build_demand_keyboard(
                 {"text": "📊 Simular Cotización & Margen TI", "url": quote_url}
             ],
             [
-                {"text": "🏢 Perfil Oficial en LinkedIn", "url": lk_url}
+                company_btn
             ],
             [
                 {"text": "🏠 Inicio", "callback_data": f"CATALOG_GOTO:{return_index}"}
@@ -1793,14 +1803,15 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
             else:
                 new_idx = curr_idx % total_items
 
+            today_str = datetime.now(timezone.utc).strftime("%Y%m%d")
             demand_data = get_b2b_demand_by_index(new_idx)
-            cache_key = f"demand_b2b_{new_idx}"
+            cache_key = f"demand_b2b_{new_idx}_{today_str}"
             cached_file_id = get_catalog_cached_file_id(cache_key)
 
             if cached_file_id:
                 photo_to_use = cached_file_id
             else:
-                target_png = settings.BASE_DIR / f"temp_demand_{new_idx}.png"
+                target_png = settings.BASE_DIR / f"temp_demand_{new_idx}_{today_str}.png"
                 if not target_png.exists():
                     from app.visual_engine import create_b2b_demand_png_card
                     await create_b2b_demand_png_card(output_path=target_png, data=demand_data)
@@ -1810,7 +1821,9 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
                 current_index=new_idx,
                 total_items=total_items,
                 return_index=ret_idx,
-                company_linkedin_url=demand_data.get("linkedin_company_url") or demand_data.get("linkedin_search_url")
+                company_linkedin_url=demand_data.get("linkedin_company_url"),
+                company_web_url=demand_data.get("contact_web"),
+                linkedin_status=demand_data.get("linkedin_status", "active")
             )
             res = await edit_telegram_media(chat_id=user_chat_id, message_id=orig_msg_id, photo_path=photo_to_use, reply_markup=kb)
             if res.get("file_id"):
@@ -1830,14 +1843,15 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
             companies = get_all_b2b_demand_companies()
             total_items = len(companies)
 
+            today_str = datetime.now(timezone.utc).strftime("%Y%m%d")
             demand_data = get_b2b_demand_by_index(0)
-            cache_key = "demand_b2b_0"
+            cache_key = f"demand_b2b_0_{today_str}"
             cached_file_id = get_catalog_cached_file_id(cache_key)
 
             if cached_file_id:
                 photo_to_use = cached_file_id
             else:
-                target_png = settings.BASE_DIR / "temp_demand_0.png"
+                target_png = settings.BASE_DIR / f"temp_demand_0_{today_str}.png"
                 if not target_png.exists():
                     from app.visual_engine import create_b2b_demand_png_card
                     await create_b2b_demand_png_card(output_path=target_png, data=demand_data)
@@ -1847,7 +1861,9 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
                 current_index=0,
                 total_items=total_items,
                 return_index=ret_idx,
-                company_linkedin_url=demand_data.get("linkedin_company_url") or demand_data.get("linkedin_search_url")
+                company_linkedin_url=demand_data.get("linkedin_company_url"),
+                company_web_url=demand_data.get("contact_web"),
+                linkedin_status=demand_data.get("linkedin_status", "active")
             )
             res = await edit_telegram_media(chat_id=user_chat_id, message_id=orig_msg_id, photo_path=photo_to_use, reply_markup=kb)
             if res.get("file_id"):

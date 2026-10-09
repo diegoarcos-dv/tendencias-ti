@@ -13,7 +13,7 @@ import hashlib
 import json
 import re
 from typing import Optional, List, Dict, Any, Union
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlparse, parse_qsl, urlunparse
 
@@ -104,6 +104,32 @@ def init_db(db_path: Optional[str] = None) -> None:
 
             CREATE INDEX IF NOT EXISTS idx_tarjetas_chat_daily
                 ON registro_tarjetas_enviadas (chat_id, created_at);
+
+            CREATE TABLE IF NOT EXISTS b2b_empresas_demandantes (
+                id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+                company_id             TEXT    NOT NULL UNIQUE,
+                company_name           TEXT    NOT NULL,
+                sector                 TEXT    NOT NULL,
+                priority               TEXT    NOT NULL,
+                status_badge           TEXT    NOT NULL,
+                budget                 TEXT    NOT NULL,
+                problem                TEXT    NOT NULL,
+                solution               TEXT    NOT NULL,
+                tags_json              TEXT    NOT NULL DEFAULT '[]',
+                contact_email          TEXT    NOT NULL DEFAULT '',
+                contact_web            TEXT    NOT NULL DEFAULT '',
+                linkedin_url           TEXT    NOT NULL DEFAULT '',
+                linkedin_status        TEXT    NOT NULL DEFAULT 'active',
+                source_url             TEXT    NOT NULL DEFAULT '',
+                financial_quote        TEXT    NOT NULL DEFAULT '',
+                scope_summary          TEXT    NOT NULL DEFAULT '',
+                comparison_points_json TEXT    NOT NULL DEFAULT '[]',
+                discovered_date        TEXT    NOT NULL,
+                created_at             TEXT    NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_b2b_discovered_date
+                ON b2b_empresas_demandantes (discovered_date);
         """)
 
         # Migración ligera: asegurar columnas nuevas si la tabla ya existía previamente
@@ -1073,5 +1099,130 @@ def get_last_sent_card_message(chat_id: str) -> Optional[int]:
             (str(chat_id),)
         ).fetchone()
         return int(row["message_id"]) if row else None
+
+
+# ============================================================================
+# Gestión y Persistencia: Empresas Demandantes B2B Diarias
+# ============================================================================
+
+def save_b2b_companies(companies: List[Dict[str, Any]], discovered_date: str) -> None:
+    """Guarda o actualiza las empresas demandantes descubiertas para una fecha específica."""
+    now_iso = datetime.now(timezone.utc).isoformat()
+    with _get_connection() as conn:
+        for c in companies:
+            c_id = c.get("id") or f"demanda_{hashlib.md5(c.get('company', '').encode('utf-8')).hexdigest()[:8]}"
+            tags_json = json.dumps(c.get("tags", []), ensure_ascii=False)
+            comp_json = json.dumps(c.get("comparison_points", []), ensure_ascii=False)
+            conn.execute(
+                """
+                INSERT INTO b2b_empresas_demandantes (
+                    company_id, company_name, sector, priority, status_badge,
+                    budget, problem, solution, tags_json, contact_email,
+                    contact_web, linkedin_url, linkedin_status, source_url,
+                    financial_quote, scope_summary, comparison_points_json,
+                    discovered_date, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(company_id) DO UPDATE SET
+                    company_name = excluded.company_name,
+                    sector = excluded.sector,
+                    priority = excluded.priority,
+                    status_badge = excluded.status_badge,
+                    budget = excluded.budget,
+                    problem = excluded.problem,
+                    solution = excluded.solution,
+                    tags_json = excluded.tags_json,
+                    contact_email = excluded.contact_email,
+                    contact_web = excluded.contact_web,
+                    linkedin_url = excluded.linkedin_url,
+                    linkedin_status = excluded.linkedin_status,
+                    source_url = excluded.source_url,
+                    financial_quote = excluded.financial_quote,
+                    scope_summary = excluded.scope_summary,
+                    comparison_points_json = excluded.comparison_points_json,
+                    discovered_date = excluded.discovered_date
+                """,
+                (
+                    c_id,
+                    c.get("company", ""),
+                    c.get("sector", "Tecnología B2B"),
+                    c.get("priority", "Alta"),
+                    c.get("status_badge", "Activo"),
+                    c.get("budget", "$10,000 - $20,000 USD"),
+                    c.get("problem", ""),
+                    c.get("solution", ""),
+                    tags_json,
+                    c.get("contact_email", ""),
+                    c.get("contact_web", ""),
+                    c.get("linkedin_company_url", c.get("linkedin_url", "")),
+                    c.get("linkedin_status", "active"),
+                    c.get("source_url", ""),
+                    c.get("financial_quote", ""),
+                    c.get("scope_summary", ""),
+                    comp_json,
+                    str(discovered_date),
+                    now_iso
+                )
+            )
+
+
+def get_b2b_companies_by_date(discovered_date: str) -> List[Dict[str, Any]]:
+    """Retorna las empresas demandantes descubiertas en la fecha indicada (formato YYYY-MM-DD)."""
+    with _get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT * FROM b2b_empresas_demandantes
+            WHERE discovered_date = ?
+            ORDER BY id ASC
+            """,
+            (str(discovered_date),)
+        ).fetchall()
+
+        results = []
+        for r in rows:
+            d = dict(r)
+            try:
+                tags = json.loads(d.get("tags_json") or "[]")
+            except Exception:
+                tags = []
+            try:
+                comp = json.loads(d.get("comparison_points_json") or "[]")
+            except Exception:
+                comp = []
+            results.append({
+                "id": d.get("company_id"),
+                "company": d.get("company_name"),
+                "sector": d.get("sector"),
+                "priority": d.get("priority"),
+                "status_badge": d.get("status_badge"),
+                "budget": d.get("budget"),
+                "problem": d.get("problem"),
+                "solution": d.get("solution"),
+                "tags": tags,
+                "contact_email": d.get("contact_email"),
+                "contact_web": d.get("contact_web"),
+                "linkedin_company_url": d.get("linkedin_url"),
+                "linkedin_status": d.get("linkedin_status", "active"),
+                "source_url": d.get("source_url"),
+                "financial_quote": d.get("financial_quote"),
+                "scope_summary": d.get("scope_summary"),
+                "comparison_points": comp,
+                "discovered_date": d.get("discovered_date")
+            })
+        return results
+
+
+def get_recent_b2b_company_names(limit: int = 50) -> List[str]:
+    """Retorna los nombres de las empresas descubiertas recientemente para evitar repeticiones."""
+    with _get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT DISTINCT company_name FROM b2b_empresas_demandantes
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (int(limit),)
+        ).fetchall()
+        return [str(r["company_name"]) for r in rows if r["company_name"]]
+
 
 

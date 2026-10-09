@@ -273,15 +273,22 @@ async def run_group_pipeline(chat_id: Optional[str] = None) -> Dict[str, Any]:
 
     # Pre-renderizar tarjetas auxiliares (Demanda B2B, Eventos CDMX, Gráfica) para navegación instantánea
     try:
-        from app.b2b_demand import get_b2b_demand_by_index
+        from app.b2b_demand import discover_daily_b2b_demand, get_b2b_demand_by_index
         from app.events_cdmx import get_events_cdmx_by_index
         from app.visual_engine import create_b2b_demand_png_card, create_events_cdmx_png_card, create_chart_png_card
 
-        demand_png = settings.BASE_DIR / "temp_demand_0.png"
-        await create_b2b_demand_png_card(output_path=demand_png, data=get_b2b_demand_by_index(0))
-
         from datetime import timezone
         today_str = datetime.now(timezone.utc).strftime("%Y%m%d")
+
+        # Prospección activa de empresas del día (Opción C)
+        try:
+            await discover_daily_b2b_demand()
+        except Exception as ex_disc:
+            logger.warning(f"[Pipeline Grupo] Advertencia al prospectar empresas B2B diarias: {ex_disc}")
+
+        demand_png = settings.BASE_DIR / f"temp_demand_0_{today_str}.png"
+        await create_b2b_demand_png_card(output_path=demand_png, data=get_b2b_demand_by_index(0))
+
         events_png = settings.BASE_DIR / f"temp_events_0_{today_str}.png"
         await create_events_cdmx_png_card(output_path=events_png, data=get_events_cdmx_by_index(0))
 
