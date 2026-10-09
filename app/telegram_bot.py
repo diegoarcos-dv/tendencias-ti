@@ -17,7 +17,7 @@ import asyncio
 import json
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 import httpx
 from dotenv import load_dotenv
 
@@ -162,7 +162,14 @@ def build_interactive_keyboard(
         {"text": "🛠️ Stack técnico", "callback_data": f"GET_STACK{id_suffix}"}
     ])
 
-    # Fila 3: Guardar en favoritos y Profundizar datos
+    # Fila 3: Demanda B2B y Eventos CDMX
+    curr_i = (current_index or 0) % (total_items or 1)
+    rows.append([
+        {"text": "🏢 Demanda", "callback_data": f"NAV_DEMANDA:{curr_i}"},
+        {"text": "🎟️ Eventos CDMX", "callback_data": f"NAV_EVENTOS:{curr_i}"}
+    ])
+
+    # Fila 4: Guardar en favoritos y Profundizar datos
     rows.append([
         {"text": "⭐ Guardar en favoritos", "callback_data": f"SAVE_TREND{id_suffix}"},
         {"text": "🔍 Profundizar datos", "callback_data": f"DEEP_DIVE{id_suffix}"}

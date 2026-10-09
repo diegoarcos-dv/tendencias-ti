@@ -75,10 +75,29 @@ async def get_browser_singleton():
     """
     global _playwright_mgr, _browser_singleton
     async with _browser_lock:
-        if _browser_singleton is None or not _browser_singleton.is_connected():
+        is_ok = False
+        if _browser_singleton is not None:
+            try:
+                is_ok = _browser_singleton.is_connected()
+            except Exception:
+                is_ok = False
+
+        if not is_ok:
+            if _browser_singleton is not None:
+                try:
+                    await _browser_singleton.close()
+                except Exception:
+                    pass
+                _browser_singleton = None
+            if _playwright_mgr is not None:
+                try:
+                    await _playwright_mgr.stop()
+                except Exception:
+                    pass
+                _playwright_mgr = None
+
             from playwright.async_api import async_playwright
-            if _playwright_mgr is None:
-                _playwright_mgr = await async_playwright().start()
+            _playwright_mgr = await async_playwright().start()
             _browser_singleton = await _playwright_mgr.chromium.launch(
                 headless=True,
                 args=[
@@ -94,11 +113,20 @@ async def get_browser_singleton():
 @asynccontextmanager
 async def get_render_page():
     """Provee una página aislada del navegador caliente y la cierra automáticamente al terminar."""
-    browser = await get_browser_singleton()
-    page = await browser.new_page(
-        viewport={"width": 1080, "height": 1080},
-        device_scale_factor=1,
-    )
+    try:
+        browser = await get_browser_singleton()
+        page = await browser.new_page(
+            viewport={"width": 1080, "height": 1080},
+            device_scale_factor=1,
+        )
+    except Exception as ex_page:
+        logger.warning(f"[Playwright] Error al obtener página caliente ({ex_page}), recreando navegador...")
+        await close_browser_singleton()
+        browser = await get_browser_singleton()
+        page = await browser.new_page(
+            viewport={"width": 1080, "height": 1080},
+            device_scale_factor=1,
+        )
     try:
         yield page
     finally:
