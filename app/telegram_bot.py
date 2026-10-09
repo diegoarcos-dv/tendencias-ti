@@ -273,6 +273,7 @@ def build_catalog_keyboard(
     tid_str = str(trend_id) if trend_id is not None else ""
     username = (bot_username or settings.TELEGRAM_BOT_USERNAME or "Tendencias_DiegoBot").lstrip("@")
     config_url = f"https://t.me/{username}?start=config"
+    stack_url = f"https://t.me/{username}?start=stack_{tid_str}"
 
     return {
         "inline_keyboard": [
@@ -283,7 +284,7 @@ def build_catalog_keyboard(
             ],
             [
                 {"text": "📈 Gráfica", "callback_data": f"CATALOG_CHART:{idx}:{tid_str}"},
-                {"text": "🛠️ Stack", "callback_data": f"GET_STACK:{tid_str}"}
+                {"text": "🛠️ Stack", "url": stack_url}
             ],
             [
                 {"text": "🏢 Demanda", "callback_data": f"NAV_DEMANDA:{idx}"},
@@ -304,14 +305,18 @@ def build_demand_keyboard(
 ) -> Dict[str, Any]:
     """Teclado interactivo para Catálogo de Empresas Demandantes B2B:
     - Fila 1: Paginación de empresas
-    - Fila 2: Ver Alcance & SOW
-    - Fila 3: Opción 2 - Simular Cotización & Margen TI
-    - Fila 4: Opción C - Perfil Oficial en LinkedIn de la Empresa (acceso público sin bloqueo)
+    - Fila 2: Ver Alcance & SOW (Deep-link directo al chat privado de la Rama B)
+    - Fila 3: Opción 2 - Simular Cotización & Margen TI (Deep-link directo al chat privado de la Rama B)
+    - Fila 4: Opción C - Perfil Oficial en LinkedIn de la Empresa
     - Fila 5: Volver a Inicio
     """
     total = max(1, total_items)
     idx = current_index % total
+    username = (settings.TELEGRAM_BOT_USERNAME or "Tendencias_DiegoBot").lstrip("@")
     lk_url = company_linkedin_url or "https://www.linkedin.com"
+    scope_url = f"https://t.me/{username}?start=scope_{idx}_{return_index}"
+    quote_url = f"https://t.me/{username}?start=quote_{idx}_{return_index}"
+
     return {
         "inline_keyboard": [
             [
@@ -320,10 +325,10 @@ def build_demand_keyboard(
                 {"text": "▶️", "callback_data": f"NAV_DEMANDA_PAGE:next:{idx}:{return_index}"}
             ],
             [
-                {"text": "📋 Ver Alcance & SOW", "callback_data": f"DEMANDA_SCOPE:{idx}:{return_index}"}
+                {"text": "📋 Ver Alcance & SOW", "url": scope_url}
             ],
             [
-                {"text": "📊 Simular Cotización & Margen TI", "callback_data": f"DEMANDA_QUOTE:{idx}:{return_index}"}
+                {"text": "📊 Simular Cotización & Margen TI", "url": quote_url}
             ],
             [
                 {"text": "🏢 Perfil Oficial en LinkedIn", "url": lk_url}
@@ -2154,7 +2159,37 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
 
         logger.info(f"[Telegram Bot] Mensaje recibido: '{text}' de chat_id={user_chat_id} (tipo={chat_type})")
 
-        # 1. Deep link de Deep Dive desde el botón '🔍 Profundizar' del grupo público
+        # 1. Deep links directos desde botones de grupo hacia la Rama B
+        if text.startswith("/start stack_") or "stack_" in text:
+            import re
+            m = re.search(r"stack_(\d+)", text)
+            target_id = int(m.group(1)) if m else None
+            logger.info(f"[Telegram Bot] Deep-link detectado para Stack con trend_id={target_id} para chat {user_chat_id}")
+            from app.rama_b import process_private_action
+            await process_private_action(user_chat_id, {"action": "GET_STACK", "trend_id": target_id})
+            return
+
+        if text.startswith("/start scope_") or "scope_" in text:
+            import re
+            m = re.search(r"scope_(\d+)_?(\d*)", text)
+            info_idx = int(m.group(1)) if m and m.group(1) else 0
+            ret_idx = int(m.group(2)) if m and m.group(2) else 0
+            logger.info(f"[Telegram Bot] Deep-link detectado para Scope con idx={info_idx} para chat {user_chat_id}")
+            from app.rama_b import process_private_action
+            await process_private_action(user_chat_id, {"action": "DEMANDA_SCOPE", "idx": info_idx, "return_idx": ret_idx})
+            return
+
+        if text.startswith("/start quote_") or "quote_" in text:
+            import re
+            m = re.search(r"quote_(\d+)_?(\d*)", text)
+            info_idx = int(m.group(1)) if m and m.group(1) else 0
+            ret_idx = int(m.group(2)) if m and m.group(2) else 0
+            logger.info(f"[Telegram Bot] Deep-link detectado para Quote con idx={info_idx} para chat {user_chat_id}")
+            from app.rama_b import process_private_action
+            await process_private_action(user_chat_id, {"action": "DEMANDA_QUOTE", "idx": info_idx, "return_idx": ret_idx})
+            return
+
+        # 2. Deep link de Deep Dive desde el botón '🔍 Profundizar' del grupo público
         if "deepdive_" in text or text.startswith("/start deepdive"):
             import re
             m = re.search(r"deepdive_(\d+)", text)

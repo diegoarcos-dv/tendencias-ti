@@ -1,3 +1,4 @@
+import os
 import logging
 from typing import Dict, Any
 
@@ -20,6 +21,10 @@ async def process_private_action(user_id: str, payload: Dict[str, Any]) -> None:
     action = payload.get("action")
     idx = int(payload.get("idx", 0))
     ret_idx = int(payload.get("return_idx", 0))
+
+    group_chat_id = os.getenv("TELEGRAM_GROUP_CHAT_ID", "-1004339114906")
+    clean_cid = str(group_chat_id).replace("-100", "").lstrip("-")
+    group_url = f"https://t.me/c/{clean_cid}"
 
     if action == "DEMANDA_QUOTE":
         company = get_b2b_demand_by_index(idx)
@@ -45,7 +50,14 @@ async def process_private_action(user_id: str, payload: Dict[str, Any]) -> None:
                         "text": "🔙 Volver a la Empresa",
                         "callback_data": f"NAV_DEMANDA_PAGE:curr:{idx}:{ret_idx}",
                     },
-                    {"text": "🏠 Inicio", "callback_data": f"CATALOG_GOTO:{ret_idx}"},
+                    {"text": "🏠 Menú Principal", "callback_data": f"CATALOG_GOTO:{ret_idx}"},
+                ],
+                [
+                    {"text": "📁 Mis favoritos", "callback_data": "VIEW_FAVS"},
+                    {"text": "⚙️ Configuración", "callback_data": "RESET_CONFIG"},
+                ],
+                [
+                    {"text": "👥 Ir al Grupo TI", "url": group_url}
                 ],
             ]
         }
@@ -74,7 +86,14 @@ async def process_private_action(user_id: str, payload: Dict[str, Any]) -> None:
                         "text": "🔙 Volver a la Empresa",
                         "callback_data": f"NAV_DEMANDA_PAGE:curr:{idx}:{ret_idx}",
                     },
-                    {"text": "🏠 Inicio", "callback_data": f"CATALOG_GOTO:{ret_idx}"},
+                    {"text": "🏠 Menú Principal", "callback_data": f"CATALOG_GOTO:{ret_idx}"},
+                ],
+                [
+                    {"text": "📁 Mis favoritos", "callback_data": "VIEW_FAVS"},
+                    {"text": "⚙️ Configuración", "callback_data": "RESET_CONFIG"},
+                ],
+                [
+                    {"text": "👥 Ir al Grupo TI", "url": group_url}
                 ],
             ]
         }
