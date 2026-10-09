@@ -168,7 +168,7 @@ def build_interactive_keyboard(
     # Fila 4: Mis favoritos y Generar ahora
     rows.append([
         {"text": "📁 Mis favoritos", "callback_data": "VIEW_FAVS"},
-        {"text": "⚡ Nueva tendencia ahora", "callback_data": "RUN_RADAR"}
+        {"text": "⚡ Recibir tendencia ahora", "callback_data": "RUN_RADAR"}
     ])
 
     # Fila 5: Configuración
@@ -916,7 +916,7 @@ async def handle_view_favorites(
             "inline_keyboard": [
                 [
                     {"text": "🔙 Volver al radar", "callback_data": "CATALOG_GOTO:0"},
-                    {"text": "⚡ Nueva tendencia ahora", "callback_data": "RUN_RADAR"}
+                    {"text": "⚡ Recibir tendencia ahora", "callback_data": "RUN_RADAR"}
                 ]
             ]
         }
@@ -946,7 +946,7 @@ async def handle_view_favorites(
     # 4. Navegación bidireccional: Retorno garantizado
     buttons.append([
         {"text": "🔙 Volver al radar", "callback_data": "CATALOG_GOTO:0"},
-        {"text": "⚡ Nueva tendencia ahora", "callback_data": "RUN_RADAR"}
+        {"text": "⚡ Recibir tendencia ahora", "callback_data": "RUN_RADAR"}
     ])
 
     reply_markup = {"inline_keyboard": buttons}
@@ -1475,7 +1475,7 @@ async def handle_deep_dive(
                 {"text": "📁 Mis favoritos", "callback_data": "VIEW_FAVS"}
             ],
             [
-                {"text": "⚡ Nueva tendencia ahora", "callback_data": "RUN_RADAR"},
+                {"text": "⚡ Recibir tendencia ahora", "callback_data": "RUN_RADAR"},
                 {"text": "⚙️ Configuración", "callback_data": "RESET_CONFIG"}
             ]
         ]
@@ -2135,6 +2135,47 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
             clean_tid = data.replace("DEEP_DIVE_", "").replace("DEEP_DIVE:", "").replace("deep_dive:", "").strip()
             dd_id = int(clean_tid) if clean_tid.isdigit() else trend_id
             await handle_deep_dive(chat_id=user_chat_id, callback_query_id=cb_id, trend_id=dd_id)
+        elif action == "RUN_RADAR_NOW":
+            await answer_callback_query(cb_id, text="⚡ Generando tus tendencias personalizadas ahora...")
+            from app.database import set_user_schedule, get_user_zone, get_user_industry
+            # Establecer sin horario recurrente pero perfil completado
+            set_user_schedule(user_chat_id, schedule_time="00:00")
+            curr_zone = get_user_zone(user_chat_id) or "Global"
+            curr_ind = get_user_industry(user_chat_id) or "TI & Software B2B"
+            conf_msg = (
+                "✅ <b>¡Configuración completada! Modo: Solo bajo demanda.</b>\n\n"
+                f"• 🌎 <b>Mercado objetivo:</b> {curr_zone}\n"
+                f"• 💼 <b>Industria / Nicho:</b> {curr_ind}\n\n"
+                "<i>Generando y enviando tus tendencias ahora mismo...</i>"
+            )
+            await send_telegram_message(text=conf_msg, chat_id=user_chat_id)
+            from app.main import run_individual_pipeline
+            asyncio.create_task(run_individual_pipeline(chat_id=user_chat_id, ignore_daily_limit=True))
+
+        elif action == "SET_SCHEDULE_NONE":
+            await answer_callback_query(cb_id, text="🔕 Modo bajo demanda activado.")
+            from app.database import set_user_schedule, get_user_zone, get_user_industry
+            set_user_schedule(user_chat_id, schedule_time="00:00")
+            curr_zone = get_user_zone(user_chat_id) or "Global"
+            curr_ind = get_user_industry(user_chat_id) or "TI & Software B2B"
+            conf_msg = (
+                "✅ <b>¡Configuración completada! Modo: Solo bajo demanda.</b>\n\n"
+                f"• 🌎 <b>Mercado objetivo:</b> {curr_zone}\n"
+                f"• 💼 <b>Industria / Nicho:</b> {curr_ind}\n"
+                "• ⏰ <b>Entrega diaria:</b> Desactivada (recibirás tendencias solo cuando presiones el botón)\n\n"
+                "<i>Puedes consultar tus tendencias en cualquier momento usando el botón de abajo:</i>"
+            )
+            menu_kb = {
+                "inline_keyboard": [
+                    [{"text": "⚡ Recibir tendencia ahora", "callback_data": "RUN_RADAR"}],
+                    [
+                        {"text": "📁 Mis favoritos", "callback_data": "VIEW_FAVS"},
+                        {"text": "⚙️ Configuración", "callback_data": "RESET_CONFIG"}
+                    ]
+                ]
+            }
+            await send_telegram_message(text=conf_msg, chat_id=user_chat_id, reply_markup=menu_kb)
+
         elif action in ("RUN_RADAR", "run_radar"):
             await answer_callback_query(cb_id, text="🚀 Ejecutando radar...")
             if chat_type in ("group", "supergroup"):
@@ -2263,7 +2304,7 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
                 )
                 menu_kb = {
                     "inline_keyboard": [
-                        [{"text": "⚡ Generar mis tendencias ahora", "callback_data": "RUN_RADAR"}],
+                        [{"text": "⚡ Recibir tendencia ahora", "callback_data": "RUN_RADAR"}],
                         [
                             {"text": "📁 Mis favoritos", "callback_data": "VIEW_FAVS"},
                             {"text": "⚙️ Configuración", "callback_data": "RESET_CONFIG"}
@@ -2302,13 +2343,20 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
                     categoria_api=categoria_api
                 )
 
-                # Transición natural al Paso 3: Horario diario
+                # Transición natural al Paso 3: Horario diario o entrega inmediata
                 msg_step3 = (
                     f"💼 Registramos la industria: <b>{detected_industry}</b>.\n\n"
-                    "⏰ <b>Paso 3 de 3:</b> ¿A qué hora del día te gustaría recibir tu reporte diario de tendencias?\n\n"
-                    "<i>(Ej. 08:30 AM, 2 de la tarde, 14:00, 9 am)</i>"
+                    "⏰ <b>Paso 3 de 3:</b> ¿En qué horario deseas recibir tus tendencias?\n\n"
+                    "Puedes escribir una hora <i>(Ej. 08:30 AM, 14:00, 9 am)</i> para recibirlas a diario, "
+                    "o presionar una de las opciones de abajo si solo deseas consultarlas bajo demanda:"
                 )
-                await send_telegram_message(text=msg_step3, chat_id=user_chat_id)
+                step3_kb = {
+                    "inline_keyboard": [
+                        [{"text": "⚡ Recibir tendencia ahora", "callback_data": "RUN_RADAR_NOW"}],
+                        [{"text": "🔕 Solo bajo demanda (sin entrega diaria)", "callback_data": "SET_SCHEDULE_NONE"}]
+                    ]
+                }
+                await send_telegram_message(text=msg_step3, chat_id=user_chat_id, reply_markup=step3_kb)
                 return
 
             # ESTADO 1: ESPERANDO ZONA GEOGRÁFICA (Paso 1)
