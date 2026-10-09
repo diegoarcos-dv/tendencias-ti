@@ -45,10 +45,10 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
             "Entrada Gratuita"
         ],
         # Plataforma directa y visible
-        "platform_name": "Luma CDMX Tech",
-        "platform_domain": "lu.ma/discover/mexico-city",
+        "platform_name": "Eventbrite México",
+        "platform_domain": "eventbrite.com.mx/d/mexico--ciudad-de-mexico/hackathon",
         "platform_mode": "Presencial · Entrada Libre",
-        "registration_url": "https://lu.ma/discover/mexico-city/tech",
+        "registration_url": "https://www.eventbrite.com.mx/d/mexico--ciudad-de-mexico/hackathon/",
         "info_summary": (
             "🚀 <b>DETALLES DE ASISTENCIA: Hackathon de IA para Universitarios</b>\n\n"
             "📍 <b>Sede:</b> Insurgentes Sur 1602, Crédito Constructor, Benito Juárez, CDMX\n"
@@ -58,7 +58,7 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
             "1. Reto de 9 horas para prototipar un agente con LLMs (Gemma/OpenAI/Claude).\n"
             "2. Mentorías técnicas 1 a 1 de arquitectos senior en Python, FastAPI y Docker.\n"
             "3. Conexión directa con reclutadores de startups en CDMX y LATAM.\n\n"
-            "🔗 <b>Plataforma Oficial:</b> Luma (Comunidad Tech Ciudad de México)"
+            "🔗 <b>Registro Oficial:</b> <a href='https://www.eventbrite.com.mx/d/mexico--ciudad-de-mexico/hackathon/'>Abrir Registro en Eventbrite México</a>"
         )
     },
     {
@@ -153,10 +153,10 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
             "Entrada Libre",
             "CENART CDMX"
         ],
-        "platform_name": "Portal Oficial Cultural CDMX",
-        "platform_domain": "lu.ma/discover/mexico-city",
+        "platform_name": "Cartelera Oficial CDMX",
+        "platform_domain": "cartelera.cdmx.gob.mx",
         "platform_mode": "Feria Abierta · Sin Costo",
-        "registration_url": "https://lu.ma/discover/mexico-city/tech",
+        "registration_url": "https://cartelera.cdmx.gob.mx/",
         "info_summary": (
             "🤖 <b>DETALLES DE ASISTENCIA: Feria Maker & Hardware Libre CDMX</b>\n\n"
             "📍 <b>Sede:</b> CENART (Av. Río Churubusco 79, Country Club, Coyoacán, CDMX)\n"
@@ -166,7 +166,7 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
             "1. Competencias amistosas de robótica móvil y visión por computadora.\n"
             "2. Stands de comunidades universitarias del IPN (UPIITA) y UNAM (FI).\n"
             "3. Conexión de hardware con APIs en la nube mediante microcontroladores ESP32.\n\n"
-            "🔗 <b>Plataforma Oficial:</b> Agenda Tech & Cultural CDMX"
+            "🔗 <b>Plataforma Oficial:</b> <a href='https://cartelera.cdmx.gob.mx/'>Cartelera Oficial de la Ciudad de México</a>"
         )
     },
     {
