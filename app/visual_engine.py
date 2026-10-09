@@ -117,7 +117,7 @@ async def get_render_page():
         browser = await get_browser_singleton()
         page = await browser.new_page(
             viewport={"width": 1080, "height": 1080},
-            device_scale_factor=1,
+            device_scale_factor=2,
         )
     except Exception as ex_page:
         logger.warning(f"[Playwright] Error al obtener página caliente ({ex_page}), recreando navegador...")
@@ -125,7 +125,7 @@ async def get_render_page():
         browser = await get_browser_singleton()
         page = await browser.new_page(
             viewport={"width": 1080, "height": 1080},
-            device_scale_factor=1,
+            device_scale_factor=2,
         )
     try:
         yield page
@@ -616,7 +616,7 @@ def _render_sync_worker(html_content: str, output_path: str, data: Optional[Dict
             headless=True,
             args=["--disable-gpu", "--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
         )
-        page = browser.new_page(viewport={"width": 1080, "height": 1080}, device_scale_factor=1)
+        page = browser.new_page(viewport={"width": 1080, "height": 1080}, device_scale_factor=2)
         page.set_content(patched_html, wait_until="domcontentloaded")
         page.locator(".card").screenshot(path=output_path)
         browser.close()
