@@ -280,7 +280,9 @@ async def run_group_pipeline(chat_id: Optional[str] = None) -> Dict[str, Any]:
         demand_png = settings.BASE_DIR / "temp_demand_0.png"
         await create_b2b_demand_png_card(output_path=demand_png, data=get_b2b_demand_by_index(0))
 
-        events_png = settings.BASE_DIR / "temp_events_0.png"
+        from datetime import timezone
+        today_str = datetime.now(timezone.utc).strftime("%Y%m%d")
+        events_png = settings.BASE_DIR / f"temp_events_0_{today_str}.png"
         await create_events_cdmx_png_card(output_path=events_png, data=get_events_cdmx_by_index(0))
 
         chart_png = settings.BASE_DIR / "temp_chart.png"

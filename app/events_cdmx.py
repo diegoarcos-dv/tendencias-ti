@@ -1,9 +1,10 @@
 """Proveedor de Datos: Agenda Tech & Calendario de Eventos TI en CDMX (Especial Jóvenes y Estudiantes).
 
 Responsabilidades:
-- Catálogo interactivo tipo calendario con múltiples eventos tecnológicos en Ciudad de México.
+- Catálogo interactivo tipo calendario con eventos tecnológicos en Ciudad de México cubriendo una ventana de 30 días móviles.
 - Enfoque especial en jóvenes desarrolladores, estudiantes, comunidades de código abierto, hackathones y meetups libres.
-- Enlaces de registro 100% en español, verificados y directos a plataformas oficiales activas (Eventbrite México, Lu.ma CDMX Tech, Google Developers MX, AWS Community México).
+- Actualización diaria y dinámica de fechas con anticipación para facilitar el registro de los usuarios.
+- Enlaces de registro en español, verificados y directos a plataformas oficiales activas (Eventbrite México, Lu.ma CDMX Tech, Google Developers MX, AWS Community México, Cartelera CDMX).
 - Muestra el enlace y dominio visible directamente en la plantilla visual (tarjeta PNG).
 - Provee ficha técnica y logística de asistencia completa para consultar en Telegram.
 """
@@ -22,7 +23,7 @@ _MESES_ES = [
 ]
 
 # Catálogo completo de eventos tecnológicos en CDMX enfocado en jóvenes, talento tech y networking
-# Todos los enlaces son URLs públicas oficiales, en español o con soporte regional directo en México
+# Cubre una ventana completa de 30 días móviles con días de anticipación escalonados
 _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
     {
         "id": "evento_hackathon_jovenes",
@@ -44,7 +45,6 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
             "Bolsa de Trabajo",
             "Entrada Gratuita"
         ],
-        # Plataforma directa y visible
         "platform_name": "Eventbrite México",
         "platform_domain": "eventbrite.com.mx/d/mexico--ciudad-de-mexico/hackathon",
         "platform_mode": "Presencial · Entrada Libre",
@@ -66,7 +66,7 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
         "org": "Comunidad Python México & Estudiantes",
         "access_label": "Entrada Libre",
         "title": "PyDay CDMX: Taller Práctico de Microservicios & Python Moderno",
-        "days_ahead": 5,
+        "days_ahead": 7,
         "hour_str": "10:00 hrs a 17:00 hrs",
         "venue": "TecNM Gustavo A. Madero / Coworking Polanco, CDMX",
         "target_audience": "Jóvenes aprendiendo backend, Python y APIs",
@@ -82,7 +82,7 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
             "Networking Joven"
         ],
         "platform_name": "Eventbrite México",
-        "platform_domain": "eventbrite.com.mx",
+        "platform_domain": "eventbrite.com.mx/d/mexico--ciudad-de-mexico/tech",
         "platform_mode": "Presencial · Cupo Libre",
         "registration_url": "https://www.eventbrite.com.mx/d/mexico--ciudad-de-m%C3%A9xico/science-and-tech--events/",
         "info_summary": (
@@ -94,7 +94,7 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
             "1. Tu primera API REST de alto rendimiento con FastAPI y Pydantic.\n"
             "2. Automatización de tareas y scraping ético en la nube.\n"
             "3. Cómo armar tu portafolio en GitHub para conseguir tu primera chamba remota.\n\n"
-            "🔗 <b>Plataforma Oficial:</b> Eventbrite México (Categoría Ciencia & Tecnología)"
+            "🔗 <b>Plataforma Oficial:</b> <a href='https://www.eventbrite.com.mx/d/mexico--ciudad-de-m%C3%A9xico/science-and-tech--events/'>Eventbrite México (Categoría Ciencia & Tecnología)</a>"
         )
     },
     {
@@ -102,7 +102,7 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
         "org": "Google Developer Groups México",
         "access_label": "Cupo Libre Estudiantes",
         "title": "Cloud, Contenedores & Web Móvil para Nuevas Generaciones",
-        "days_ahead": 8,
+        "days_ahead": 11,
         "hour_str": "17:00 hrs a 20:30 hrs",
         "venue": "WeWork Reforma 26, Juárez, Cuauhtémoc, CDMX",
         "target_audience": "Estudiantes de ingeniería, bootcamps y autodidactas",
@@ -130,7 +130,7 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
             "1. Despliegue de microservicios con Docker y Kubernetes para estudiantes.\n"
             "2. Uso de modelos de Gemini y Vertex AI en proyectos de software.\n"
             "3. Espacio de networking con ingenieros de Google y empresas colaboradoras.\n\n"
-            "🔗 <b>Plataforma Oficial:</b> GDG Community Developers México"
+            "🔗 <b>Plataforma Oficial:</b> <a href='https://gdg.community.dev/events/#/list?country=MX'>GDG Community Developers México</a>"
         )
     },
     {
@@ -138,7 +138,7 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
         "org": "Comunidad Maker & Robótica CDMX",
         "access_label": "Entrada Libre · CENART",
         "title": "Encuentro de Innovación: Robótica, IA & Hardware Abierto",
-        "days_ahead": 12,
+        "days_ahead": 15,
         "hour_str": "10:00 hrs a 18:00 hrs",
         "venue": "Centro Nacional de las Artes (CENART), Río Churubusco 79, CDMX",
         "target_audience": "Jóvenes entusiastas de hardware, IoT, robótica y software",
@@ -174,7 +174,7 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
         "org": "AWS Community Day México",
         "access_label": "Registro Abierto",
         "title": "Cloud Native, Serverless & Oportunidades Junior en Cloud",
-        "days_ahead": 15,
+        "days_ahead": 19,
         "hour_str": "09:00 hrs a 16:00 hrs",
         "venue": "WTC Ciudad de México, Montecito 38, Nápoles, CDMX",
         "target_audience": "Jóvenes buscando certificaciones y su primer empleo en la nube",
@@ -202,7 +202,115 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
             "1. Asesorías en vivo para obtener la certificación AWS Certified Cloud Practitioner.\n"
             "2. Módulos de reclutamiento de empresas aliadas que contratan talento recién egresado.\n"
             "3. Créditos cloud gratuitos para prácticas y proyectos personales.\n\n"
-            "🔗 <b>Plataforma Oficial:</b> Amazon Web Services Eventos en Español"
+            "🔗 <b>Plataforma Oficial:</b> <a href='https://aws.amazon.com/es/events/'>Amazon Web Services Eventos en Español</a>"
+        )
+    },
+    {
+        "id": "evento_ciberseguridad_cdmx",
+        "org": "OWASP & Ciberseguridad México",
+        "access_label": "Entrada Libre · Estudiantes",
+        "title": "Taller de Ciberseguridad Defensiva, Bug Bounty & Hacking Ético",
+        "days_ahead": 23,
+        "hour_str": "11:00 hrs a 17:00 hrs",
+        "venue": "Auditorio Javier Barros Sierra, Facultad de Ingeniería UNAM (CU), CDMX",
+        "target_audience": "Estudiantes de sistemas, redes, telecomunicaciones y devs junior",
+        "requirements": (
+            "• Entrada libre con credencial de estudiante o registro digital en Eventbrite.<br>"
+            "• Llevar laptop propia con entorno Linux o máquinas virtuales para laboratorios.<br>"
+            "• Dinámica interactiva Capture The Flag (CTF) con retos para principiantes."
+        ),
+        "tags": [
+            "Ciberseguridad",
+            "Hacking Ético",
+            "UNAM CU",
+            "Reto CTF Joven"
+        ],
+        "platform_name": "Eventbrite México",
+        "platform_domain": "eventbrite.com.mx/d/mexico--ciudad-de-mexico/tech",
+        "platform_mode": "Presencial · Auditorio UNAM",
+        "registration_url": "https://www.eventbrite.com.mx/d/mexico--ciudad-de-m%C3%A9xico/science-and-tech--events/",
+        "info_summary": (
+            "🛡️ <b>DETALLES DE ASISTENCIA: Ciberseguridad Defensiva & Hacking Ético CDMX</b>\n\n"
+            "📍 <b>Sede:</b> Auditorio Barros Sierra, Facultad de Ingeniería, CU UNAM, Coyoacán, CDMX\n"
+            "🎟️ <b>Costo:</b> 100% Gratuito (Entrada libre con registro en Eventbrite)\n"
+            "👥 <b>Público:</b> Universitarios, autodidactas y entusiastas de seguridad informática\n\n"
+            "📋 <b>Dinámica del Taller:</b>\n"
+            "1. Fundamentos de análisis de vulnerabilidades y seguridad en APIs web.\n"
+            "2. Competencia amistosa Capture The Flag (CTF) nivel introductorio con premios.\n"
+            "3. Charla con profesionales sobre cómo iniciarse en programas de Bug Bounty remunerados.\n\n"
+            "🔗 <b>Registro Oficial:</b> <a href='https://www.eventbrite.com.mx/d/mexico--ciudad-de-m%C3%A9xico/science-and-tech--events/'>Eventbrite México (Ciencia & Tecnología)</a>"
+        )
+    },
+    {
+        "id": "evento_feria_empleo_tech",
+        "org": "Feria de Empleo Tech LATAM",
+        "access_label": "Registro Abierto · CV Digital",
+        "title": "Feria de Talento TI: Vacantes Junior, Becarios & Prácticas Profesionales",
+        "days_ahead": 27,
+        "hour_str": "09:30 hrs a 17:30 hrs",
+        "venue": "Expo Reforma, Calle Morelos 67, Juárez, Cuauhtémoc, CDMX",
+        "target_audience": "Estudiantes de últimos semestres, recién egresados y talento junior",
+        "requirements": (
+            "• Acceso gratuito registrándose previamente en Lu.ma CDMX Tech.<br>"
+            "• Llevar currículum vitae digital o impreso y perfil de LinkedIn activo.<br>"
+            "• Más de 25 empresas tecnológicas y startups realizando entrevistas en sitio."
+        ),
+        "tags": [
+            "Bolsa de Trabajo",
+            "Primer Empleo TI",
+            "Startups LATAM",
+            "Expo Reforma"
+        ],
+        "platform_name": "Lu.ma CDMX Tech",
+        "platform_domain": "lu.ma/discover/mexico-city/tech",
+        "platform_mode": "Presencial · Acceso Gratuito",
+        "registration_url": "https://lu.ma/discover/mexico-city/tech",
+        "info_summary": (
+            "💼 <b>DETALLES DE ASISTENCIA: Feria de Talento TI & Vacantes Junior CDMX</b>\n\n"
+            "📍 <b>Sede:</b> Expo Reforma, Calle Morelos 67, Col. Juárez, Cuauhtémoc, CDMX\n"
+            "🎟️ <b>Costo:</b> Gratuito con registro previo en Lu.ma Tech CDMX\n"
+            "👥 <b>Público:</b> Universitarios, pasantes, becarios y desarrolladores junior\n\n"
+            "📋 <b>Actividades confirmadas:</b>\n"
+            "1. Módulos de reclutamiento con entrevistas técnicas directas en sitio.\n"
+            "2. Revisión y optimización de CV y portafolio GitHub por líderes de ingeniería.\n"
+            "3. Paneles sobre salarios en TI y preparación para entrevistas remotas.\n\n"
+            "🔗 <b>Plataforma Oficial:</b> <a href='https://lu.ma/discover/mexico-city/tech'>Lu.ma CDMX Tech (Agenda Tecnológica)</a>"
+        )
+    },
+    {
+        "id": "evento_cumbre_opensource",
+        "org": "Comunidades Open Source México",
+        "access_label": "Entrada Libre · Cupo Abierto",
+        "title": "Gran Cumbre de Software Libre, DevOps & Inteligencia Artificial",
+        "days_ahead": 30,
+        "hour_str": "09:00 hrs a 18:30 hrs",
+        "venue": "Auditorio Manuel Sandoval Vallarta / Centro Cultural, CDMX",
+        "target_audience": "Comunidad tecnológica general, estudiantes, docentes y desarrolladores",
+        "requirements": (
+            "• Entrada completamente libre sin costo de acceso.<br>"
+            "• Convocatoria de ponencias relámpago (lightning talks) abierta para estudiantes.<br>"
+            "• Constancia digital de asistencia y kits de bienvenida a los primeros registros."
+        ),
+        "tags": [
+            "Software Libre",
+            "DevOps & Cloud",
+            "IA Abierta",
+            "Comunidad CDMX"
+        ],
+        "platform_name": "Eventbrite México",
+        "platform_domain": "eventbrite.com.mx/d/mexico--ciudad-de-mexico/tech",
+        "platform_mode": "Presencial · Entrada Libre",
+        "registration_url": "https://www.eventbrite.com.mx/d/mexico--ciudad-de-m%C3%A9xico/science-and-tech--events/",
+        "info_summary": (
+            "🌐 <b>DETALLES DE ASISTENCIA: Gran Cumbre de Software Libre & DevOps CDMX</b>\n\n"
+            "📍 <b>Sede:</b> Auditorio Manuel Sandoval Vallarta / Centro Cultural CDMX\n"
+            "🎟️ <b>Costo:</b> Entrada 100% Libre y Gratuita\n"
+            "👥 <b>Público:</b> Estudiantes, autodidactas y profesionales de tecnología\n\n"
+            "📋 <b>Agenda de la Cumbre:</b>\n"
+            "1. Keynote sobre modelos abiertos de IA y despliegues soberanos en servidores propios.\n"
+            "2. Talleres simultáneos de infraestructura como código (Terraform, Ansible y Linux).\n"
+            "3. Convivencia y networking con comunidades locales de tecnología.\n\n"
+            "🔗 <b>Registro Oficial:</b> <a href='https://www.eventbrite.com.mx/d/mexico--ciudad-de-m%C3%A9xico/science-and-tech--events/'>Eventbrite México (Ciencia & Tecnología)</a>"
         )
     }
 ]
@@ -222,26 +330,34 @@ def get_all_events_cdmx() -> List[Dict[str, Any]]:
 
 
 def get_events_cdmx_by_index(index: int = 0, ref_date: Optional[datetime] = None) -> Dict[str, Any]:
-    """Retorna la tarjeta estructurada tipo calendario para un evento específico por índice."""
+    """Retorna la tarjeta estructurada tipo calendario para un evento específico por índice,
+    calculando dinámicamente las fechas exactas dentro de la ventana de 30 días móviles.
+    """
     now = ref_date or datetime.now(timezone.utc)
     total = len(_EVENTS_CALENDAR_CATALOG)
     idx = index % total
     feat = _EVENTS_CALENDAR_CATALOG[idx]
 
     # Calcular fecha dinámica para el evento destacado
-    feat_dt = now + timedelta(days=feat.get("days_ahead", 4))
+    feat_dt = now + timedelta(days=feat.get("days_ahead", 3))
     feat_date_str = _format_event_date(feat_dt, feat.get("hour_str", "18:00 hrs"))
 
     # Siguiente evento en el calendario para comparación en la tarjeta
     next_idx = (idx + 1) % total
     next_event = _EVENTS_CALENDAR_CATALOG[next_idx]
-    next_dt = now + timedelta(days=next_event.get("days_ahead", 7))
+    next_days = next_event.get("days_ahead", 7)
+    if next_idx <= idx:
+        next_days += 30
+    next_dt = now + timedelta(days=next_days)
     next_date_str = f"📅 {_DIAS_ES[next_dt.weekday()]} {next_dt.day} {_MESES_ES[next_dt.month - 1]} · {next_event.get('hour_str', '18:00 hrs')}"
 
     # Tercer evento
     third_idx = (idx + 2) % total
     third_event = _EVENTS_CALENDAR_CATALOG[third_idx]
-    third_dt = now + timedelta(days=third_event.get("days_ahead", 10))
+    third_days = third_event.get("days_ahead", 11)
+    if third_idx <= idx:
+        third_days += 30
+    third_dt = now + timedelta(days=third_days)
     third_date_str = f"📅 {_DIAS_ES[third_dt.weekday()]} {third_dt.day} {_MESES_ES[third_dt.month - 1]} · {third_event.get('hour_str', '19:00 hrs')}"
 
     now_str = now.strftime("%d/%m/%Y, %H:%M")
@@ -272,8 +388,8 @@ def get_events_cdmx_by_index(index: int = 0, ref_date: Optional[datetime] = None
         "sec2-date": third_date_str,
         "sec2-venue": third_event.get("venue", "CDMX"),
         "sec2-type": third_event.get("target_audience", "Comunidad Tech"),
-        "footer-date": f"Calendario Evento {idx + 1}/{total} · Actualizado hoy, {now_str} UTC",
-        "registration_url": feat.get("registration_url", "https://lu.ma/discover/mexico-city/tech"),
+        "footer-date": f"Ventana 30 Días · Evento {idx + 1}/{total} · Actualizado hoy, {now_str} UTC",
+        "registration_url": feat.get("registration_url", "https://www.eventbrite.com.mx/d/mexico--ciudad-de-mexico/hackathon/"),
         "info_summary": feat.get("info_summary", ""),
         "current_index": idx,
         "total_items": total

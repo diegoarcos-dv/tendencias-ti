@@ -108,6 +108,9 @@ def clear_chart_cache() -> None:
     _chart_file_id_cache.clear()
     for aux_key in ("demand_b2b", "events_cdmx", "chart_traction"):
         _catalog_file_id_cache.pop(aux_key, None)
+    keys_to_remove = [k for k in list(_catalog_file_id_cache.keys()) if k.startswith("events_cdmx")]
+    for k in keys_to_remove:
+        _catalog_file_id_cache.pop(k, None)
     _save_catalog_file_id_cache(_catalog_file_id_cache)
     logger.info("[Telegram Bot] Caché de file_id de gráfica y tarjetas auxiliares (Demanda B2B, Eventos) invalidada.")
 
@@ -1900,16 +1903,22 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
             from app.events_cdmx import get_all_events_cdmx, get_events_cdmx_by_index
             events_list = get_all_events_cdmx()
             total_items = len(events_list)
-            new_idx = (curr_idx + 1) % total_items if direction == "next" else (curr_idx - 1) % total_items
+            if direction == "next":
+                new_idx = (curr_idx + 1) % total_items
+            elif direction == "prev":
+                new_idx = (curr_idx - 1) % total_items
+            else:
+                new_idx = curr_idx % total_items
 
+            today_str = datetime.now(timezone.utc).strftime("%Y%m%d")
             events_data = get_events_cdmx_by_index(new_idx)
-            cache_key = f"events_cdmx_{new_idx}"
+            cache_key = f"events_cdmx_{new_idx}_{today_str}"
             cached_file_id = get_catalog_cached_file_id(cache_key)
 
             if cached_file_id:
                 photo_to_use = cached_file_id
             else:
-                target_png = settings.BASE_DIR / f"temp_events_{new_idx}.png"
+                target_png = settings.BASE_DIR / f"temp_events_{new_idx}_{today_str}.png"
                 if not target_png.exists():
                     from app.visual_engine import create_events_cdmx_png_card
                     await create_events_cdmx_png_card(output_path=target_png, data=events_data)
@@ -1939,14 +1948,15 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
             events_list = get_all_events_cdmx()
             total_items = len(events_list)
 
+            today_str = datetime.now(timezone.utc).strftime("%Y%m%d")
             events_data = get_events_cdmx_by_index(0)
-            cache_key = "events_cdmx_0"
+            cache_key = f"events_cdmx_0_{today_str}"
             cached_file_id = get_catalog_cached_file_id(cache_key)
 
             if cached_file_id:
                 photo_to_use = cached_file_id
             else:
-                target_png = settings.BASE_DIR / "temp_events_0.png"
+                target_png = settings.BASE_DIR / f"temp_events_0_{today_str}.png"
                 if not target_png.exists():
                     from app.visual_engine import create_events_cdmx_png_card
                     await create_events_cdmx_png_card(output_path=target_png, data=events_data)
