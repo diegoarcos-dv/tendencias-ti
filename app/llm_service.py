@@ -183,7 +183,8 @@ async def generate_trend_card_data(
     zona_preferida: str,
     user_industry: str,
     business_context_text: Optional[str] = None,
-    model: Optional[str] = None
+    model: Optional[str] = None,
+    index: int = 0
 ) -> Dict[str, Any]:
     """Genera el diccionario estructurado para los atributos data-field de tarjeta_principal.html."""
     selected_model = model or settings.OLLAMA_MODEL
@@ -200,7 +201,7 @@ async def generate_trend_card_data(
 
     system_prompt = (
         "REGLA DE ORO 1: DEBES generar toda la respuesta ESTRICTAMENTE EN ESPAÑOL, incluyendo la descripción y el problema que resuelve, sin importar el idioma de los datos originales. Para el campo 'stack_sugerido', debes proporcionar exactamente 3 a 4 tecnologías concretas; prohibido incluir elementos vacíos, genéricos o nulos.\n\n"
-        "REGLA DE ORO 2 (ENFOQUE DE NEGOCIO EN EL TÍTULO): El campo 'title' (o 'titulo') DEBE describir la Tendencia, la Necesidad del Mercado o la Oportunidad de Negocio (ej. 'Optimización de Comercio Digital B2B'), NUNCA el nombre de un software o herramienta. El nombre de la plataforma descubierta solo debe mencionarse dentro de la descripción como un ejemplo de cómo explotar esta tendencia.\n\n"
+        "REGLA DE ORO 2 (TÍTULOS TECNOLÓGICOS CONCRETOS): El campo 'title' (o 'titulo') DEBE describir la Tendencia o Solución Tecnológica Real (ej. 'Custodia & Tokenización RWA', 'Riego Autónomo con Sensores IoT', 'Agentes Autónomos para Workflows', 'Arquitectura Zero Trust & FIDO2', 'Checkout Headless & Pagos 1-Clic'). TOTALMENTE PROHIBIDO usar frases clichés o genéricas como 'Optimización Digital' o 'Transformación Digital'. NUNCA uses el nombre de marca de un software en el título.\n\n"
         "Eres el Analista Principal de Inteligencia Comercial B2B y Estrategia Tecnológica.\n"
         "Tu misión es evaluar la herramienta tecnológica recibida y redactar un informe ejecutivo en ESPAÑOL, "
         "con FIDELIDAD ABSOLUTA a la propuesta de valor y propósito real del producto provisto por la API.\n\n"
@@ -237,8 +238,8 @@ MARCO DE EVALUACIÓN ESTRATÉGICA:
 INSTRUCCIONES DE RESPUESTA:
 Devuelve un JSON estrictamente válido en ESPAÑOL. El análisis debe coincidir al 100% con la descripción cruda del producto:
 {{
-  "sector": "Sector tecnológico real según la descripción del producto (ej. 'Analítica Web & Business Intelligence' o 'Ciberseguridad B2B' o 'Productividad & DevTools')",
-  "title": "Tendencia, Necesidad del Mercado u Oportunidad de Negocio (máx 36 caracteres, ej. 'Optimización de Comercio Digital B2B'; NUNCA el nombre del software o herramienta)",
+  "sector": "Sector tecnológico real según la descripción del producto (ej. 'Web3 & Infraestructura' o 'AgroTech' o 'Ciberseguridad B2B' o 'FinTech')",
+  "title": "Tendencia tecnológica concreta (máx 36 caracteres; PROHIBIDO 'Optimización Digital')",
   "target_industry": "Empresas o áreas corporativas que realmente demandan esta tecnología según su descripción",
   "problem_solved": "Problemática operativa o técnica específica que soluciona según su descripción",
   "impact_level": "high o mid o low",
@@ -308,16 +309,16 @@ Devuelve un JSON estrictamente válido en ESPAÑOL. El análisis debe coincidir 
                 logger.info(f"[Ollama] Análisis cualitativo generado con éxito ({model_to_use}) para '{trend_data.get('title', '')}'.")
             except ValidationError as e:
                 logger.warning(f"[Guardrail Salida] Fallo en validación de esquema Pydantic ({e}). Asignando fallback seguro...")
-                card_json = _build_fallback_trend_data(trend_data)
+                card_json = _build_fallback_trend_data(trend_data, index=index)
         else:
             logger.warning(f"[Ollama] Ollama respondió con código {res.status_code}: {res.text[:300]}")
-            card_json = _build_fallback_trend_data(trend_data)
+            card_json = _build_fallback_trend_data(trend_data, index=index)
     except Exception as e:
         logger.warning(f"[Ollama] Fallo al consultar Ollama ({e}). Generando estructurado determinista...")
-        card_json = _build_fallback_trend_data(trend_data)
+        card_json = _build_fallback_trend_data(trend_data, index=index)
 
     # Normalización exhaustiva para garantizar presencia de campos
-    fallback = _build_fallback_trend_data(trend_data)
+    fallback = _build_fallback_trend_data(trend_data, index=index)
     final_card = {}
     
     # REGLA DE ORO (B2B): El título de la tarjeta debe ser la Tendencia / Oportunidad de Mercado
@@ -332,13 +333,22 @@ Devuelve un JSON estrictamente válido en ESPAÑOL. El análisis debe coincidir 
     else:
         clean_title = tool_raw_name[:40]
 
+    # Guardrail estricto: erradicar totalmente frases genéricas
+    forbidden_terms = ["optimización digital", "optimizacion digital", "transformación digital", "transformacion digital"]
+    if any(ft in clean_title.lower() for ft in forbidden_terms):
+        logger.warning(f"[Guardrail Título] Título '{clean_title}' contiene frase prohibida. Reemplazando por fallback temático...")
+        clean_title = str(fallback["title"])[:40]
+
     final_card["title"] = clean_title
 
     raw_sector = card_json.get("sector") or card_json.get("categoria") or fallback["sector"]
     final_card["sector"] = str(raw_sector)
 
     final_card["target_industry"] = str(card_json.get("target_industry") or card_json.get("industria") or fallback["target_industry"])[:65]
-    final_card["problem_solved"] = str(card_json.get("problem_solved") or card_json.get("problema") or fallback["problem_solved"])[:65]
+    clean_prob = str(card_json.get("problem_solved") or card_json.get("problema") or fallback["problem_solved"])[:65]
+    if any(ft in clean_prob.lower() for ft in forbidden_terms):
+        clean_prob = str(fallback["problem_solved"])[:65]
+    final_card["problem_solved"] = clean_prob
 
     final_card["impact_level"] = str(card_json.get("impact_level") or "high").lower()
     imp = str(card_json.get("impact_label") or card_json.get("impacto") or "Alto impacto comercial").strip()
@@ -362,6 +372,8 @@ Devuelve un JSON estrictamente válido en ESPAÑOL. El análisis debe coincidir 
             truncated = clean_summary[:320].rsplit(" ", 1)[0]
             truncated = re.sub(r"\s+(?:y|e|o|de|en|para|con|por|,|;|-)\s*$", "", truncated, flags=re.IGNORECASE)
             clean_summary = f"{truncated}."
+    if any(ft in clean_summary.lower() for ft in forbidden_terms):
+        clean_summary = str(fallback["summary"])[:350]
     final_card["summary"] = clean_summary
 
     raw_stack = card_json.get("stack_list") or card_json.get("stack")
@@ -492,88 +504,629 @@ Devuelve un JSON estrictamente válido en ESPAÑOL. El análisis debe coincidir 
     return final_card
 
 
-def _build_fallback_trend_data(trend_data: Dict[str, Any]) -> Dict[str, Any]:
-    """Genera datos estructurados válidos basados en estimación de demanda e industria."""
-    cat = trend_data.get("category", "Software B2B")
-    tool_name = str(trend_data.get("title") or "Solución Especializada").strip()
-    summary_raw = trend_data.get("summary", "")
-    geo = trend_data.get("geo_region", "México / LatAm")
+# Diccionario exhaustivo de temas tecnológicos concretos por vertical
+_INDUSTRY_THEMES: Dict[str, List[Dict[str, Any]]] = {
+    "cripto": [
+        {
+            "title": "Custodia y Tokenización RWA",
+            "problem": "Falta de compliance y custodia segura para activos reales en Web3",
+            "target": "Banca de Inversión, Fondos Cripto & Fintechs Reguladas",
+            "stack": [
+                {"name": "Fireblocks SDK", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "ERC-3643 Tokenización", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Oráculos Chainlink", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Custodia MPC Multi-Sig", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Infraestructura Layer 2 & Rollups",
+            "problem": "Costos excesivos por comisiones de red y lentitud en transacciones",
+            "target": "Protocolos DeFi, Exchanges & Neobancos Web3",
+            "stack": [
+                {"name": "Rollups ZK-EVM", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "ERC-4337 Smart Accounts", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "The Graph Indexer", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Infura RPC Nodes", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Trazabilidad On-Chain & AML",
+            "problem": "Riesgos de lavado de dinero y congelamiento en pasarelas fiat-cripto",
+            "target": "Pasarelas Cripto, Proveedores VASP & Cumplimiento",
+            "stack": [
+                {"name": "Chainalysis APIs", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Elliptic Risk Engine", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Webhooks On-Chain", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Forense Blockchain", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Pasarelas de Pago Multi-Cadena",
+            "problem": "Demoras en transferencias transfronterizas y fricción en divisas fiat",
+            "target": "Comercio Global B2B, Pasarelas de Cobro & Fintechs",
+            "stack": [
+                {"name": "Circle USDC SDK", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Stripe Onramp", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Lightning Network", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Protocolo CCTP Cross-Chain", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        }
+    ],
+    "agro": [
+        {
+            "title": "Monitoreo Satelital de Cultivos",
+            "problem": "Detección tardía de estrés hídrico y merma en rendimiento de cosecha",
+            "target": "Agroexportadoras, Productores Agrícolas & Cooperativas",
+            "stack": [
+                {"name": "Sentinel Hub APIs", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Google Earth Engine", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Índices NDVI / EVI", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Drones Multiespectrales", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Riego Inteligente con IoT",
+            "problem": "Desperdicio hídrico y consumo excesivo en distritos de riego agrícola",
+            "target": "Productores de Granos, Frutas & Distritos de Riego",
+            "stack": [
+                {"name": "Sensores LoRaWAN", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Válvulas MQTT", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Telemetría SCADA", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Controladores ESP32", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Trazabilidad de Cadena de Frío",
+            "problem": "Descontrol térmico en transporte refrigerado y pérdida de exportables",
+            "target": "Empacadoras, Exportadores de Frescos & Operadores 3PL",
+            "stack": [
+                {"name": "Dataloggers BLE", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Gateways 4G IoT", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Certificados Fitosanitarios", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Alertas de Desviación", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Modelos Predictivos de Rendimiento",
+            "problem": "Incertidumbre ante eventos climáticos severos y fijación de cosechas",
+            "target": "Aseguradoras Agrícolas, Financieras Rurales & Productores",
+            "stack": [
+                {"name": "Modelos ECMWF / GFS", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Python Scikit-Learn", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "APIs Meteorológicas", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Dashboards AgroAnalytics", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        }
+    ],
+    "ia": [
+        {
+            "title": "Agentes Autónomos para Workflows",
+            "problem": "Procesos manuales repetitivos en atención, conciliación y back-office",
+            "target": "Operaciones B2B, Centros de Servicios & Plataformas SaaS",
+            "stack": [
+                {"name": "LangChain / LangGraph", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Modelos Llama 3 / Claude", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Bases Vectoriales Milvus", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Colas Celery / Redis", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Arquitecturas RAG & Búsqueda",
+            "problem": "Silos de documentos corporativos y alucinaciones en modelos de IA",
+            "target": "Consultoras, Despachos Corporativos & Áreas de TI",
+            "stack": [
+                {"name": "Embeddings BAAI", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "PostgreSQL pgvector", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Cohere Rerank API", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "FastAPI Microservicios", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Gobernanza y Privacidad en LLMs",
+            "problem": "Riesgo de filtración de secretos y ataques de inyección en modelos",
+            "target": "Direcciones CISO, Sector Bancario & Cumplimiento Normativo",
+            "stack": [
+                {"name": "Guardrails AI", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "NeMo Guardrails", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Proxies Privados Ollama", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Auditoría de Inferencia", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Visión Artificial en Producción",
+            "problem": "Defectos en líneas continuas que escapan a la inspección manual",
+            "target": "Plantas Industriales, Automotriz & Manufactura Tecnológica",
+            "stack": [
+                {"name": "YOLOv8 Edge Models", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Cámaras Industriales GigE", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "NVIDIA DeepStream", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Edge Jetson Orin", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        }
+    ],
+    "seguridad": [
+        {
+            "title": "Arquitectura Zero Trust & FIDO2",
+            "problem": "Robo de credenciales por phishing e intrusiones laterales en la red",
+            "target": "Banca, Infraestructura Crítica & Corporativos B2B",
+            "stack": [
+                {"name": "Llaves FIDO2 / WebAuthn", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Okta Identity Cloud", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Zscaler Private Access", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Políticas mTLS", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Detección XDR y Respuesta SOAR",
+            "problem": "Respuesta tardía ante incidentes de ransomware y fatiga en el SOC",
+            "target": "Equipos de Ciberdefensa SOC, MSSPs & Nube Híbrida",
+            "stack": [
+                {"name": "CrowdStrike Falcon API", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Playbooks Splunk SOAR", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Elastic SIEM", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Suricata IDS", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Gestión de Postura Cloud (CSPM)",
+            "problem": "Buckets expuestos, contenedores vulnerables y desajustes de compliance",
+            "target": "Equipos DevOps, SaaS B2B & Finanzas Digitales",
+            "stack": [
+                {"name": "Wiz Cloud Scanner", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Trivy Container Scan", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Open Policy Agent (OPA)", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Terraform Linter", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Protección de APIs y Antibot",
+            "problem": "Ataques de scraping agresivo, credential stuffing y abuso de APIs",
+            "target": "Pasarelas de Pago, E-Commerce B2B & Portales SaaS",
+            "stack": [
+                {"name": "Cloudflare WAF Enterprise", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Kong Gateway Security", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Rate Limiting Dinámico", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Huella Digital JA3", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        }
+    ],
+    "fintech": [
+        {
+            "title": "Open Banking & Pagos en Tiempo Real",
+            "problem": "Altas tarifas de adquirencia y demoras en liquidaciones interbancarias",
+            "target": "Pasarelas de Pago, Marketplaces B2B & Neobancos",
+            "stack": [
+                {"name": "APIs SPEI / CoDi", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Conectores Belvo / Plaid", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Apache Kafka Streams", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "PostgreSQL Transaccional", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Scoring Crediticio Alternativo B2B",
+            "problem": "Falta de historial crediticio tradicional que frena préstamos a PyMEs",
+            "target": "Fintechs de Préstamo, SOFOMs & Plataformas de Factoraje",
+            "stack": [
+                {"name": "Modelos XGBoost", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "APIs de Facturación SAT", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Extracción ERP Bancaria", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Motor de Decisión Rápida", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Conciliación Bancaria Automatizada",
+            "problem": "Cientos de horas manuales cuadrando estados de cuenta contra CFDIs",
+            "target": "Direcciones CFO, Despachos Contables & Retail B2B",
+            "stack": [
+                {"name": "Webservices SAT CFDI", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Algoritmos Fuzzy Match", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Bases de Datos Timescale", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Webhooks Bancarios", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Prevención de Fraude con Grafos",
+            "problem": "Fraude sofisticado y cuentas sintéticas que burlan reglas estáticas",
+            "target": "Banca Digital, Emisores de Tarjetas & Pasarelas",
+            "stack": [
+                {"name": "Neo4j Graph Database", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Redes Neuronales de Grafos", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Caché Redis en Memoria", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Fingerprinting Móvil", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        }
+    ],
+    "retail": [
+        {
+            "title": "Comercio Headless & Composable",
+            "problem": "Monolitos lentos que impiden personalizar catálogos omnicanal",
+            "target": "Marcas Retail B2B/B2C, Distribuidores & Tiendas Digitales",
+            "stack": [
+                {"name": "Next.js Storefront", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Medusa / Shopify API", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Búsqueda Algolia / Meilisearch", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "CDN Edge Caching", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Precios Dinámicos con Algoritmos",
+            "problem": "Pérdida de margen por respuesta tardía a fluctuaciones del mercado",
+            "target": "Marketplaces, Retailers & Distribuidores B2B",
+            "stack": [
+                {"name": "Scrapers Distribuidos", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Modelos de Elasticidad", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Motor de Repricing", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "APIs de Catálogo ERP", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Gestión Omnicanal de Inventarios",
+            "problem": "Quiebres de stock en sucursales físicas y envíos retrasados",
+            "target": "Cadenas Comerciales, Micro-Hubs Urbanos & Supermercados",
+            "stack": [
+                {"name": "Sistemas OMS Cloud", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "RFID / Código de Barras", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "WebSockets Real-Time", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Ruteo de Despacho", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Checkout 1-Clic y Tokenización",
+            "problem": "Abandono de carrito por formularios extensos en compras móviles",
+            "target": "E-Commerce de Suscripción, Apps de Compra & Retail",
+            "stack": [
+                {"name": "Stripe Elements SDK", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Apple Pay / Google Pay", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Vault PCI-DSS", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Optimización Core Web Vitals", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        }
+    ],
+    "logistica": [
+        {
+            "title": "Optimización de Rutas con IA",
+            "problem": "Gasto desmedido en combustible y retrasos en ventanas de última milla",
+            "target": "Flotas de Reparto, Empresas 3PL & Distribuidoras",
+            "stack": [
+                {"name": "Algoritmos VRP Solvers", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "OpenStreetMap Geocoding", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Telemetría GPS Móvil", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "App Móvil de Operador", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Torres de Control Logístico",
+            "problem": "Falta de visibilidad multimodal de contenedores y aduanas",
+            "target": "Importadores, Exportadores & Agentes Aduanales",
+            "stack": [
+                {"name": "APIs Satelitales AIS", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Conectores VUCEM / Aduana", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Series Temporales InfluxDB", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Alertas SLA Predictivas", "icon_color": "neutral", "tag_label": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Automatización de CEDIS & Picking",
+            "problem": "Errores de surtido y cuellos de botella en almacenes de alto flujo",
+            "target": "Centros de Distribución, Operadores Logísticos & Retail",
+            "stack": [
+                {"name": "WMS Cloud Integrado", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Robots Autónomos AMR", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Voice Picking Headsets", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Interfaces PLC / SCADA", "icon_color": "neutral", "tag_label": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Gestión Digital de Patios (YMS)",
+            "problem": "Demoras en bahías de carga y sobrecostos por estadías de transporte",
+            "target": "Terminales Logísticas, Puertos Secos & Grandes CEDIS",
+            "stack": [
+                {"name": "Software YMS Cloud", "icon_color": "violet", "tag_label": "new", "tag_label": "Nuevo"},
+                {"name": "Cámaras LPR de Placas", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Portal de Citas Web", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Sensores IoT de Bahía", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        }
+    ],
+    "salud": [
+        {
+            "title": "Interoperabilidad FHIR en Salud",
+            "problem": "Historiales fragmentados en clínicas incompatibles que frenan la atención",
+            "target": "Hospitales, Redes de Clínicas & Aseguradoras de Salud",
+            "stack": [
+                {"name": "Estándar HL7 FHIR", "icon_color": "violet", "tag_label": "new", "tag_label": "Nuevo"},
+                {"name": "Servidor HAPI FHIR", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Cifrado HIPAA / GDPR", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "APIs REST Clínicas", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Telemedicina y Monitoreo Remoto",
+            "problem": "Saturación de salas de urgencias por pacientes con dolencias crónicas",
+            "target": "Aseguradoras Médicas, Clínicas Privadas & Medicina Laboral",
+            "stack": [
+                {"name": "WebRTC con Cifrado Médico", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Dispositivos BLE de Salud", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Dashboards de Constantes", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Alertas Críticas 24/7", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Triaje Clínico Automatizado",
+            "problem": "Demoras en asignación inicial de pacientes y agendamiento saturado",
+            "target": "Policlínicas, Laboratorios & Centros de Diagnóstico",
+            "stack": [
+                {"name": "Modelos de Clasificación", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Bots WhatsApp Clínicos", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Conectores HIS / ERP", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Protocolos Médicos Triage", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Diagnóstico Asistido por IA",
+            "problem": "Retrasos en lectura de estudios de imagenología por sobrecarga médica",
+            "target": "Centros Radiológicos, Laboratorios & Unidades Oncológicas",
+            "stack": [
+                {"name": "Visión DICOM PyTorch", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Almacenamiento PACS Cloud", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Segunda Lectura IA", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Reportes Médicos Auditables", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        }
+    ],
+    "educacion": [
+        {
+            "title": "Aprendizaje Adaptativo con IA",
+            "problem": "Rutas de capacitación rígidas que no atienden el ritmo del estudiante",
+            "target": "Universidades, Institutos Tecnológicos & Capacitación B2B",
+            "stack": [
+                {"name": "Motores de Recomendación", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "LMS Headless Canvas", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Bases de Grafos de Contenido", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Métricas de Retención", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Microaprendizaje Corporativo B2B",
+            "problem": "Bajas tasas de finalización en cursos largos dentro de corporativos",
+            "target": "Áreas de Talento Humano RRHH, TI & Consultoría",
+            "stack": [
+                {"name": "Cápsulas Móviles Interactivas", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Gamificación con Webhooks", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Insignias OpenBadges", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Integración Slack / Teams", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Evaluación Automatizada & Proctoreo",
+            "problem": "Fraude académico en exámenes remotos y demora en calificación",
+            "target": "Certificadoras, Academias Online & Universidades",
+            "stack": [
+                {"name": "Visión Artificial WebRTC", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "NLP para Ensayos Técnicos", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Sandbox Docker de Código", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Auditoría de Integridad", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Credencialización Verificable",
+            "problem": "Falsificación de diplomas y lentitud en validación de antecedentes",
+            "target": "Instituciones Educativas, Colegios & Reclutadores",
+            "stack": [
+                {"name": "W3C Verifiable Credentials", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Firmas Digitales Asimétricas", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "APIs de Verificación QR", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Registro Criptográfico", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        }
+    ],
+    "construccion": [
+        {
+            "title": "Modelado BIM y Gemelos Digitales",
+            "problem": "Sobrecostos y colisiones imprevistas entre planos y obra civil",
+            "target": "Desarrolladoras Inmobiliarias, Constructoras & Ingeniería",
+            "stack": [
+                {"name": "Autodesk Forge APIs", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Visores WebGL 3D", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Estándar OpenBIM IFC", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Sincronización en Nube", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Control Móvil de Obra en Campo",
+            "problem": "Desconexión entre bitácoras de campo y control de presupuesto",
+            "target": "Supervisores de Obra, Contratistas & Gerencias de Proyecto",
+            "stack": [
+                {"name": "App Offline SQLite", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Fotos Georreferenciadas", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Sincronización Cloud", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Control de Estimaciones", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Tokenización Inmobiliaria PropTech",
+            "problem": "Barreras de entrada de capital y falta de liquidez en desarrollos",
+            "target": "Fondos de Inversión, FIBRAs & Plataformas Inmobiliarias",
+            "stack": [
+                {"name": "APIs de Crowdfunding", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Contratos de Copropiedad", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Pasarelas SPEI Automatizadas", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "KYC Biométrico Avanzado", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Monitoreo de Seguridad con Visión",
+            "problem": "Accidentes en obra y riesgos por omisión de equipo de protección (EPP)",
+            "target": "Empresas Constructoras, Aseguradoras de Riesgo & Seguridad",
+            "stack": [
+                {"name": "YOLO Detección de Cascos", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Cámaras 4G en Sitio", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Altavoces de Alerta In-Situ", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Registro de Incidentes", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        }
+    ],
+    "tech": [
+        {
+            "title": "Automatización de Conversión B2B",
+            "problem": "Baja tasa de conversión en checkout y credibilidad de marca en SaaS",
+            "target": "E-Commerce B2B, Retail Digital & Empresas SaaS",
+            "stack": [
+                {"name": "Módulo de Automatización", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "APIs de Sincronización", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Integración ERP / Cloud", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Seguridad & Acceso B2B", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Modernización de Acceso a Datos",
+            "problem": "Dificultad de acceso móvil seguro y sin código a bases relacionales",
+            "target": "Empresas de Software, Logística & Equipos DevOps",
+            "stack": [
+                {"name": "GraphQL Federation", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "APIs RESTful Seguras", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "PostgreSQL / Snowflake", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Autenticación OAuth2 / SAML", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Observabilidad y Telemetría Cloud",
+            "problem": "Latencia oculta y lentitud para aislar fallas en microservicios",
+            "target": "Ingeniería de Confiabilidad SRE, Fintechs & Plataformas Cloud",
+            "stack": [
+                {"name": "OpenTelemetry SDKs", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Prometheus & Grafana", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Jaeger Distributed Tracing", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Vector Pipeline de Logs", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Plataformas de Ingeniería Interna",
+            "problem": "Fricción onboarding de desarrolladores y descontrol en microservicios",
+            "target": "Empresas de Tecnología con +50 Ingenieros, SaaS & Consultoría",
+            "stack": [
+                {"name": "Spotify Backstage IDP", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Plantillas Golden Path", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Kubernetes Operators", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "ArgoCD GitOps Pipelines", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        }
+    ]
+}
 
-    # Mapeo semántico de tendencia y necesidad comercial según la herramienta descubierta
-    trend_titles = {
-        "proofsource": "Automatización de Conversión y Prueba Social B2B",
-        "basedash": "Modernización de Interfaces Móviles para Bases de Datos",
-        "irisgo": "Gestión Operativa y Fiscal para Solopreneurs",
-        "vresk": "Optimización Automatizada de Soporte y Helpdesk TI",
-        "albie": "Plataformas EdTech y Aprendizaje Adaptativo Corporativo",
-    }
+
+def _build_fallback_trend_data(trend_data: Dict[str, Any], index: int = 0) -> Dict[str, Any]:
+    """Genera datos estructurados válidos y especializados por vertical y temática.
     
-    matched_title = None
-    for k, v in trend_titles.items():
-        if k in tool_name.lower():
-            matched_title = v
-            break
-            
-    if not matched_title:
-        matched_title = f"Optimización Digital en {cat}"
+    Erradica por completo cualquier título cliché como 'Optimización Digital' y ofrece
+    temáticas complementarias diferentes según el índice en carrusel (0..N).
+    """
+    cat_raw = str(trend_data.get("industria_exacta") or trend_data.get("category") or "TI & Software B2B").strip()
+    tool_raw = str(trend_data.get("title") or "").strip()
+    summary_raw = str(trend_data.get("summary") or "").strip()
+    geo = str(trend_data.get("geo_region") or "Global").strip()
+    search_str = f"{cat_raw} {tool_raw} {summary_raw}".lower()
 
-    # Fricción operativa / Necesidad de la industria
-    fricciones = {
-        "proofsource": "Baja tasa de conversión en checkout y credibilidad de marca",
-        "basedash": "Dificultad de acceso móvil seguro a bases de datos relacionales",
-        "irisgo": "Dispersión de facturación, cobros y flujos operativos autónomos",
-        "vresk": "Sobrecarga de tickets manuales y latencia en atención técnica",
-        "albie": "Brechas de capacitación continua y retención de talento TI",
+    # Mapeo especializado por herramientas emblemáticas conocidas
+    known_tool_matches = {
+        "proofsource": ("Automatización de Conversión y Prueba Social B2B", "Baja tasa de conversión en checkout y credibilidad de marca", "E-Commerce B2B, Retail Digital & Empresas SaaS"),
+        "basedash": ("Modernización de Interfaces para Bases de Datos", "Dificultad de acceso seguro sin código a bases de datos relacionales", "Empresas de Software, Logística & Equipos DevOps"),
+        "irisgo": ("Gestión Operativa y Fiscal para Negocios Digitales", "Dispersión de facturación, cobros y flujos operativos autónomos", "Servicios Profesionales, Consultoría & Agencias Digitales"),
+        "vresk": ("Automatización Inteligente de Helpdesk y Soporte", "Sobrecarga de tickets manuales y latencia en atención técnica", "Proveedores de TI, Call Centers & Mesas de Ayuda"),
+        "albie": ("Plataformas EdTech y Aprendizaje Corporativo", "Brechas de capacitación continua y retención de talento clave", "Departamentos de RRHH, EdTech & Capacitación"),
     }
-    matched_problem = None
-    for k, v in fricciones.items():
-        if k in tool_name.lower():
-            matched_problem = v
-            break
 
-    desc_clean = matched_problem or (summary_raw.strip().rstrip(".") if len(summary_raw) > 15 else "fricción operativa en integración de flujos de datos")
+    matched_tool_entry = None
+    if index == 0:
+        for tool_k, tool_v in known_tool_matches.items():
+            if tool_k in tool_raw.lower():
+                matched_tool_entry = tool_v
+                break
 
-    # Industrias específicas que demandan contratar esta solución
-    target_industries = {
-        "proofsource": "E-Commerce B2B, Retail Digital & Empresas SaaS",
-        "basedash": "Empresas de Software, Logística & Equipos DevOps",
-        "irisgo": "Servicios Profesionales, Consultoría & Agencias Digitales",
-        "vresk": "Proveedores de TI, Call Centers & Mesas de Ayuda Corporativas",
-        "albie": "Departamentos de RRHH, EdTech & Capacitación Corporativa",
-    }
-    matched_target = None
-    for k, v in target_industries.items():
-        if k in tool_name.lower():
-            matched_target = v
-            break
+    # Resolver familia temática por semántica
+    matched_family = None
+    if any(k in search_str for k in ["cripto", "bitcoin", "crypto", "blockchain", "web3", "token", "defi", "solana", "ethereum"]):
+        matched_family = "cripto"
+    elif any(k in search_str for k in ["agri", "agro", "campo", "cultivo", "cosecha", "hidropon", "riego", "ganader", "pesca"]):
+        matched_family = "agro"
+    elif any(k in search_str for k in ["inteligencia artificial", "ia", "ai", "machine learning", "deep learning", "llm", "vision artificial", "ciencia de datos"]):
+        matched_family = "ia"
+    elif any(k in search_str for k in ["ciber", "seguridad", "security", "hacking", "firewall", "zero trust", "soc"]):
+        matched_family = "seguridad"
+    elif any(k in search_str for k in ["fintech", "finanz", "banca", "banco", "pago", "credito", "contab", "fiscal", "sat", "factur"]):
+        matched_family = "fintech"
+    elif any(k in search_str for k in ["e-commerce", "ecommerce", "retail", "comercio", "tienda", "marketplace", "dropshipping", "calzado", "moda"]):
+        matched_family = "retail"
+    elif any(k in search_str for k in ["logist", "transporte", "supply chain", "almacen", "cedis", "flota", "distribucion", "flete"]):
+        matched_family = "logistica"
+    elif any(k in search_str for k in ["salud", "medicin", "health", "hospital", "clinic", "paciente", "farmac", "biotech"]):
+        matched_family = "salud"
+    elif any(k in search_str for k in ["educa", "edtech", "capacit", "escuela", "universidad", "aprender", "curso"]):
+        matched_family = "educacion"
+    elif any(k in search_str for k in ["construc", "inmobil", "proptech", "arquitect", "obra", "bienes raices", "real estate"]):
+        matched_family = "construccion"
+    elif any(k in search_str for k in ["ti", "software", "devops", "cloud", "saas", "nube", "it", "sistemas", "desarrollo", "tecnolog"]):
+        matched_family = "tech"
 
-    target_ind = matched_target or f"Empresas de {cat} & Marcas B2B"
+    theme_idx = index % 4
+    if matched_tool_entry:
+        final_title, final_problem, final_target = matched_tool_entry
+        family_themes = _INDUSTRY_THEMES.get(matched_family or "tech", _INDUSTRY_THEMES["tech"])
+        final_stack = family_themes[0]["stack"]
+    elif matched_family and matched_family in _INDUSTRY_THEMES:
+        family_themes = _INDUSTRY_THEMES[matched_family]
+        selected_theme = family_themes[theme_idx % len(family_themes)]
+        final_title = selected_theme["title"]
+        final_problem = selected_theme["problem"]
+        final_target = selected_theme["target"]
+        final_stack = selected_theme["stack"]
+    else:
+        # Generador dinámico para nichos específicos no listados (sin usar 'Optimización Digital')
+        cat_clean = cat_raw.title()
+        custom_titles = [
+            f"Sistemas Autónomos y Telemetría en {cat_clean}",
+            f"Analítica Predictiva y Modelado en {cat_clean}",
+            f"Automatización de Flujos en {cat_clean}",
+            f"Trazabilidad Digital y Control en {cat_clean}",
+        ]
+        custom_problems = [
+            f"Falta de visibilidad y control en tiempo real en operaciones de {cat_raw.lower()}",
+            f"Incertidumbre operativa y demoras en toma de decisiones críticas en {cat_raw.lower()}",
+            f"Carga manual de reportes y desarticulación entre sistemas en {cat_raw.lower()}",
+            f"Falta de auditoría de procesos y fricciones en control normativo en {cat_raw.lower()}",
+        ]
+        final_title = custom_titles[theme_idx][:36]
+        final_problem = custom_problems[theme_idx][:65]
+        final_target = f"Empresas Líderes de {cat_clean} & Operadores B2B"[:65]
+        final_stack = [
+            {"name": "Módulo de Automatización", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+            {"name": "APIs de Sincronización", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+            {"name": "Integración ERP / Cloud", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+            {"name": "Seguridad & Acceso B2B", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+        ]
 
-    fallback_summary = (
-        f"La tendencia <strong>{matched_title}</strong> atiende la necesidad de {target_ind.lower()}, "
-        f"enfocada en resolver <strong>{desc_clean[:100]}</strong> como ejemplifican tecnologías como {tool_name}."
+    # Redacción ejecutiva contextual
+    ejemplo_tech = f" como ejemplifican soluciones como {tool_raw}" if tool_raw and not tool_raw.lower().startswith("demanda") else ""
+    summary_text = (
+        f"La tendencia <strong>{final_title}</strong> atiende la necesidad de {final_target.lower()}, "
+        f"enfocada en resolver <strong>{final_problem}</strong>{ejemplo_tech} mediante infraestructura especializada."
     )
 
     real_metric_label, real_metric_value, real_delta_dir, real_delta_val = extract_real_metrics(trend_data)
 
     return {
-        "sector": f"{cat} · Mercado Corporativo",
-        "title": matched_title[:36],
-        "target_industry": target_ind[:65],
-        "problem_solved": desc_clean[:65],
+        "sector": f"{cat_raw.title()} · Mercado Corporativo",
+        "title": final_title[:36],
+        "target_industry": final_target[:65],
+        "problem_solved": final_problem[:65],
         "impact_level": "high",
         "impact_label": "Alto impacto comercial",
         "metric_label": real_metric_label,
         "metric_value": real_metric_value,
         "delta_direction": real_delta_dir,
         "delta_value": real_delta_val,
-        "summary": fallback_summary[:350],
-        "stack_list": [
-            {"name": "Módulo de Automatización", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
-            {"name": "APIs de Sincronización", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
-            {"name": "Integración ERP / Cloud", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
-            {"name": "Seguridad & Acceso B2B", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
-        ],
+        "summary": summary_text[:350],
+        "stack_list": final_stack,
         "footer_date": "Actualizado hoy, 07:00"
     }
 
@@ -810,8 +1363,8 @@ _INVALID_INDUSTRY_NAMES = frozenset({
 # Se resuelven al instante, sin LLM, y con la categoría correcta garantizada.
 _KNOWN_INDUSTRIES: Tuple[Tuple[str, str, Tuple[str, ...]], ...] = (
     # ---- tech ----
-    # "i a" / "a i" cubren las siglas escritas con puntos: "I.A." y "A.I."
-    ("Inteligencia Artificial", "tech", ("ia", "ai", "i a", "a i", "artificial intelligence")),
+    # "i a" / "a i" cubren las siglas escritas con puntos: "I.A." y "A.I.", "i" atajo común
+    ("Inteligencia Artificial", "tech", ("ia", "ai", "i a", "a i", "artificial intelligence", "i")),
     ("Machine Learning", "tech", ("ml", "aprendizaje automatico")),
     ("Ciencia de Datos", "tech", ("data science", "analitica de datos")),
     ("Big Data", "tech", ()),
@@ -1182,6 +1735,8 @@ async def _classify_user_input_impl(
     """
     cleaned_input = str(user_text or "").strip()
     token_text = _industry_tokens(cleaned_input)
+    if token_text == "i":
+        return _industry_result(True, "Inteligencia Artificial", "tech", origen="diccionario")
     if len(cleaned_input) < 2 or not token_text:
         return _industry_result(False, razon=_MSG_INDUSTRY_EMPTY)
 

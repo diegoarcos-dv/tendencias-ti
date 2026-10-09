@@ -237,17 +237,42 @@ async def run_group_pipeline(chat_id: Optional[str] = None) -> Dict[str, Any]:
     logger.info(f"[Pipeline Grupo] INICIO Catálogo Interactivo [{start_time.strftime('%H:%M:%S')}] -> Chat: {target_chat}")
     logger.info("=" * 60)
 
-    # 1. Ingesta estricta de TI & Software B2B para el grupo corporativo y selección de 3 a 5 tendencias diversas
-    all_trends = fetch_all_trends(
-        zone="Global",
-        industry="TI & Software B2B",
-        categoria_api="tech",
-        industria_exacta="TI & Software B2B"
-    )
-    catalog_trends = select_top_trends(all_trends, count=5, industry="TI & Software B2B")
-    if not catalog_trends:
-        single = select_top_trend(all_trends)
-        catalog_trends = [single] if single else []
+    # 1. Ingesta multi-vertical para el grupo corporativo cubriendo diversos sectores estratégicos
+    group_verticals = [
+        ("Inteligencia Artificial", "tech"),
+        ("Ciberseguridad", "tech"),
+        ("Fintech", "tech"),
+        ("AgroTech", "general"),
+        ("E-Commerce", "retail"),
+    ]
+
+    catalog_trends = []
+    for vert_name, vert_cat in group_verticals:
+        try:
+            vert_trends = fetch_all_trends(
+                zone="Global",
+                industry=vert_name,
+                categoria_api=vert_cat,
+                industria_exacta=vert_name
+            )
+            top_v = select_top_trend(vert_trends, industry=vert_name)
+            if top_v and top_v not in catalog_trends:
+                catalog_trends.append(top_v)
+        except Exception as ex_v:
+            logger.warning(f"[Pipeline Grupo] Error al buscar vertical '{vert_name}': {ex_v}")
+
+    # Si alguna vertical no arrojó resultados, completamos con el catálogo general de TI
+    if len(catalog_trends) < 3:
+        all_trends = fetch_all_trends(
+            zone="Global",
+            industry="TI & Software B2B",
+            categoria_api="tech",
+            industria_exacta="TI & Software B2B"
+        )
+        extra = select_top_trends(all_trends, count=5 - len(catalog_trends), industry="TI & Software B2B")
+        for item in extra:
+            if item not in catalog_trends:
+                catalog_trends.append(item)
 
     if not catalog_trends:
         logger.error("[Pipeline Grupo] No hay tendencias frescas disponibles para el catálogo.")
@@ -262,7 +287,8 @@ async def run_group_pipeline(chat_id: Optional[str] = None) -> Dict[str, Any]:
             trend_data=trend_dict,
             zona_preferida="Global",
             user_industry=trend_item.category or "TI & Software B2B",
-            business_context_text=business_context.raw_content
+            business_context_text=business_context.raw_content,
+            index=idx
         )
         t_id = save_trend(trend_data=trend_item.model_dump(), card_data=card_data)
         trend_png = settings.BASE_DIR / f"temp_trend_{t_id}.png"
@@ -473,7 +499,8 @@ async def run_individual_pipeline(chat_id: Optional[str] = None, ignore_daily_li
             trend_data=first_trend_dict,
             zona_preferida=effective_zone,
             user_industry=user_exact_industry,
-            business_context_text=business_context.raw_content
+            business_context_text=business_context.raw_content,
+            index=0
         )
         first_card_data["fallback_activado"] = fallback_activado
         first_card_data["zona_local"] = chosen_zone_local
@@ -487,9 +514,9 @@ async def run_individual_pipeline(chat_id: Optional[str] = None, ignore_daily_li
         saved_catalog = [{"id": first_trend_id, "trend": first_candidate, "card_data": first_card_data, "png": first_png}]
 
         # Para los candidatos secundarios (1..N), generamos estructura determinista rápida
-        # evitando bloqueos secuenciales de minutos al usuario
+        # con temáticas complementarias variadas evitando bloqueos secuenciales de minutos al usuario
         from app.llm_service import _build_fallback_trend_data
-        for cand in selected_candidates[1:]:
+        for idx, cand in enumerate(selected_candidates[1:], start=1):
             c_dict = {
                 **cand.model_dump(),
                 "geo_region": effective_zone,
@@ -499,7 +526,7 @@ async def run_individual_pipeline(chat_id: Optional[str] = None, ignore_daily_li
                 "zona_local": chosen_zone_local,
                 "zona_pais": chosen_zone_pais
             }
-            sec_card_data = _build_fallback_trend_data(c_dict)
+            sec_card_data = _build_fallback_trend_data(c_dict, index=idx)
             sec_card_data["fallback_activado"] = fallback_activado
             sec_card_data["zona_local"] = chosen_zone_local
             sec_card_data["zona_pais"] = chosen_zone_pais
