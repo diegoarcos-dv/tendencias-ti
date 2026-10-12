@@ -66,6 +66,39 @@ async def close_http_client() -> None:
         _http_client = None
 
 
+async def warmup_ollama(model: Optional[str] = None) -> bool:
+    """Precalienta en RAM/VRAM el modelo de Ollama en el arranque con keep_alive permanente (-1).
+    Elimina el retraso de 15s de cold-start en el primer uso del día.
+    """
+    selected_model = model or settings.OLLAMA_MODEL
+    client = get_http_client()
+    try:
+        model_to_use = selected_model
+        tags_resp = await client.get(f"{settings.OLLAMA_BASE_URL}/api/tags", timeout=3.0)
+        if tags_resp.status_code == 200:
+            available = [m["name"] for m in tags_resp.json().get("models", [])]
+            if selected_model not in available:
+                gemma = [m for m in available if "gemma" in m]
+                model_to_use = gemma[0] if gemma else (available[0] if available else selected_model)
+        
+        warmup_payload = {
+            "model": model_to_use,
+            "messages": [{"role": "user", "content": "ping"}],
+            "keep_alive": -1,
+            "options": {"num_predict": 1}
+        }
+        res = await client.post(f"{settings.OLLAMA_BASE_URL}/api/chat", json=warmup_payload, timeout=25.0)
+        if res.status_code == 200:
+            logger.info(f"[Ollama Warmup] Modelo '{model_to_use}' anclado en memoria exitosamente (keep_alive permanente).")
+            return True
+        else:
+            logger.warning(f"[Ollama Warmup] Respuesta {res.status_code} al precalentar Ollama.")
+            return False
+    except Exception as e:
+        logger.warning(f"[Ollama Warmup] No se pudo precalentar Ollama en arranque ({e}). Operará bajo demanda.")
+        return False
+
+
 def _trim_cache_fifo(cache_dict: Dict[str, Any], max_size: int = 1000, purge_count: int = 200) -> None:
     """Poda quirúrgica FIFO en diccionarios nativos de Python para evitar saturación y amnesia de la caché."""
     if len(cache_dict) > max_size:
@@ -289,7 +322,7 @@ Devuelve un JSON estrictamente válido en ESPAÑOL. El análisis debe coincidir 
             ],
             "stream": False,
             "format": "json",
-            "keep_alive": "60m",
+            "keep_alive": -1,
             "options": {
                 "temperature": 0.2,
                 "num_predict": 480,

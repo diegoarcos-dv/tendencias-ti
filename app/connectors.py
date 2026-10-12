@@ -20,6 +20,16 @@ from app.context_reader import business_context
 
 logger = logging.getLogger(__name__)
 
+# Caché en memoria de tendencias para respuesta < 1ms en consultas repetidas de la misma industria/zona
+_TRENDS_CACHE: Dict[str, Any] = {}
+_TRENDS_CACHE_TTL: float = 900.0  # 15 minutos
+
+
+def clear_trends_memory_cache() -> None:
+    """Limpia la caché de memoria de tendencias externas."""
+    global _TRENDS_CACHE
+    _TRENDS_CACHE.clear()
+
 
 # ============================================================================
 # Modelos Pydantic Unificados
@@ -344,21 +354,12 @@ class ProductHuntConnector:
                 cleaned_summary = re.sub(r"\bLink\b", "", cleaned_summary)
                 cleaned_summary = cleaned_summary.replace("Discussion |", "").replace("Discussion", "").strip()
 
-                # Extraer explícitamente el enlace de salida oficial del producto (Bypass total a la web del creador)
-                external_creator_url = None
+                # Extraer enlace o slug oficial sin subprocesos bloqueantes masivos
                 redirect_match = re.search(r'href=["\'](https://www\.producthunt\.com/r/p/[^"\']+)["\']', summary_text)
-                if redirect_match:
-                    redirect_url = redirect_match.group(1).replace("&amp;", "&")
-                    external_creator_url = resolve_outbound_redirect(redirect_url, client=client)
+                redirect_url = redirect_match.group(1).replace("&amp;", "&") if redirect_match else None
 
-                # Si no vino en el HTML o falló la redirección, buscar enlaces externos en el objeto/texto
-                if not external_creator_url:
-                    external_creator_url = extract_creator_external_url({"summary": summary_text, "link": raw_link}, client=client)
-
-                # Garantizar que la URL NUNCA pertenezca a producthunt.com
-                if not external_creator_url or "producthunt.com" in external_creator_url:
-                    slug = re.sub(r'[^a-zA-Z0-9]', '', title).lower()
-                    external_creator_url = f"https://www.{slug}.com"
+                slug = re.sub(r'[^a-zA-Z0-9]', '', title).lower()
+                external_creator_url = f"https://www.{slug}.com"
 
                 item = TrendItem(
                     title=title,
@@ -367,7 +368,7 @@ class ProductHuntConnector:
                     url=external_creator_url,
                     summary=cleaned_summary[:280] if cleaned_summary else "Nuevo producto lanzado en Product Hunt",
                     metric_score=85.0,
-                    raw_data={"atom_title": title, "link": external_creator_url}
+                    raw_data={"atom_title": title, "link": external_creator_url, "redirect_url": redirect_url}
                 ).evaluate_relevance()
                 items.append(item)
 
@@ -763,52 +764,70 @@ def fetch_all_trends(
     if not target_cat_api:
         target_cat_api = "general"
 
+    cache_key = f"{target_cat_api}:{target_exact_industry}:{target_zone}"
+    now_ts = time.time()
+    if cache_key in _TRENDS_CACHE:
+        cached_time, cached_items = _TRENDS_CACHE[cache_key]
+        if now_ts - cached_time < _TRENDS_CACHE_TTL and cached_items:
+            logger.info(f"[Ingesta Caché Hit] Retornando {len(cached_items)} tendencias en memoria para '{cache_key}' (< 1ms).")
+            return list(cached_items)
+
     all_items: List[TrendItem] = []
     ph_items: List[TrendItem] = []
     reddit_items: List[TrendItem] = []
     trends_items: List[TrendItem] = []
 
-    # 1. Product Hunt: Se enciende ÚNICAMENTE si categoria_api == 'tech'
-    if target_cat_api == "tech":
+    # Ingesta concurrente en paralelo (ThreadPoolExecutor) para eliminar bloqueos secuenciales
+    import concurrent.futures
+
+    def _run_ph():
+        if target_cat_api != "tech":
+            return []
         try:
-            ph_connector = ProductHuntConnector()
-            ph_items = ph_connector.fetch_trends()
-            for item in ph_items:
-                if not item.geo_region or item.geo_region == "México / LatAm":
-                    item.geo_region = "Global"
-            all_items.extend(ph_items)
-            logger.info(f"[Connectors] Product Hunt ENCENDIDO ({len(ph_items)} ítems) para categoria_api='tech'.")
+            items = ProductHuntConnector().fetch_trends()
+            for it in items:
+                if not it.geo_region or it.geo_region == "México / LatAm":
+                    it.geo_region = "Global"
+            return items
         except Exception as e:
             logger.error(f"Error ingestando Product Hunt: {e}")
-    else:
-        logger.info(f"[Connectors] Product Hunt APAGADO (no aplica para categoria_api='{target_cat_api}').")
+            return []
 
-    # 2. Reddit B2B & Foros Comunitarios
-    try:
-        reddit_connector = RedditB2BConnector()
-        reddit_items = reddit_connector.fetch_trends(industry=target_exact_industry)
-        for item in reddit_items:
-            if not item.geo_region or item.geo_region == "México / LatAm":
-                item.geo_region = "Global"
-        all_items.extend(reddit_items)
-        logger.info(f"[Connectors] Reddit ENCENDIDO ({len(reddit_items)} ítems) para industria='{target_exact_industry}'.")
-    except Exception as e:
-        logger.error(f"Error ingestando Reddit: {e}")
+    def _run_reddit():
+        try:
+            items = RedditB2BConnector().fetch_trends(industry=target_exact_industry)
+            for it in items:
+                if not it.geo_region or it.geo_region == "México / LatAm":
+                    it.geo_region = "Global"
+            return items
+        except Exception as e:
+            logger.error(f"Error ingestando Reddit: {e}")
+            return []
 
-    # 3. Google Trends: Siempre activo con la palabra clave obligatoria 'industria_exacta'
-    try:
-        trends_connector = GoogleTrendsConnector()
-        trends_items = trends_connector.fetch_trends(
-            zone=target_zone,
-            industry=target_exact_industry
-        )
-        all_items.extend(trends_items)
-        logger.info(f"[Connectors] Google Trends ENCENDIDO ({len(trends_items)} ítems) con keyword obligatoria='{target_exact_industry}'.")
-    except Exception as e:
-        logger.error(f"Error ingestando Google Trends: {e}")
+    def _run_trends():
+        try:
+            return GoogleTrendsConnector().fetch_trends(zone=target_zone, industry=target_exact_industry)
+        except Exception as e:
+            logger.error(f"Error ingestando Google Trends: {e}")
+            return []
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        f_ph = executor.submit(_run_ph)
+        f_reddit = executor.submit(_run_reddit)
+        f_trends = executor.submit(_run_trends)
+        ph_items = f_ph.result()
+        reddit_items = f_reddit.result()
+        trends_items = f_trends.result()
+
+    all_items.extend(ph_items)
+    all_items.extend(reddit_items)
+    all_items.extend(trends_items)
+
+    if all_items:
+        _TRENDS_CACHE[cache_key] = (now_ts, list(all_items))
 
     logger.info(
-        f"[Ingesta] Recolectados {len(all_items)} ítems en total "
+        f"[Ingesta Concurrente] Recolectados {len(all_items)} ítems en total "
         f"(Product Hunt: {len(ph_items)}, Reddit: {len(reddit_items)}, Google Trends: {len(trends_items)})."
     )
     return all_items

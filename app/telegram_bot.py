@@ -103,16 +103,22 @@ async def close_http_client() -> None:
 
 
 def clear_chart_cache() -> None:
-    """Invalida la caché de la gráfica y tarjetas auxiliares para forzar un nuevo renderizado."""
+    """Invalida la caché de la gráfica manteniendo los file_id vigentes de hoy para respuesta < 100ms."""
     global _chart_file_id_cache, _catalog_file_id_cache
     _chart_file_id_cache.clear()
-    for aux_key in ("demand_b2b", "events_cdmx", "chart_traction"):
-        _catalog_file_id_cache.pop(aux_key, None)
-    keys_to_remove = [k for k in list(_catalog_file_id_cache.keys()) if k.startswith("events_cdmx") or k.startswith("demand_b2b")]
+    _catalog_file_id_cache.pop("chart_traction", None)
+
+    # Conservar file_ids del día actual (today_str) para navegación instantánea sin subir 3MB de nuevo
+    from datetime import timezone
+    today_str = datetime.now(timezone.utc).strftime("%Y%m%d")
+    keys_to_remove = [
+        k for k in list(_catalog_file_id_cache.keys())
+        if (k.startswith("events_cdmx") or k.startswith("demand_b2b")) and today_str not in k
+    ]
     for k in keys_to_remove:
         _catalog_file_id_cache.pop(k, None)
     _save_catalog_file_id_cache(_catalog_file_id_cache)
-    logger.info("[Telegram Bot] Caché de file_id de gráfica y tarjetas auxiliares (Demanda B2B, Eventos) invalidada.")
+    logger.info("[Telegram Bot] Caché de file_id actualizada (preservando activos de hoy para velocidad instantánea).")
 
 
 def _get_credentials() -> tuple[str, str]:

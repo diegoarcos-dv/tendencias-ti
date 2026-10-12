@@ -512,16 +512,19 @@ async def discover_daily_b2b_demand(ref_date: Optional[datetime] = None) -> List
             for i in range(5)
         ]
 
-    # 4. Verificar disponibilidad de LinkedIn de cada empresa y ajustar fallback
-    verified_batch: List[Dict[str, Any]] = []
-    for comp in selected_companies:
+    # 4. Verificar disponibilidad de LinkedIn concurrentemente con asyncio.gather
+    async def _verify_comp(comp: Dict[str, Any]) -> Dict[str, Any]:
         c_copy = dict(comp)
         lk_url = c_copy.get("linkedin_company_url") or ""
-        # Verificar si LinkedIn responde o está caído
-        is_lk_ok = await verify_linkedin_url(lk_url)
+        try:
+            is_lk_ok = await verify_linkedin_url(lk_url)
+        except Exception:
+            is_lk_ok = False
         c_copy["linkedin_status"] = "active" if is_lk_ok else "unavailable"
         c_copy["contact_web"] = _clean_web_url(c_copy.get("contact_web", ""))
-        verified_batch.append(c_copy)
+        return c_copy
+
+    verified_batch = await asyncio.gather(*[_verify_comp(comp) for comp in selected_companies])
 
     # 5. Guardar en SQLite
     try:

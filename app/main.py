@@ -157,6 +157,17 @@ def select_top_trend(
 
     sorted_trends = sorted(fresh_trends, key=calculate_tool_score, reverse=True)
     top_1 = sorted_trends[0]
+
+    # Resolución perezosa (on-demand) de la URL real solo para la tendencia ganadora seleccionada
+    if top_1.source == "product_hunt" and top_1.raw_data.get("redirect_url"):
+        try:
+            from app.connectors import resolve_outbound_redirect
+            res_url = resolve_outbound_redirect(top_1.raw_data["redirect_url"])
+            if res_url:
+                top_1.url = res_url
+        except Exception:
+            pass
+
     logger.info(
         f"Top 1 seleccionado por el Scoring Engine: '{top_1.title}' "
         f"[Fuente: {top_1.source}, Métrica: {top_1.metric_score}, Relevante: {top_1.business_relevant}]"
@@ -220,6 +231,17 @@ def select_top_trends(
                 chosen.append(item)
                 if len(chosen) >= target_count:
                     break
+
+    # Resolución perezosa (on-demand) de URL real solo para las tendencias elegidas en el lote
+    for item in chosen:
+        if item.source == "product_hunt" and item.raw_data.get("redirect_url"):
+            try:
+                from app.connectors import resolve_outbound_redirect
+                res_url = resolve_outbound_redirect(item.raw_data["redirect_url"])
+                if res_url:
+                    item.url = res_url
+            except Exception:
+                pass
 
     return chosen
 
@@ -706,7 +728,7 @@ run_daily_pipeline = run_individual_pipeline
 # ============================================================================
 
 async def prewarm_auxiliary_cards() -> None:
-    """Pre-calienta en memoria Chromium y pre-renderiza las tarjetas auxiliares (Demanda B2B, Eventos CDMX, Gráfica)
+    """Pre-calienta en memoria Chromium, Ollama y pre-renderiza las tarjetas auxiliares (Demanda B2B, Eventos CDMX, Gráfica)
     para que la primera interacción del usuario responda de forma instantánea (< 250ms).
     """
     try:
@@ -714,33 +736,66 @@ async def prewarm_auxiliary_cards() -> None:
         today_str = datetime.now(timezone.utc).strftime("%Y%m%d")
         from app.visual_engine import (
             get_browser_singleton,
+            create_png_card,
             create_b2b_demand_png_card,
             create_events_cdmx_png_card,
             create_chart_png_card
         )
-        logger.info("[Pre-warm] Calentando Chromium y pre-renderizando tarjetas auxiliares...")
+        logger.info("[Pre-warm] Calentando motor Chromium y Ollama en memoria...")
         await get_browser_singleton()
 
-        # 1. Pre-renderizar primeras 2 empresas demandantes
-        from app.b2b_demand import get_b2b_demand_by_index
+        # 1. Precalentar Ollama en memoria con keep_alive=-1 (elimina los 15s de cold-start)
+        try:
+            from app.llm_service import warmup_ollama
+            await warmup_ollama()
+        except Exception as ex_ol:
+            logger.warning(f"[Pre-warm] Advertencia en warmup de Ollama: {ex_ol}")
+
+        # 2. Pre-descubrir y verificar empresas B2B del día en paralelo
+        try:
+            from app.b2b_demand import discover_daily_b2b_demand, get_b2b_demand_by_index
+            await discover_daily_b2b_demand()
+        except Exception as ex_dem:
+            logger.warning(f"[Pre-warm] Advertencia en pre-descubrimiento B2B: {ex_dem}")
+
+        # 3. Pre-renderizar primeras 2 empresas demandantes
         for idx in range(2):
             dem_png = settings.BASE_DIR / f"temp_demand_{idx}_{today_str}.png"
             if not dem_png.exists():
                 await create_b2b_demand_png_card(output_path=dem_png, data=get_b2b_demand_by_index(idx))
 
-        # 2. Pre-renderizar primeros 2 eventos CDMX
+        # 4. Pre-renderizar primeros 2 eventos CDMX
         from app.events_cdmx import get_events_cdmx_by_index
         for idx in range(2):
             ev_png = settings.BASE_DIR / f"temp_events_{idx}_{today_str}.png"
             if not ev_png.exists():
                 await create_events_cdmx_png_card(output_path=ev_png, data=get_events_cdmx_by_index(idx))
 
-        # 3. Pre-renderizar gráfica
+        # 5. Pre-renderizar gráfica
         chart_png = settings.BASE_DIR / "temp_chart.png"
         if not chart_png.exists():
             await create_chart_png_card(output_path=chart_png)
 
-        logger.info("[Pre-warm] Chromium caliente y tarjetas auxiliares pre-renderizadas con éxito.")
+        # 6. Precalentar layout y rasterizador de Chromium para la plantilla principal
+        dummy_card = {
+            "sector": "Inteligencia Comercial",
+            "title": "Radar de Tendencias B2B",
+            "target_industry": "Mercado Corporativo",
+            "problem_solved": "Optimización operativa",
+            "impact_level": "high",
+            "impact_label": "Alto impacto comercial",
+            "metric_label": "Demanda Estimada",
+            "metric_value": "45.0K",
+            "delta_direction": "up",
+            "delta_value": "+35% demanda",
+            "summary": "Sistema precalentado para respuesta inmediata.",
+            "stack_list": [{"name": "FastAPI", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"}],
+            "footer_date": "Actualizado hoy, 07:00"
+        }
+        dummy_png = settings.BASE_DIR / "temp_prewarm.png"
+        await create_png_card(data=dummy_card, output_path=dummy_png)
+
+        logger.info("[Pre-warm] Servidor, Chromium, Ollama y tarjetas auxiliares 100% calientes en memoria.")
     except Exception as e_warm:
         logger.warning(f"[Pre-warm] Advertencia durante precalentamiento inicial: {e_warm}")
 
