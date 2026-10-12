@@ -569,16 +569,21 @@ async def run_individual_pipeline(chat_id: Optional[str] = None, ignore_daily_li
                         await create_png_card(data=item["card_data"], output_path=png_path)
                 from datetime import timezone
                 today_str = datetime.now(timezone.utc).strftime("%Y%m%d")
-                dem_png = settings.BASE_DIR / f"temp_demand_0_{today_str}.png"
-                if not dem_png.exists():
-                    from app.b2b_demand import get_b2b_demand_by_index
-                    from app.visual_engine import create_b2b_demand_png_card
-                    await create_b2b_demand_png_card(output_path=dem_png, data=get_b2b_demand_by_index(0))
-                ev_png = settings.BASE_DIR / f"temp_events_0_{today_str}.png"
-                if not ev_png.exists():
-                    from app.events_cdmx import get_events_cdmx_by_index
-                    from app.visual_engine import create_events_cdmx_png_card
-                    await create_events_cdmx_png_card(output_path=ev_png, data=get_events_cdmx_by_index(0))
+                from app.b2b_demand import get_b2b_demand_by_index
+                from app.visual_engine import create_b2b_demand_png_card, create_events_cdmx_png_card, create_chart_png_card
+                for d_i in range(5):
+                    dem_png = settings.BASE_DIR / f"temp_demand_{d_i}_{today_str}.png"
+                    if not dem_png.exists():
+                        await create_b2b_demand_png_card(output_path=dem_png, data=get_b2b_demand_by_index(d_i))
+                from app.events_cdmx import get_events_cdmx_by_index, get_all_events_cdmx
+                total_evts = min(len(get_all_events_cdmx()), 4)
+                for e_i in range(total_evts):
+                    ev_png = settings.BASE_DIR / f"temp_events_{e_i}_{today_str}.png"
+                    if not ev_png.exists():
+                        await create_events_cdmx_png_card(output_path=ev_png, data=get_events_cdmx_by_index(e_i))
+                chart_target = settings.BASE_DIR / "temp_chart.png"
+                if not chart_target.exists():
+                    await create_chart_png_card(output_path=chart_target)
             except Exception as e_pre:
                 logger.warning(f"[Pipeline Individual] Pre-renderizado secundario asíncrono: {e_pre}")
 
@@ -608,6 +613,10 @@ async def run_individual_pipeline(chat_id: Optional[str] = None, ignore_daily_li
             zona_local=chosen_zone_local,
             zona_pais=chosen_zone_pais
         )
+
+        if telegram_result.get("file_id"):
+            from app.telegram_bot import set_catalog_cached_file_id
+            set_catalog_cached_file_id(f"trend_{first_trend_id}", telegram_result["file_id"])
 
         duration = (datetime.now() - start_time).total_seconds()
         logger.info(
@@ -758,15 +767,16 @@ async def prewarm_auxiliary_cards() -> None:
         except Exception as ex_dem:
             logger.warning(f"[Pre-warm] Advertencia en pre-descubrimiento B2B: {ex_dem}")
 
-        # 3. Pre-renderizar primeras 2 empresas demandantes
-        for idx in range(2):
+        # 3. Pre-renderizar las empresas demandantes del catálogo diario
+        for idx in range(5):
             dem_png = settings.BASE_DIR / f"temp_demand_{idx}_{today_str}.png"
             if not dem_png.exists():
                 await create_b2b_demand_png_card(output_path=dem_png, data=get_b2b_demand_by_index(idx))
 
-        # 4. Pre-renderizar primeros 2 eventos CDMX
-        from app.events_cdmx import get_events_cdmx_by_index
-        for idx in range(2):
+        # 4. Pre-renderizar todos los eventos CDMX del catálogo
+        from app.events_cdmx import get_events_cdmx_by_index, get_all_events_cdmx
+        total_evts = min(len(get_all_events_cdmx()), 4)
+        for idx in range(total_evts):
             ev_png = settings.BASE_DIR / f"temp_events_{idx}_{today_str}.png"
             if not ev_png.exists():
                 await create_events_cdmx_png_card(output_path=ev_png, data=get_events_cdmx_by_index(idx))
