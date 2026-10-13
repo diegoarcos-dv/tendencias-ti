@@ -375,7 +375,7 @@ def build_events_keyboard(
     """Teclado interactivo para Calendario de Eventos TI CDMX (especial jóvenes) con paginación."""
     total = max(1, total_items)
     idx = current_index % total
-    url = registration_url or "https://lu.ma/discover/mexico-city/tech"
+    url = registration_url or "https://lu.ma/mxtw"
     return {
         "inline_keyboard": [
             [
@@ -1908,7 +1908,7 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
             back_kb = {
                 "inline_keyboard": [
                     [
-                        {"text": "🎟️ Enlace Directo de Registro", "url": evt_info.get("registration_url", "https://lu.ma/discover/mexico-city/tech")}
+                        {"text": "🎟️ Enlace Directo de Registro", "url": evt_info.get("registration_url", "https://lu.ma/mxtw")}
                     ],
                     [
                         {"text": "🔙 Volver al Evento", "callback_data": f"NAV_EVENTOS_PAGE:curr:{info_idx}:{ret_idx}"},

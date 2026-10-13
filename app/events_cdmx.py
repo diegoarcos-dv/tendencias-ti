@@ -46,9 +46,9 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
             "Entrada Gratuita"
         ],
         "platform_name": "Eventbrite México",
-        "platform_domain": "eventbrite.com.mx/d/mexico--ciudad-de-mexico/hackathon",
+        "platform_domain": "eventbrite.com/e/ai-hackathon-mexico-tickets",
         "platform_mode": "Presencial · Entrada Libre",
-        "registration_url": "https://www.eventbrite.com.mx/d/mexico--ciudad-de-mexico/hackathon/",
+        "registration_url": "https://www.eventbrite.com/e/ai-hackathon-mexico-2026-by-ai-lab-school-tickets-1999392385447",
         "info_summary": (
             "🚀 <b>DETALLES DE ASISTENCIA: Hackathon de IA para Universitarios</b>\n\n"
             "📍 <b>Sede:</b> Insurgentes Sur 1602, Crédito Constructor, Benito Juárez, CDMX\n"
@@ -58,7 +58,7 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
             "1. Reto de 9 horas para prototipar un agente con LLMs (Gemma/OpenAI/Claude).\n"
             "2. Mentorías técnicas 1 a 1 de arquitectos senior en Python, FastAPI y Docker.\n"
             "3. Conexión directa con reclutadores de startups en CDMX y LATAM.\n\n"
-            "🔗 <b>Registro Oficial:</b> <a href='https://www.eventbrite.com.mx/d/mexico--ciudad-de-mexico/hackathon/'>Abrir Registro en Eventbrite México</a>"
+            "🔗 <b>Registro Oficial:</b> <a href='https://www.eventbrite.com/e/ai-hackathon-mexico-2026-by-ai-lab-school-tickets-1999392385447'>Abrir Registro en Eventbrite México</a>"
         )
     },
     {
@@ -82,9 +82,9 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
             "Networking Joven"
         ],
         "platform_name": "Eventbrite México",
-        "platform_domain": "eventbrite.com.mx/d/mexico--ciudad-de-mexico/tech",
+        "platform_domain": "eventbrite.com.mx/e/pyday-mexico-2026-cdmx",
         "platform_mode": "Presencial · Cupo Libre",
-        "registration_url": "https://www.eventbrite.com.mx/d/mexico--ciudad-de-m%C3%A9xico/science-and-tech--events/",
+        "registration_url": "https://www.eventbrite.com.mx/e/pyday-mexico-2026-cdmx-tickets-1989262280029",
         "info_summary": (
             "🐍 <b>DETALLES DE ASISTENCIA: PyDay CDMX & Jóvenes Developers</b>\n\n"
             "📍 <b>Sede:</b> Auditorio TecNM / Coworking Polanco, CDMX\n"
@@ -94,7 +94,7 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
             "1. Tu primera API REST de alto rendimiento con FastAPI y Pydantic.\n"
             "2. Automatización de tareas y scraping ético en la nube.\n"
             "3. Cómo armar tu portafolio en GitHub para conseguir tu primera chamba remota.\n\n"
-            "🔗 <b>Plataforma Oficial:</b> <a href='https://www.eventbrite.com.mx/d/mexico--ciudad-de-m%C3%A9xico/science-and-tech--events/'>Eventbrite México (Categoría Ciencia & Tecnología)</a>"
+            "🔗 <b>Plataforma Oficial:</b> <a href='https://www.eventbrite.com.mx/e/pyday-mexico-2026-cdmx-tickets-1989262280029'>Registro Oficial PyDay CDMX en Eventbrite</a>"
         )
     },
     {
@@ -118,9 +118,9 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
             "Presencial CDMX"
         ],
         "platform_name": "Google Developers MX",
-        "platform_domain": "gdg.community.dev/events",
+        "platform_domain": "gdg.community.dev/gdg-cloud-mexico-city",
         "platform_mode": "Presencial · Swag Gratuito",
-        "registration_url": "https://gdg.community.dev/events/#/list?country=MX",
+        "registration_url": "https://gdg.community.dev/gdg-cloud-mexico-city/",
         "info_summary": (
             "☁️ <b>DETALLES DE ASISTENCIA: GDG Estudiantes & Cloud CDMX</b>\n\n"
             "📍 <b>Sede:</b> WeWork Paseo de la Reforma 26, Cuauhtémoc, CDMX\n"
@@ -130,7 +130,7 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
             "1. Despliegue de microservicios con Docker y Kubernetes para estudiantes.\n"
             "2. Uso de modelos de Gemini y Vertex AI en proyectos de software.\n"
             "3. Espacio de networking con ingenieros de Google y empresas colaboradoras.\n\n"
-            "🔗 <b>Plataforma Oficial:</b> <a href='https://gdg.community.dev/events/#/list?country=MX'>GDG Community Developers México</a>"
+            "🔗 <b>Plataforma Oficial:</b> <a href='https://gdg.community.dev/gdg-cloud-mexico-city/'>GDG Cloud Mexico City (Registro Oficial)</a>"
         )
     },
     {
@@ -153,10 +153,10 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
             "Entrada Libre",
             "CENART CDMX"
         ],
-        "platform_name": "Cartelera Oficial CDMX",
-        "platform_domain": "cartelera.cdmx.gob.mx",
+        "platform_name": "Centro Multimedia CENART",
+        "platform_domain": "cenart.gob.mx/centro-multimedia",
         "platform_mode": "Feria Abierta · Sin Costo",
-        "registration_url": "https://cartelera.cdmx.gob.mx/",
+        "registration_url": "https://cenart.gob.mx/centro-multimedia/",
         "info_summary": (
             "🤖 <b>DETALLES DE ASISTENCIA: Feria Maker & Hardware Libre CDMX</b>\n\n"
             "📍 <b>Sede:</b> CENART (Av. Río Churubusco 79, Country Club, Coyoacán, CDMX)\n"
@@ -166,7 +166,7 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
             "1. Competencias amistosas de robótica móvil y visión por computadora.\n"
             "2. Stands de comunidades universitarias del IPN (UPIITA) y UNAM (FI).\n"
             "3. Conexión de hardware con APIs en la nube mediante microcontroladores ESP32.\n\n"
-            "🔗 <b>Plataforma Oficial:</b> <a href='https://cartelera.cdmx.gob.mx/'>Cartelera Oficial de la Ciudad de México</a>"
+            "🔗 <b>Plataforma Oficial:</b> <a href='https://cenart.gob.mx/centro-multimedia/'>Centro Multimedia CENART (Cartelera & Acceso)</a>"
         )
     },
     {
@@ -189,10 +189,10 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
             "Conferencia WTC",
             "Networking Masivo"
         ],
-        "platform_name": "AWS Eventos México",
-        "platform_domain": "aws.amazon.com/es/events",
+        "platform_name": "AWS Community Day México",
+        "platform_domain": "day.awscommunity.mx",
         "platform_mode": "Presencial WTC · Registro Oficial",
-        "registration_url": "https://aws.amazon.com/es/events/",
+        "registration_url": "https://day.awscommunity.mx/",
         "info_summary": (
             "☁️ <b>DETALLES DE ASISTENCIA: AWS Community Day México</b>\n\n"
             "📍 <b>Sede:</b> World Trade Center (WTC) CDMX, Montecito 38, Nápoles, CDMX\n"
@@ -202,7 +202,7 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
             "1. Asesorías en vivo para obtener la certificación AWS Certified Cloud Practitioner.\n"
             "2. Módulos de reclutamiento de empresas aliadas que contratan talento recién egresado.\n"
             "3. Créditos cloud gratuitos para prácticas y proyectos personales.\n\n"
-            "🔗 <b>Plataforma Oficial:</b> <a href='https://aws.amazon.com/es/events/'>Amazon Web Services Eventos en Español</a>"
+            "🔗 <b>Plataforma Oficial:</b> <a href='https://day.awscommunity.mx/'>AWS Community Day México (Registro Oficial)</a>"
         )
     },
     {
@@ -225,20 +225,20 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
             "UNAM CU",
             "Reto CTF Joven"
         ],
-        "platform_name": "Eventbrite México",
-        "platform_domain": "eventbrite.com.mx/d/mexico--ciudad-de-mexico/tech",
+        "platform_name": "OWASP Mexico City",
+        "platform_domain": "owasp.org/chapters/mexico-city",
         "platform_mode": "Presencial · Auditorio UNAM",
-        "registration_url": "https://www.eventbrite.com.mx/d/mexico--ciudad-de-m%C3%A9xico/science-and-tech--events/",
+        "registration_url": "https://owasp.org/chapters/mexico-city",
         "info_summary": (
             "🛡️ <b>DETALLES DE ASISTENCIA: Ciberseguridad Defensiva & Hacking Ético CDMX</b>\n\n"
             "📍 <b>Sede:</b> Auditorio Barros Sierra, Facultad de Ingeniería, CU UNAM, Coyoacán, CDMX\n"
-            "🎟️ <b>Costo:</b> 100% Gratuito (Entrada libre con registro en Eventbrite)\n"
+            "🎟️ <b>Costo:</b> 100% Gratuito (Entrada libre con registro oficial)\n"
             "👥 <b>Público:</b> Universitarios, autodidactas y entusiastas de seguridad informática\n\n"
             "📋 <b>Dinámica del Taller:</b>\n"
             "1. Fundamentos de análisis de vulnerabilidades y seguridad en APIs web.\n"
             "2. Competencia amistosa Capture The Flag (CTF) nivel introductorio con premios.\n"
             "3. Charla con profesionales sobre cómo iniciarse en programas de Bug Bounty remunerados.\n\n"
-            "🔗 <b>Registro Oficial:</b> <a href='https://www.eventbrite.com.mx/d/mexico--ciudad-de-m%C3%A9xico/science-and-tech--events/'>Eventbrite México (Ciencia & Tecnología)</a>"
+            "🔗 <b>Registro Oficial:</b> <a href='https://owasp.org/chapters/mexico-city'>OWASP Mexico City Chapter (Registro & Acceso)</a>"
         )
     },
     {
@@ -262,9 +262,9 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
             "Expo Reforma"
         ],
         "platform_name": "Lu.ma CDMX Tech",
-        "platform_domain": "lu.ma/discover/mexico-city/tech",
+        "platform_domain": "lu.ma/mxtw",
         "platform_mode": "Presencial · Acceso Gratuito",
-        "registration_url": "https://lu.ma/discover/mexico-city/tech",
+        "registration_url": "https://lu.ma/mxtw",
         "info_summary": (
             "💼 <b>DETALLES DE ASISTENCIA: Feria de Talento TI & Vacantes Junior CDMX</b>\n\n"
             "📍 <b>Sede:</b> Expo Reforma, Calle Morelos 67, Col. Juárez, Cuauhtémoc, CDMX\n"
@@ -274,7 +274,7 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
             "1. Módulos de reclutamiento con entrevistas técnicas directas en sitio.\n"
             "2. Revisión y optimización de CV y portafolio GitHub por líderes de ingeniería.\n"
             "3. Paneles sobre salarios en TI y preparación para entrevistas remotas.\n\n"
-            "🔗 <b>Plataforma Oficial:</b> <a href='https://lu.ma/discover/mexico-city/tech'>Lu.ma CDMX Tech (Agenda Tecnológica)</a>"
+            "🔗 <b>Plataforma Oficial:</b> <a href='https://lu.ma/mxtw'>Mexico Tech Week & Startups en Lu.ma (RSVP)</a>"
         )
     },
     {
@@ -297,10 +297,10 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
             "IA Abierta",
             "Comunidad CDMX"
         ],
-        "platform_name": "Eventbrite México",
-        "platform_domain": "eventbrite.com.mx/d/mexico--ciudad-de-mexico/tech",
+        "platform_name": "Comunidad Python México",
+        "platform_domain": "python.org.mx",
         "platform_mode": "Presencial · Entrada Libre",
-        "registration_url": "https://www.eventbrite.com.mx/d/mexico--ciudad-de-m%C3%A9xico/science-and-tech--events/",
+        "registration_url": "https://python.org.mx/",
         "info_summary": (
             "🌐 <b>DETALLES DE ASISTENCIA: Gran Cumbre de Software Libre & DevOps CDMX</b>\n\n"
             "📍 <b>Sede:</b> Auditorio Manuel Sandoval Vallarta / Centro Cultural CDMX\n"
@@ -310,7 +310,7 @@ _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
             "1. Keynote sobre modelos abiertos de IA y despliegues soberanos en servidores propios.\n"
             "2. Talleres simultáneos de infraestructura como código (Terraform, Ansible y Linux).\n"
             "3. Convivencia y networking con comunidades locales de tecnología.\n\n"
-            "🔗 <b>Registro Oficial:</b> <a href='https://www.eventbrite.com.mx/d/mexico--ciudad-de-m%C3%A9xico/science-and-tech--events/'>Eventbrite México (Ciencia & Tecnología)</a>"
+            "🔗 <b>Registro Oficial:</b> <a href='https://python.org.mx/'>Comunidades Python & Open Source México</a>"
         )
     }
 ]
@@ -389,7 +389,7 @@ def get_events_cdmx_by_index(index: int = 0, ref_date: Optional[datetime] = None
         "sec2-venue": third_event.get("venue", "CDMX"),
         "sec2-type": third_event.get("target_audience", "Comunidad Tech"),
         "footer-date": f"Ventana 30 Días · Evento {idx + 1}/{total} · Actualizado hoy, {now_str} UTC",
-        "registration_url": feat.get("registration_url", "https://www.eventbrite.com.mx/d/mexico--ciudad-de-mexico/hackathon/"),
+        "registration_url": feat.get("registration_url", "https://www.eventbrite.com/e/ai-hackathon-mexico-2026-by-ai-lab-school-tickets-1999392385447"),
         "info_summary": feat.get("info_summary", ""),
         "current_index": idx,
         "total_items": total
