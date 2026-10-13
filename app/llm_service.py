@@ -152,9 +152,9 @@ def extract_real_metrics(trend_data: Dict[str, Any]) -> Tuple[str, str, str, str
 
 class TrendCardSchema(BaseModel):
     """Guardrail de Salida: Aduana estructural rígida con Pydantic para validar respuestas del LLM."""
-    sector: str = Field(..., description="Sector tecnológico o nicho de mercado")
-    title: str = Field(..., description="Título de la tendencia u oportunidad comercial")
-    metric_value: str = Field(..., description="Estimación cuantitativa de demanda")
+    sector: str = Field(default="Tecnología & Software B2B", description="Sector tecnológico o nicho de mercado")
+    title: str = Field(default="Tendencia Tecnológica", description="Título de la tendencia u oportunidad comercial")
+    metric_value: str = Field(default="28.5K", description="Estimación cuantitativa de demanda")
     stack_sugerido: List[str] = Field(default_factory=list, description="Lista de tecnologías o componentes sugeridos")
     target_industry: Optional[str] = Field(default="", description="Empresas o áreas corporativas demandantes")
     problem_solved: Optional[str] = Field(default="", description="Problemática operativa o técnica específica")
@@ -166,6 +166,22 @@ class TrendCardSchema(BaseModel):
     summary: Optional[str] = Field(default="", description="Resumen ejecutivo estructurado")
     stack_list: Optional[List[Dict[str, Any]]] = Field(default_factory=list, description="Componentes visuales del stack")
     footer_date: Optional[str] = Field(default="Actualizado hoy, 07:00", description="Fecha de actualización")
+
+    @field_validator("stack_sugerido", mode="before")
+    @classmethod
+    def _normalize_stack_sugerido(cls, v: Any) -> List[str]:
+        if not v:
+            return []
+        if isinstance(v, list):
+            res = []
+            for item in v:
+                if isinstance(item, dict):
+                    name = item.get("name") or item.get("tech") or str(item)
+                    res.append(str(name).strip())
+                elif isinstance(item, str):
+                    res.append(item.strip())
+            return res
+        return []
 
     model_config = {"extra": "allow"}
 
@@ -254,13 +270,18 @@ async def generate_trend_card_data(
         "- Prohibido usar 'votos', 'upvotes', 'estrellas' o 'likes'. Emplea estimaciones de demanda comercial, volumen de búsquedas o crecimiento (ej. '48.2K', '+35% demanda').\n\n"
         f"4. ENFOQUE REGIONAL ({zona_preferida}):\n"
         f"Evalúa la viabilidad y el impacto comercial de la tecnología específicamente para el mercado de {zona_preferida}, "
-        "cruzando los datos con el archivo local de tendencias (data/tendencias.txt).\n"
+        "cruzando los datos con el archivo local de tendencias (data/tendencias.txt).\n\n"
+        f"5. ADAPTACIÓN AL SECTOR DEL USUARIO ({user_industry}):\n"
+        f"El usuario monitorea activamente el sector '{user_industry}'. "
+        f"Debes analizar cómo esta tecnología o tendencia aporta valor, resuelve problemas o se adopta específicamente en el sector de '{user_industry}'. "
+        f"Prohibido usar descripciones genéricas de SaaS o e-commerce si el sector del usuario es diferente (ej. si es Videojuegos, enfócalo en desarrollo, motores, gaming, gráficos o jugadores).\n"
     )
 
     user_prompt = f"""
 DATOS CRUDOS EXTRAÍDOS DE LA API:
 - Nombre de la herramienta: {trend_data.get('title')}
 - Categoría de la API: {trend_data.get('category')}
+- Sector / Industria de Interés del Usuario: {user_industry}
 - Descripción cruda / Tagline del producto: {trend_data.get('summary')}
 - Región de mercado objetivo: {zona_preferida}
 - Origen: {trend_data.get('source')}
@@ -269,7 +290,7 @@ MARCO DE EVALUACIÓN ESTRATÉGICA:
 {business_context_text[:800]}
 
 INSTRUCCIONES DE RESPUESTA:
-Devuelve un JSON estrictamente válido en ESPAÑOL. El análisis debe coincidir al 100% con la descripción cruda del producto:
+Devuelve un JSON estrictamente válido en ESPAÑOL. El análisis debe vincular la herramienta con el sector de '{user_industry}':
 {{
   "sector": "Sector tecnológico real según la descripción del producto (ej. 'Web3 & Infraestructura' o 'AgroTech' o 'Ciberseguridad B2B' o 'FinTech')",
   "title": "Tendencia tecnológica concreta (máx 36 caracteres; PROHIBIDO 'Optimización Digital')",
@@ -999,6 +1020,52 @@ _INDUSTRY_THEMES: Dict[str, List[Dict[str, Any]]] = {
             ]
         }
     ],
+    "gaming": [
+        {
+            "title": "Motores Gráficos y Render Cloud",
+            "problem": "Altos tiempos de compilación de shaders y latencia de renderizado 3D",
+            "target": "Estudios de Videojuegos, Motores 3D & Desarrolladores de Videojuegos",
+            "stack": [
+                {"name": "Unreal Engine 5 / Unity", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Vulkan & WebGPU APIs", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Renderizado Distribuido", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Pipelines de Shaders HLSL", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Infraestructura para Multijugador",
+            "problem": "Latencia de red y desincronización de estado en partidas online",
+            "target": "Estudios de Videojuegos Multiplayer & Operadores de Servidores",
+            "stack": [
+                {"name": "Servidores de Juego en Nube", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "WebSockets / QUIC Protocol", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Matchmaking en Tiempo Real", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Sistemas Anti-Cheat y Estado", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "IA en Generación de Niveles y Assets",
+            "problem": "Altos costos y semanas de trabajo manual en modelado 3D y texturizado",
+            "target": "Equipos de Diseño Técnico, Estudios Indie & Arte Digital en Juegos",
+            "stack": [
+                {"name": "Generación Procedural IA", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Automatización Blender/DCC", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Síntesis de Texturas PBR", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Físicas y Animación In-Engine", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "LiveOps y Telemetría de Jugadores",
+            "problem": "Abandono temprano de usuarios y complejidad en gestión de eventos en vivo",
+            "target": "Product Managers de Videojuegos & Operadores de Juegos como Servicio",
+            "stack": [
+                {"name": "LiveOps Engine en Nube", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Telemetría de Retención", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Economía In-Game Segura", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "SDKs Multiplataforma", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        }
+    ],
     "tech": [
         {
             "title": "Automatización de Conversión B2B",
@@ -1096,10 +1163,13 @@ def _build_fallback_trend_data(trend_data: Dict[str, Any], index: int = 0) -> Di
         matched_family = "salud"
     elif any(k in search_str for k in ["educa", "edtech", "capacit", "escuela", "universidad", "aprender", "curso"]):
         matched_family = "educacion"
-    elif any(k in search_str for k in ["construc", "inmobil", "proptech", "arquitect", "obra", "bienes raices", "real estate"]):
-        matched_family = "construccion"
+    elif any(k in search_str for k in ["videojuego", "juego", "gaming", "game", "gamedev", "esport", "gamer", "unreal", "unity"]):
+        matched_family = "gaming"
     elif any(k in search_str for k in ["ti", "software", "devops", "cloud", "saas", "nube", "it", "sistemas", "desarrollo", "tecnolog"]):
-        matched_family = "tech"
+        # Solo asignar tech si la industria del usuario realmente es del ámbito de TI / software,
+        # o si la búsqueda no tiene una industria específica de otro nicho.
+        if any(tk in cat_raw.lower() for tk in ["ti", "software", "devops", "cloud", "saas", "nube", "it", "sistemas", "desarrollo", "tecnolog"]) or cat_raw.lower() in ("ti & software b2b", "general", "tech"):
+            matched_family = "tech"
 
     theme_idx = index % 4
     if matched_tool_entry:

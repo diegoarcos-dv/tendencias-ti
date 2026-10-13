@@ -395,6 +395,8 @@ INDUSTRY_SUBREDDIT_MAP = {
     "adtech": ["adops", "marketing", "digitalmarketing", "SaaS"],
     "ti": ["SaaS", "technology", "devops", "cloud"],
     "software": ["SaaS", "technology", "devops", "software"],
+    "videojuegos": ["gamedev", "gaming", "vfx", "technology"],
+    "gaming": ["gamedev", "gaming", "vfx", "technology"],
 }
 
 INDUSTRY_KEYWORD_MAP = {
@@ -413,6 +415,8 @@ INDUSTRY_KEYWORD_MAP = {
     "adtech": ["adtech", "martech", "programmatic ads", "marketing automation"],
     "ti": ["saas b2b", "inteligencia artificial", "cloud computing", "ciberseguridad", "microservicios"],
     "software": ["saas b2b", "software empresarial", "cloud computing", "devops", "erp cloud"],
+    "videojuegos": ["videojuegos", "desarrollo videojuegos", "gamedev", "motores graficos", "gaming tech"],
+    "gaming": ["gaming", "gamedev", "desarrollo videojuegos", "motores graficos"],
 }
 
 
