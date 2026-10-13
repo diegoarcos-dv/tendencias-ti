@@ -1493,13 +1493,14 @@ _KNOWN_INDUSTRIES: Tuple[Tuple[str, str, Tuple[str, ...]], ...] = (
     ("Redes 5G", "tech", ("5g",)),
     ("Software CRM", "tech", ("crm",)),
     ("Software ERP", "tech", ("erp",)),
-    ("Marketing Digital", "tech", ()),
+    ("Marketing Digital", "tech", ("marketing", "mercadotecnia", "publicidad", "ads", "digital marketing", "mercadeo")),
+    ("DevOps", "tech", ("dev ops", "sre", "infraestructura cloud")),
     ("EdTech", "tech", ("tecnologia educativa",)),
     ("HealthTech", "tech", ("salud digital",)),
     ("AgroTech", "tech", ("agritech", "agtech")),
-    ("PropTech", "tech", ()),
-    ("InsurTech", "tech", ()),
-    ("LegalTech", "tech", ()),
+    ("PropTech", "tech", ("prop tech",)),
+    ("InsurTech", "tech", ("insur tech",)),
+    ("LegalTech", "tech", ("legal tech",)),
     # ---- retail ----
     ("E-Commerce", "retail", (
         "ecommerce", "comercio electronico", "tienda online", "tiendas online", "tienda en linea",
@@ -1514,13 +1515,13 @@ _KNOWN_INDUSTRIES: Tuple[Tuple[str, str, Tuple[str, ...]], ...] = (
     ("Supermercados", "retail", ("supermercado", "abarrotes")),
     ("Consumo Masivo", "retail", ("bienes de consumo", "productos de consumo")),
     ("Belleza y Cosmética", "retail", ("belleza", "cosmetica", "cosmeticos")),
-    ("Comercio", "retail", ()),
+    ("Comercio", "retail", ("ventas", "comercial")),
     # ---- general ----
     ("Pesca", "general", ()),
     ("Industria Pesquera", "general", ("pesquera", "pesqueria", "sector pesquero")),
     ("Acuicultura", "general", ("acuacultura",)),
     ("Agricultura", "general", ("agro", "sector agricola")),
-    ("Agroindustria", "general", ()),
+    ("Agroindustria", "general", ("agro industria",)),
     ("Ganadería", "general", ("ganado",)),
     ("Minería", "general", ("industria minera",)),
     ("Hidroponía", "general", ("hidroponico", "cultivo hidroponico")),
@@ -1532,11 +1533,11 @@ _KNOWN_INDUSTRIES: Tuple[Tuple[str, str, Tuple[str, ...]], ...] = (
     ("Logística", "general", ("logistica y transporte", "cadena de suministro", "supply chain")),
     ("Transporte", "general", ()),
     ("Educación", "general", ("sector educativo",)),
-    ("Turismo", "general", ()),
+    ("Turismo", "general", ("viajes", "agencia de viajes")),
     ("Hotelería", "general", ("sector hotelero",)),
     ("Banca", "general", ("sector bancario", "banco", "bancos")),
     ("Seguros", "general", ("aseguradoras",)),
-    ("Finanzas", "general", ()),
+    ("Finanzas", "general", ("sector financiero", "financiero")),
     ("Construcción", "general", ("industria de la construccion",)),
     ("Inmobiliaria", "general", ("bienes raices", "sector inmobiliario", "real estate")),
     ("Energía", "general", ("sector energetico",)),
@@ -1545,15 +1546,15 @@ _KNOWN_INDUSTRIES: Tuple[Tuple[str, str, Tuple[str, ...]], ...] = (
     ("Automotriz", "general", ("industria automotriz", "industria automovilistica")),
     ("Manufactura", "general", ("industria manufacturera",)),
     ("Alimentos y Bebidas", "general", ("alimentos", "bebidas", "industria alimentaria")),
-    ("Gastronomía", "general", ("restaurantes",)),
-    ("Entretenimiento", "general", ()),
+    ("Gastronomía", "general", ("restaurantes", "restaurante", "comida")),
+    ("Entretenimiento", "general", ("show", "espectaculos")),
     ("Licitaciones", "general", ("compras publicas", "contrataciones publicas")),
     ("Recursos Humanos", "general", ("rrhh", "hr")),
-    ("Consultoría", "general", ()),
+    ("Consultoría", "general", ("consultoria", "asesoria", "servicios profesionales")),
     ("Sector Legal", "general", ("servicios legales", "derecho")),
     ("Aeroespacial", "general", ("industria aeroespacial",)),
     ("Reciclaje", "general", ("gestion de residuos", "manejo de residuos")),
-    ("Deportes", "general", ()),
+    ("Deportes", "general", ("deporte", "fitness")),
 )
 
 _INDUSTRY_SYSTEM_PROMPT = (
@@ -1860,6 +1861,17 @@ async def _classify_user_input_impl(
         return _industry_result(False, razon=_MSG_INDUSTRY_GIBBERISH)
 
     selected_model = model or settings.OLLAMA_MODEL
+    # Detección dinámica y rápida de modelo disponible en Ollama para evitar fallos por tags inexistentes
+    try:
+        tags_resp = await get_http_client().get(f"{settings.OLLAMA_BASE_URL}/api/tags", timeout=2.0)
+        if tags_resp.status_code == 200:
+            available_models = [m["name"] for m in tags_resp.json().get("models", [])]
+            if selected_model not in available_models and available_models:
+                gemma_models = [m for m in available_models if "gemma" in m]
+                selected_model = gemma_models[0] if gemma_models else available_models[0]
+    except Exception:
+        pass
+
     classification: Optional[IndustryClassification] = None
     for attempt in range(1, _INDUSTRY_LLM_ATTEMPTS + 1):
         classification, failure = await _query_industry_llm(cleaned_input, selected_model, attempt)
@@ -1875,6 +1887,13 @@ async def _classify_user_input_impl(
 
     if classification is None:
         logger.error(f"[Clasificador Industria] Sin respuesta utilizable de Ollama para '{cleaned_input[:40]}'.")
+        # Rescate Resiliente de Infraestructura: Si Ollama está saturado o caído,
+        # pero el usuario escribió un término limpio (1 a 4 palabras, sin inyecciones ni groserías),
+        # aceptarlo directamente para no bloquear la experiencia en un bucle de error.
+        if len(token_text.split()) <= 4 and _is_usable_industry_name(cleaned_input):
+            rescued_name = _sanitize_industry_name(cleaned_input).title()
+            logger.info(f"[Clasificador Rescate] Aceptando '{cleaned_input}' como '{rescued_name}' por rescate de infraestructura.")
+            return _industry_result(True, rescued_name, "general", origen="rescate_infraestructura")
         return _industry_result(False, razon=_MSG_INDUSTRY_TECH_ERROR, error_tecnico=True)
 
     if classification.valido:
