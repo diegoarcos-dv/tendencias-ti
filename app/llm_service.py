@@ -395,8 +395,12 @@ Devuelve un JSON estrictamente válido en ESPAÑOL. El análisis debe vincular l
 
     final_card["title"] = clean_title
 
-    raw_sector = card_json.get("sector") or card_json.get("categoria") or fallback["sector"]
-    final_card["sector"] = str(raw_sector)
+    # Garantizar que el sector visible en la tarjeta sea fiel a la industria seleccionada por el usuario
+    if user_industry and user_industry.lower() not in ("ti & software b2b", "general", "tech"):
+        final_card["sector"] = f"{user_industry.title()} · Mercado Corporativo"
+    else:
+        raw_sector = card_json.get("sector") or card_json.get("categoria") or fallback["sector"]
+        final_card["sector"] = str(raw_sector)
 
     final_card["target_industry"] = str(card_json.get("target_industry") or card_json.get("industria") or fallback["target_industry"])[:65]
     clean_prob = str(card_json.get("problem_solved") or card_json.get("problema") or fallback["problem_solved"])[:65]
@@ -1020,6 +1024,52 @@ _INDUSTRY_THEMES: Dict[str, List[Dict[str, Any]]] = {
             ]
         }
     ],
+    "marketing": [
+        {
+            "title": "Automatización de Campañas y MarTech",
+            "problem": "Pérdida de leads por seguimiento manual y lentitud en orquestación",
+            "target": "Agencias Digitales, Marcas B2B & Equipos de Growth",
+            "stack": [
+                {"name": "APIs de Meta / Google Ads", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "HubSpot / Klaviyo Webhooks", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Modelos LTV Predictivos", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Customer Data Platform (CDP)", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Atribución y Analítica First-Party",
+            "problem": "Incertidumbre de ROI tras fin de cookies de terceros y silos de datos",
+            "target": "Directores de Marketing CMO, E-Commerce & Retail B2B",
+            "stack": [
+                {"name": "Server-Side GTM / CAPI", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Snowflake / BigQuery Marketing", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Modelos Marketing Mix (MMM)", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Dashboards Looker Studio", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "Optimización de Conversión con IA (CRO)",
+            "problem": "Baja tasa de conversión en landing pages y alto costo de adquisición",
+            "target": "Equipos de Performance, SaaS B2B & Tiendas Online",
+            "stack": [
+                {"name": "Tests A/B Automatizados", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Generación Dinámica de Copy", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Mapas de Calor y Sesiones", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Edge Personalization CDN", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        },
+        {
+            "title": "AdTech y Compra Programática",
+            "problem": "Desperdicio de presupuesto en impresiones de bajo valor y fraude publicitario",
+            "target": "Plataformas DSP / SSP, Medios Digitales & Anunciantes B2B",
+            "stack": [
+                {"name": "Protocolo OpenRTB 3.0", "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"},
+                {"name": "Validación Anti-Fraude AdTech", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Bidding Algorítmico", "icon_color": "mint", "tag_class": "scaling", "tag_label": "Escalando"},
+                {"name": "Infraestructura Redshift / ClickHouse", "icon_color": "neutral", "tag_class": "stable", "tag_label": "Consolidado"}
+            ]
+        }
+    ],
     "gaming": [
         {
             "title": "Motores Gráficos y Render Cloud",
@@ -1127,7 +1177,62 @@ def _build_fallback_trend_data(trend_data: Dict[str, Any], index: int = 0) -> Di
     geo = str(trend_data.get("geo_region") or "Global").strip()
     search_str = f"{cat_raw} {tool_raw} {summary_raw}".lower()
 
-    # Mapeo especializado por herramientas emblemáticas conocidas
+    # 1. Prioridad Categórica Absoluta: Primero resolvemos por la industria del usuario (cat_raw)
+    matched_family = None
+    cat_lower = cat_raw.lower()
+    if any(k in cat_lower for k in ["marketing", "mercadotecnia", "publicidad", "ads", "growth", "adtech", "martech"]):
+        matched_family = "marketing"
+    elif any(k in cat_lower for k in ["videojuego", "juego", "gaming", "game", "gamedev", "esport", "gamer"]):
+        matched_family = "gaming"
+    elif any(k in cat_lower for k in ["cripto", "bitcoin", "crypto", "blockchain", "web3", "token", "defi", "solana", "ethereum"]):
+        matched_family = "cripto"
+    elif any(k in cat_lower for k in ["agri", "agro", "campo", "cultivo", "cosecha", "hidropon", "riego", "ganader", "pesca"]):
+        matched_family = "agro"
+    elif any(k in cat_lower for k in ["inteligencia artificial", "ia", "ai", "machine learning", "deep learning", "llm", "vision artificial", "ciencia de datos"]):
+        matched_family = "ia"
+    elif any(k in cat_lower for k in ["ciber", "seguridad", "security", "hacking", "firewall", "zero trust", "soc"]):
+        matched_family = "seguridad"
+    elif any(k in cat_lower for k in ["fintech", "finanz", "banca", "banco", "pago", "credito", "contab", "fiscal", "sat", "factur"]):
+        matched_family = "fintech"
+    elif any(k in cat_lower for k in ["e-commerce", "ecommerce", "retail", "comercio", "tienda", "marketplace", "dropshipping", "calzado", "moda"]):
+        matched_family = "retail"
+    elif any(k in cat_lower for k in ["logist", "transporte", "supply chain", "almacen", "cedis", "flota", "distribucion", "flete"]):
+        matched_family = "logistica"
+    elif any(k in cat_lower for k in ["salud", "medicin", "health", "hospital", "clinic", "paciente", "farmac", "biotech"]):
+        matched_family = "salud"
+    elif any(k in cat_lower for k in ["educa", "edtech", "capacit", "escuela", "universidad", "aprender", "curso"]):
+        matched_family = "educacion"
+    elif any(k in cat_lower for k in ["devops", "cloud", "saas", "nube", "it", "sistemas", "desarrollo", "software", "tecnolog"]) or cat_lower in ("ti & software b2b", "general", "tech"):
+        matched_family = "tech"
+
+    # 2. Si cat_raw no dio coincidencia específica, buscar en el texto general (search_str)
+    if not matched_family:
+        if any(k in search_str for k in ["marketing", "mercadotecnia", "publicidad", "adtech", "martech"]):
+            matched_family = "marketing"
+        elif any(k in search_str for k in ["videojuego", "juego", "gaming", "game", "gamedev", "esport", "gamer"]):
+            matched_family = "gaming"
+        elif any(k in search_str for k in ["cripto", "bitcoin", "crypto", "blockchain", "web3", "token", "defi"]):
+            matched_family = "cripto"
+        elif any(k in search_str for k in ["agricultura", "agro", "cultivo", "cosecha", "hidropon", "ganader", "pesca"]):
+            matched_family = "agro"
+        elif any(k in search_str for k in ["inteligencia artificial", "ia", "ai", "machine learning", "deep learning", "llm"]):
+            matched_family = "ia"
+        elif any(k in search_str for k in ["ciber", "seguridad", "security", "zero trust"]):
+            matched_family = "seguridad"
+        elif any(k in search_str for k in ["fintech", "finanz", "banca", "banco", "pago"]):
+            matched_family = "fintech"
+        elif any(k in search_str for k in ["e-commerce", "ecommerce", "retail", "marketplace"]):
+            matched_family = "retail"
+        elif any(k in search_str for k in ["logist", "transporte", "supply chain"]):
+            matched_family = "logistica"
+        elif any(k in search_str for k in ["salud", "medicin", "health", "hospital"]):
+            matched_family = "salud"
+        elif any(k in search_str for k in ["educa", "edtech", "universidad"]):
+            matched_family = "educacion"
+        elif any(k in search_str for k in ["software", "devops", "cloud", "saas"]):
+            matched_family = "tech"
+
+    # Mapeo especializado por herramientas emblemáticas conocidas (solo si la industria del usuario es de TI o afín)
     known_tool_matches = {
         "proofsource": ("Automatización de Conversión y Prueba Social B2B", "Baja tasa de conversión en checkout y credibilidad de marca", "E-Commerce B2B, Retail Digital & Empresas SaaS"),
         "basedash": ("Modernización de Interfaces para Bases de Datos", "Dificultad de acceso seguro sin código a bases de datos relacionales", "Empresas de Software, Logística & Equipos DevOps"),
@@ -1137,39 +1242,13 @@ def _build_fallback_trend_data(trend_data: Dict[str, Any], index: int = 0) -> Di
     }
 
     matched_tool_entry = None
-    if index == 0:
+    # Solo aplicar bypass de herramienta concreta si el usuario NO tiene un nicho explícito incompatible
+    user_has_custom_niche = matched_family and matched_family not in ("tech",)
+    if index == 0 and not user_has_custom_niche:
         for tool_k, tool_v in known_tool_matches.items():
             if tool_k in tool_raw.lower():
                 matched_tool_entry = tool_v
                 break
-
-    # Resolver familia temática por semántica
-    matched_family = None
-    if any(k in search_str for k in ["cripto", "bitcoin", "crypto", "blockchain", "web3", "token", "defi", "solana", "ethereum"]):
-        matched_family = "cripto"
-    elif any(k in search_str for k in ["agri", "agro", "campo", "cultivo", "cosecha", "hidropon", "riego", "ganader", "pesca"]):
-        matched_family = "agro"
-    elif any(k in search_str for k in ["inteligencia artificial", "ia", "ai", "machine learning", "deep learning", "llm", "vision artificial", "ciencia de datos"]):
-        matched_family = "ia"
-    elif any(k in search_str for k in ["ciber", "seguridad", "security", "hacking", "firewall", "zero trust", "soc"]):
-        matched_family = "seguridad"
-    elif any(k in search_str for k in ["fintech", "finanz", "banca", "banco", "pago", "credito", "contab", "fiscal", "sat", "factur"]):
-        matched_family = "fintech"
-    elif any(k in search_str for k in ["e-commerce", "ecommerce", "retail", "comercio", "tienda", "marketplace", "dropshipping", "calzado", "moda"]):
-        matched_family = "retail"
-    elif any(k in search_str for k in ["logist", "transporte", "supply chain", "almacen", "cedis", "flota", "distribucion", "flete"]):
-        matched_family = "logistica"
-    elif any(k in search_str for k in ["salud", "medicin", "health", "hospital", "clinic", "paciente", "farmac", "biotech"]):
-        matched_family = "salud"
-    elif any(k in search_str for k in ["educa", "edtech", "capacit", "escuela", "universidad", "aprender", "curso"]):
-        matched_family = "educacion"
-    elif any(k in search_str for k in ["videojuego", "juego", "gaming", "game", "gamedev", "esport", "gamer", "unreal", "unity"]):
-        matched_family = "gaming"
-    elif any(k in search_str for k in ["ti", "software", "devops", "cloud", "saas", "nube", "it", "sistemas", "desarrollo", "tecnolog"]):
-        # Solo asignar tech si la industria del usuario realmente es del ámbito de TI / software,
-        # o si la búsqueda no tiene una industria específica de otro nicho.
-        if any(tk in cat_raw.lower() for tk in ["ti", "software", "devops", "cloud", "saas", "nube", "it", "sistemas", "desarrollo", "tecnolog"]) or cat_raw.lower() in ("ti & software b2b", "general", "tech"):
-            matched_family = "tech"
 
     theme_idx = index % 4
     if matched_tool_entry:

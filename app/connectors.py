@@ -593,6 +593,18 @@ ZONE_GEO_MAPPING = {
     "Colombia": {"geo": "CO", "name": "Colombia", "url": "https://trends.google.com/trending/rss?geo=CO"},
     "Latinoamérica": {"geo": "", "name": "Latinoamérica", "url": "https://trends.google.com/trending/rss"},
     "LatAm": {"geo": "", "name": "Latinoamérica", "url": "https://trends.google.com/trending/rss"},
+    "Brasil": {"geo": "BR", "name": "Brasil", "url": "https://trends.google.com/trending/rss?geo=BR"},
+    "Brazil": {"geo": "BR", "name": "Brasil", "url": "https://trends.google.com/trending/rss?geo=BR"},
+    "España": {"geo": "ES", "name": "España", "url": "https://trends.google.com/trending/rss?geo=ES"},
+    "Argentina": {"geo": "AR", "name": "Argentina", "url": "https://trends.google.com/trending/rss?geo=AR"},
+    "Chile": {"geo": "CL", "name": "Chile", "url": "https://trends.google.com/trending/rss?geo=CL"},
+    "Perú": {"geo": "PE", "name": "Perú", "url": "https://trends.google.com/trending/rss?geo=PE"},
+    "Peru": {"geo": "PE", "name": "Perú", "url": "https://trends.google.com/trending/rss?geo=PE"},
+    "Alemania": {"geo": "DE", "name": "Alemania", "url": "https://trends.google.com/trending/rss?geo=DE"},
+    "Reino Unido": {"geo": "GB", "name": "Reino Unido", "url": "https://trends.google.com/trending/rss?geo=GB"},
+    "Francia": {"geo": "FR", "name": "Francia", "url": "https://trends.google.com/trending/rss?geo=FR"},
+    "Canadá": {"geo": "CA", "name": "Canadá", "url": "https://trends.google.com/trending/rss?geo=CA"},
+    "Canada": {"geo": "CA", "name": "Canadá", "url": "https://trends.google.com/trending/rss?geo=CA"},
     "Japón": {"geo": "JP", "name": "Japón", "url": "https://trends.google.com/trending/rss?geo=JP"},
 }
 
