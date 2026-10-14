@@ -9,6 +9,7 @@ Fuentes soportadas:
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 import time
+import re
 from email.utils import parsedate_to_datetime
 import logging
 import xml.etree.ElementTree as ET
@@ -19,6 +20,25 @@ from app.config import settings
 from app.context_reader import business_context
 
 logger = logging.getLogger(__name__)
+
+# Lista perimetral de exclusión estricta (api-security-best-practices: Boundary Validation)
+# Descarta inmediatamente contenido de nota roja, política partidista, deportes y farándula.
+_NON_TECH_BLACKLIST_TERMS = (
+    # Crimen, nota roja y narcotráfico
+    "capturan", "detienen", "detenido", "detenida", "arrestan", "arresto", "cjng",
+    "cártel", "cartel", "sicarios", "balacera", "homicidio", "asesinato", "ejecutado",
+    "ejecutan", "fosa", "narcotráfico", "narco", "comandante", "fiscalía", "fgr",
+    "policía", "policia", "gn", "marina", "sedena", "secuestro", "crimen",
+    "delincuencia", "violencia", "robo", "asalto", "presunto líder", "líder criminal",
+    # Deportes y fútbol
+    "futbol", "fútbol", "partido", "champions", "liga mx", "gol", "goles",
+    "liverpool", "madrid", "barcelona", "américa", "chivas", "cruz azul", "concacaf",
+    "estadio", "delantero", "director técnico", "jornada 1", "jornada 2", "penal",
+    # Farándula, espectáculos y virales
+    "falleció", "fallece", "muere", "muerto", "muerta", "luto", "concierto",
+    "boletos", "cantante", "actriz", "actor", "boda", "divorcio", "horóscopo",
+    "horoscopo", "lotería", "loteria", "sorteo", "día de muertos", "dia de muertos"
+)
 
 # Caché en memoria de tendencias para respuesta < 1ms en consultas repetidas de la misma industria/zona
 _TRENDS_CACHE: Dict[str, Any] = {}
@@ -537,11 +557,11 @@ class RedditB2BConnector:
         return items
 
     def _fetch_b2b_tech_fallback(self, limit: int = 5, industry: Optional[str] = None) -> List[TrendItem]:
-        """Conector de Alta Fidelidad B2B: Hacker News (YCombinator) y TechCrunch Enterprise RSS."""
+        """Conector de Alta Fidelidad B2B: TechCrunch Enterprise RSS y Hacker News (Y Combinator) API oficial."""
         items: List[TrendItem] = []
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
         
-        # 1. TechCrunch Enterprise / Tech RSS Feed
+        # 1. TechCrunch Enterprise RSS Feed (Noticias oficiales de software empresarial y SaaS B2B)
         try:
             tc_url = "https://techcrunch.com/category/enterprise/feed/"
             r_tc = requests.get(tc_url, headers=headers, timeout=6)
@@ -569,35 +589,40 @@ class RedditB2BConnector:
         except Exception as e_tc:
             logger.debug(f"TechCrunch RSS omitido: {e_tc}")
 
-        # 2. Hacker News (YCombinator) RSS de tecnología y lanzamientos
+        # 2. Hacker News (Y Combinator) API oficial Firebase (resiliente, pública y sin bloqueos de rate-limit)
         if len(items) < limit:
             try:
-                feed_url = "https://news.ycombinator.com/rss"
-                r = requests.get(feed_url, headers=headers, timeout=6)
-                if r.status_code == 200:
-                    root = ET.fromstring(r.content)
-                    for entry in root.findall(".//item")[:limit]:
-                        title = entry.findtext("title") or ""
-                        link = entry.findtext("link") or "https://news.ycombinator.com"
-                        comments_link = entry.findtext("comments") or link
-                        public_b2b_url = comments_link if ("git." in link or "/api" in link or not link.startswith("http")) else link
-
-                        cat = industry if industry else "TI & Startups"
-                        item = TrendItem(
-                            title=title,
-                            source="reddit",
-                            category=cat,
-                            url=public_b2b_url,
-                            summary=f"Discusión y validación técnica en Y Combinator ({comments_link})",
-                            metric_score=140.0,
-                            raw_data={"source_channel": "Hacker News (Y Combinator)", "link": public_b2b_url, "comments": comments_link},
-                            verified_source="Hacker News (Y Combinator)",
-                            source_label="⚡ Hacker News (Y Combinator Oficial)",
-                            audit_url=comments_link
-                        ).evaluate_relevance()
-                        items.append(item)
+                hn_res = requests.get("https://hacker-news.firebaseio.com/v0/topstories.json", timeout=4)
+                if hn_res.status_code == 200:
+                    needed = limit - len(items)
+                    story_ids = hn_res.json()[:needed]
+                    for sid in story_ids:
+                        try:
+                            s_res = requests.get(f"https://hacker-news.firebaseio.com/v0/item/{sid}.json", timeout=3)
+                            if s_res.status_code == 200:
+                                sdata = s_res.json()
+                                stitle = sdata.get("title") or ""
+                                surl = sdata.get("url") or f"https://news.ycombinator.com/item?id={sid}"
+                                scomments = f"https://news.ycombinator.com/item?id={sid}"
+                                sscore = float(sdata.get("score") or 140.0)
+                                cat = industry if industry else "TI & Startups"
+                                item = TrendItem(
+                                    title=stitle,
+                                    source="reddit",
+                                    category=cat,
+                                    url=surl,
+                                    summary=f"Discusión y validación técnica en Y Combinator ({scomments})",
+                                    metric_score=sscore,
+                                    raw_data={"source_channel": "Hacker News (Y Combinator)", "link": surl, "comments": scomments},
+                                    verified_source="Hacker News (Y Combinator)",
+                                    source_label="⚡ Hacker News (Y Combinator Oficial)",
+                                    audit_url=scomments
+                                ).evaluate_relevance()
+                                items.append(item)
+                        except Exception:
+                            continue
             except Exception as e_hn:
-                logger.debug(f"Hacker News RSS omitido: {e_hn}")
+                logger.debug(f"Hacker News API omitido: {e_hn}")
 
         return items
 
@@ -696,6 +721,17 @@ class GoogleTrendsConnector:
                     title = entry.findtext("title") or ""
                     desc = entry.findtext("description") or ""
 
+                    news_url = entry.findtext(f".//{ht_ns}news_item_url") or entry.findtext(f"{ht_ns}news_item/{ht_ns}news_item_url") or ""
+
+                    # Filtro Perimetral Anti-Nota Roja, Deportes y Farándula (api-security-best-practices: Boundary Gate)
+                    raw_check_text = f"{title} {desc} {news_url}".lower()
+                    if any(term in raw_check_text for term in _NON_TECH_BLACKLIST_TERMS):
+                        continue
+
+                    # Solo admitir en Google Trends ítems rigurosamente validados por afinidad de negocio o software
+                    if not business_context.is_relevant_to_business(title, desc):
+                        continue
+
                     traffic_text = entry.findtext(f"{ht_ns}approx_traffic") or "500+"
                     cleaned_traffic = traffic_text.replace("+", "").replace(",", "").replace("K", "000").replace("M", "000000").strip()
                     try:
@@ -703,7 +739,6 @@ class GoogleTrendsConnector:
                     except ValueError:
                         metric = 500.0
 
-                    news_url = entry.findtext(f".//{ht_ns}news_item_url") or entry.findtext(f"{ht_ns}news_item/{ht_ns}news_item_url")
                     if news_url and news_url.strip().startswith("http"):
                         public_article_url = news_url.strip()
                     else:
@@ -749,16 +784,20 @@ class GoogleTrendsConnector:
         geo_param = f"&geo={geo_code}" if geo_code else ""
         for kw in target_kws[:3]:
             vol_str, geo_target, numeric_vol = keyword_volumes.get(kw.lower(), ("28,500+", geo_name, 28500.0))
+            kw_explore_url = f"https://trends.google.com/trends/explore?q={kw}{geo_param}"
             items.append(
                 TrendItem(
                     title=f"Demanda de Mercado: {kw.title()}",
                     source="google_trends",
                     category=target_industry,
-                    url=f"https://trends.google.com/trends/explore?q={kw}{geo_param}",
+                    url=kw_explore_url,
                     summary=f"Monitoreo de volumen de búsqueda, tracción y oportunidades de negocio para '{kw}' en {geo_target}.",
                     metric_score=numeric_vol,
                     geo_region=geo_target,
-                    raw_data={"keyword": kw, "approx_traffic": vol_str, "geo": geo_target, "industria": target_industry}
+                    raw_data={"keyword": kw, "approx_traffic": vol_str, "geo": geo_target, "industria": target_industry},
+                    verified_source="Google Trends Oficial",
+                    source_label=f"📈 Google Trends ({geo_target})",
+                    audit_url=kw_explore_url
                 ).evaluate_relevance()
             )
 
@@ -825,8 +864,6 @@ def fetch_all_trends(
     import concurrent.futures
 
     def _run_ph():
-        if target_cat_api != "tech":
-            return []
         try:
             items = ProductHuntConnector().fetch_trends()
             for it in items:

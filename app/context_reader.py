@@ -105,30 +105,67 @@ class BusinessContextReader:
         return self._keywords
 
     def is_relevant_to_business(self, title: str, summary: str = "") -> bool:
-        """Comprueba de forma heurística si un elemento tiene afinidad con los temas de interés."""
+        """Comprueba de forma heurística y rigurosa si un elemento tiene afinidad con TI, software y negocios B2B."""
         import re
-        text = f"{title} {summary}".lower()
-        tokens = set(re.findall(r"\b[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9_-]+\b", text))
-        
-        # Términos compuestos específicos
-        compound_terms = [
+        raw_text = f"{title} {summary}"
+        text_lower = raw_text.lower()
+
+        # 1. Filtro Perimetral Anti-Nota Roja, Deportes, Farándula y Contenido General No-Tecnológico
+        exclusion_terms = (
+            # Crimen y nota roja
+            "capturan", "detienen", "detenido", "detenida", "arrestan", "arresto", "cjng",
+            "cártel", "cartel", "sicarios", "balacera", "homicidio", "asesinato", "ejecutado",
+            "ejecutan", "fosa", "narcotráfico", "narco", "comandante", "fiscalía", "fgr",
+            "policía", "policia", "gn", "marina", "sedena", "secuestro", "crimen",
+            "delincuencia", "violencia", "robo", "asalto", "presunto líder", "líder criminal",
+            # Deportes y eventos masivos
+            "futbol", "fútbol", "partido", "champions", "liga mx", "gol", "goles",
+            "liverpool", "madrid", "barcelona", "américa", "chivas", "cruz azul",
+            "estadio", "delantero", "director técnico", "jornada 1", "jornada 2",
+            # Farándula, espectáculos y virales
+            "falleció", "fallece", "muere", "muerto", "muerta", "luto", "concierto",
+            "boletos", "cantante", "actriz", "actor", "boda", "divorcio", "horóscopo",
+            "horoscopo", "lotería", "loteria", "sorteo", "día de muertos", "dia de muertos"
+        )
+        if any(term in text_lower for term in exclusion_terms):
+            return False
+
+        # 2. Términos compuestos tecnológicos de alta especificidad
+        compound_terms = (
             "e-commerce", "comercio electrónico", "comercio electronico",
             "inteligencia artificial", "software empresarial", "business intelligence",
-            "analítica web", "analitica web", "microservicios", "cloud computing"
-        ]
-        if any(term in text for term in compound_terms):
+            "analítica web", "analitica web", "microservicios", "cloud computing",
+            "desarrollo de software", "machine learning", "deep learning",
+            "agente de ia", "agentes de ia", "ai agent", "ai agents",
+            "ciberseguridad", "seguridad informática", "seguridad informatica",
+            "open source", "código abierto", "codigo abierto", "base de datos",
+            "automatización de procesos", "automatizacion de procesos",
+            "pipeline ci/cd", "ci/cd", "devops", "fintech", "saas b2b"
+        )
+        if any(term in text_lower for term in compound_terms):
             return True
 
-        # Palabras clave exactas
+        # 3. Acrónimos técnicos exactos en mayúsculas (evita falsos positivos con pronombres como 'ti' o 'ia')
+        raw_upper_tokens = set(re.findall(r"\b[A-Z]{2,4}\b", raw_text))
+        strict_acronyms = {"TI", "IA", "AI", "API", "APIS", "ERP", "CRM", "RPA", "SaaS", "B2B", "LLM", "LLMS", "SDK", "AWS", "GCP"}
+        if raw_upper_tokens.intersection(strict_acronyms):
+            return True
+
+        # 4. Palabras clave técnicas estrictas (mínimo 3 caracteres, sin pronombres ambiguos)
+        tokens = set(re.findall(r"\b[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9_-]+\b", text_lower))
         strict_keywords = {
             "ecommerce", "saas", "b2b", "software", "analytics", "analitica", "analítica",
             "iot", "api", "apis", "copilot", "automatizacion", "automatización",
-            "rpa", "llm", "llms", "erp", "crm", "ai", "ia", "ti", "data", "security"
+            "rpa", "llm", "llms", "erp", "crm", "devops", "cloud", "ciberseguridad",
+            "fintech", "healthtech", "martech", "adtech", "proptech", "edtech",
+            "kubernetes", "docker", "python", "typescript", "microservices",
+            "algoritmo", "algoritmos", "código", "codigo", "frontend", "backend",
+            "fullstack", "servidor", "database", "postgres", "mongodb"
         }
         if tokens.intersection(strict_keywords):
             return True
 
-        # Verificar intersección con keywords cargadas de tendencias.txt (mínimo 2 coincidencias si no es un core term)
+        # 5. Intersección con palabras clave del contexto institucional (tendencias.txt)
         intersect = tokens.intersection(self._keywords)
         return len(intersect) >= 2
 

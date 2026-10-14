@@ -132,8 +132,9 @@ def select_top_trend(
         return None
 
     def calculate_tool_score(item: TrendItem) -> float:
-        # Relevancia con el archivo de negocio
-        affinity_score = 5000.0 if item.business_relevant else 0.0
+        # Relevancia estricta con el contexto de negocio (api-security-best-practices: Data Provenance & Trust)
+        # Si un ítem no es relevante y no proviene de fuentes nativas de software, penalización masiva
+        affinity_score = 6000.0 if item.business_relevant else (-50000.0 if item.source == "google_trends" else 0.0)
 
         # Afinidad con la industria personalizada del usuario
         industry_bonus = 0.0
@@ -148,7 +149,7 @@ def select_top_trend(
         if item.source == "product_hunt":
             tool_bonus = 2500.0  # Productos de software lanzados al mercado con servicios específicos
         elif item.source == "reddit":
-            tool_bonus = 1500.0  # Soluciones y discusiones técnicas B2B de desarrolladores
+            tool_bonus = 2000.0  # TechCrunch Enterprise o discusiones de ingeniería Y-Combinator
 
         # Tracción cuantitativa real
         normalized_traction = min(item.metric_score, 1000.0)
@@ -195,7 +196,7 @@ def select_top_trends(
         fresh_trends = trends
 
     def calculate_tool_score(item: TrendItem) -> float:
-        affinity_score = 5000.0 if item.business_relevant else 0.0
+        affinity_score = 6000.0 if item.business_relevant else (-50000.0 if item.source == "google_trends" else 0.0)
         industry_bonus = 0.0
         if industry and industry.lower() not in ("global", "ti & software b2b"):
             ind_words = [w.lower() for w in industry.replace("&", " ").split() if len(w) > 3]
@@ -206,31 +207,37 @@ def select_top_trends(
         if item.source == "product_hunt":
             tool_bonus = 2500.0
         elif item.source == "reddit":
-            tool_bonus = 1500.0
+            tool_bonus = 2000.0
         normalized_traction = min(item.metric_score, 1000.0)
         return affinity_score + industry_bonus + tool_bonus + normalized_traction
 
     sorted_trends = sorted(fresh_trends, key=calculate_tool_score, reverse=True)
     target_count = max(3, min(count, 5))
 
-    # Asegurar diversidad temática: no repetir títulos similares o del mismo nicho exacto
+    # Asegurar diversidad temática: no repetir productos idénticos
     chosen: List[TrendItem] = []
     seen_titles: set = set()
     for item in sorted_trends:
+        # Bloquear cualquier ítem no relevante de Google Trends
+        if not item.business_relevant and item.source not in ("product_hunt", "reddit"):
+            continue
+
         norm_t = item.title.strip().lower()
-        if any(norm_t in s or s in norm_t for s in seen_titles):
+        core_t = norm_t.replace("demanda de mercado:", "").replace("demanda:", "").strip()
+        if core_t in seen_titles:
             continue
         chosen.append(item)
-        seen_titles.add(norm_t)
+        seen_titles.add(core_t)
         if len(chosen) >= target_count:
             break
 
     if len(chosen) < target_count:
         for item in sorted_trends:
             if item not in chosen:
-                chosen.append(item)
-                if len(chosen) >= target_count:
-                    break
+                if item.business_relevant or item.source in ("product_hunt", "reddit"):
+                    chosen.append(item)
+                    if len(chosen) >= target_count:
+                        break
 
     # Resolución perezosa (on-demand) de URL real solo para las tendencias elegidas en el lote
     for item in chosen:
