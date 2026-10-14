@@ -39,15 +39,15 @@ _SEED_COMPANIES_POOL: List[Dict[str, Any]] = [
             "Integración de trámites ciudadanos de múltiples dependencias de la CDMX en una arquitectura modular de microservicios con alta concurrencia y validación de identidad digital."
         ),
         "solution": (
-            "Fábrica de software especializada en APIs REST/GraphQL, autenticación segura con e.firma y microservicios escalables en nube con trazabilidad y datos abiertos (OCDS)."
+            "Fábrica de software especializada en APIs REST/GraphQL, autenticación segura con Llave CDMX / e.firma y microservicios escalables en nube con trazabilidad y datos abiertos (OCDS)."
         ),
-        "tags": ["Fábrica de Software", "APIs & Interoperabilidad", "e.firma SAT", "Arquitectura Microservicios"],
+        "tags": ["Fábrica de Software", "APIs & Interoperabilidad", "Llave CDMX / e.firma", "Microservicios Cloud"],
         "contact_email": "tianguisdigital@adip.cdmx.gob.mx",
         "contact_web": "tianguisdigital.cdmx.gob.mx",
         "linkedin_company_url": "https://tianguisdigital.cdmx.gob.mx",
         "source_url": "https://tianguisdigital.cdmx.gob.mx",
         "demand_source_type": "Licitación Pública de Fábrica de Software y APIs (ADIP)",
-        "demand_source_label": "🏛️ Portal Oficial Tianguis Digital CDMX",
+        "demand_source_label": "🏛️ Portal de Licitaciones Tianguis Digital CDMX",
         "demand_evidence_url": "https://tianguisdigital.cdmx.gob.mx/",
         "comparison_points": [
             "Apego al Estándar de Datos para las Contrataciones Abiertas (OCDS).",
@@ -107,7 +107,7 @@ _SEED_COMPANIES_POOL: List[Dict[str, Any]] = [
         "linkedin_company_url": "https://msc.cfe.mx",
         "source_url": "https://msc.cfe.mx",
         "demand_source_type": "Concurso Abierto de Sistemas y Telemetría CFE",
-        "demand_source_label": "⚡ Micrositio de Concursos CFE",
+        "demand_source_label": "⚡ Micrositio Oficial de Concursos CFE",
         "demand_evidence_url": "https://msc.cfe.mx/",
         "comparison_points": [
             "Cumplimiento con estándares de seguridad de infraestructura crítica.",
@@ -149,63 +149,63 @@ _SEED_COMPANIES_POOL: List[Dict[str, Any]] = [
         )
     },
     {
-        "id": "demanda_banobras_fabrica",
-        "company": "Banobras (Banca de Desarrollo)",
-        "sector": "Banca de Desarrollo & Financiamiento de Infraestructura",
-        "priority": "Licitación Plurianual",
-        "status_badge": "Licitación Pública",
-        "budget": "$60,000 - $120,000 USD",
+        "id": "demanda_comprasmx_federal",
+        "company": "ComprasMX (Plataforma Federal de Contrataciones TI)",
+        "sector": "Contrataciones Públicas Federales & Soluciones TIC",
+        "priority": "Licitaciones Públicas Abiertas",
+        "status_badge": "Licitación Abierta",
+        "budget": "$60,000 - $150,000 USD",
         "problem": (
-            "Licitación LA-06-G1C-006G1C001 para la contratación de Fábrica de Software: modernización de sistemas de crédito a municipios, integración de pagos SPEI y digitalización de expedientes financieros."
+            "Convocatorias federales consolidadas para contratación de Fábricas de Software, servicios administrados de infraestructura en la nube, ciberseguridad y modernización de bases de datos gubernamentales."
         ),
         "solution": (
-            "Servicios administrados de desarrollo de software, testing automatizado (QA), integración con el Banco de México y arquitectura bancaria de alta seguridad con microservicios."
+            "Servicios administrados de desarrollo de software a la medida bajo estándares CMMI/Agile, desarrollo de microservicios con arquitectura segura y soporte técnico continuo."
         ),
-        "tags": ["Fábrica de Software", "Integración Bancaria SPEI", "Testing Automatizado QA", "Banca Digital"],
-        "contact_email": "licitaciones@banobras.gob.mx",
-        "contact_web": "banobras.gob.mx",
-        "linkedin_company_url": "https://www.banobras.gob.mx",
-        "source_url": "https://www.banobras.gob.mx",
-        "demand_source_type": "Licitación Oficial de Fábrica de Software LA-06-G1C-006G1C001",
-        "demand_source_label": "🏛️ Portal Oficial Banobras Transparencia",
-        "demand_evidence_url": "https://www.banobras.gob.mx/",
+        "tags": ["Fábricas de Software Federales", "Servicios Administrados TI", "Ciberseguridad", "Cloud Gubernamental"],
+        "contact_email": "upcp@buengobierno.gob.mx",
+        "contact_web": "upcp-compranet.buengobierno.gob.mx",
+        "linkedin_company_url": "https://upcp-compranet.buengobierno.gob.mx",
+        "source_url": "https://upcp-compranet.buengobierno.gob.mx",
+        "demand_source_type": "Plataforma Nacional de Licitaciones de Tecnologías de Información",
+        "demand_source_label": "🏛️ Plataforma Oficial ComprasMX (Licitaciones TI)",
+        "demand_evidence_url": "https://upcp-compranet.buengobierno.gob.mx/",
         "comparison_points": [
-            "Acreditación de metodologías ágiles y capacidad técnica certificada.",
-            "Protección de datos y cifrado financiero bancario de misión crítica.",
-            "Garantía de soporte y mantenimiento preventivo continuo con SLAs estrictos."
+            "Participación transparente bajo la Ley de Adquisiciones (LAASSP).",
+            "Contratos abiertos plurianuales para agencias y consultoras de software.",
+            "Evaluación por puntos y porcentajes con alta ponderación en propuesta técnica."
         ],
         "financial_quote": (
-            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Fábrica de Software Bancaria</b>\n\n"
-            "🏢 <b>Entidad:</b> Banobras (Banca de Desarrollo)\n"
-            "💡 <b>Solución:</b> Servicios Administrados de Software + Módulos SPEI\n\n"
+            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Licitaciones Públicas Federales</b>\n\n"
+            "🏢 <b>Entidad:</b> ComprasMX (Gobierno Federal / APF)\n"
+            "💡 <b>Solución:</b> Fábrica de Software Federal + Microservicios Cloud\n\n"
             "💰 <b>1. Costo Estimado de Desarrollo (COGS):</b>\n"
-            "• Tech Lead & Arquitecto Financiero (140 hrs × $55 USD): $7,700 USD\n"
-            "• Equipo de Desarrolladores FullStack (240 hrs × $28 USD): $6,720 USD\n"
-            "• Ingeniero de QA y Pruebas Automatizadas: $3,500 USD\n"
-            "👉 <b>Costo Base de Implementación:</b> ~$17,920 USD\n\n"
+            "• Tech Lead & Gerente de Proyecto PMP (160 hrs × $50 USD): $8,000 USD\n"
+            "• Equipo de Desarrolladores Senior (300 hrs × $28 USD): $8,400 USD\n"
+            "• Certificaciones de Calidad y Ciberseguridad: $4,500 USD\n"
+            "👉 <b>Costo Base de Implementación:</b> ~$20,900 USD\n\n"
             "💵 <b>2. Precio de Venta Sugerido:</b>\n"
-            "• <b>Precio Contrato Llave en Mano:</b> <b>$85,000 USD</b> (ó ~$1,530,000 MXN)\n"
-            "• <b>Margen Bruto de Implementación:</b> <b>78.9% de ganancia neta</b> ($67,080 USD)\n\n"
+            "• <b>Precio Contrato Llave en Mano:</b> <b>$95,000 USD</b> (ó ~$1,710,000 MXN)\n"
+            "• <b>Margen Bruto de Implementación:</b> <b>78% de ganancia neta</b> ($74,100 USD)\n\n"
             "🔄 <b>3. Modelo de Cobro Recurrente (Retainer / Mantenimiento Mensual):</b>\n"
-            "• Mantenimiento evolutivo de la fábrica de software: <b>$4,500 USD / mes</b>\n"
-            "• Margen mensual recurrente: ~72% ($3,240 USD/mes limpios)"
+            "• Servicios administrados de soporte y operación TI: <b>$5,500 USD / mes</b>\n"
+            "• Margen mensual recurrente: ~74% ($4,070 USD/mes limpios)"
         ),
         "scope_summary": (
-            "🏛️ <b>FICHA TÉCNICA Y DE LICITACIÓN: Banobras</b>\n\n"
-            "💼 <b>Sector:</b> Banca de Desarrollo & Finanzas Públicas\n"
-            "💰 <b>Presupuesto Estimado:</b> $60,000 - $120,000 USD\n"
-            "⏱️ <b>Tiempo de Ejecución:</b> 16 a 24 semanas\n\n"
+            "🏛️ <b>FICHA TÉCNICA Y DE CONCURSO: ComprasMX Federal</b>\n\n"
+            "💼 <b>Sector:</b> Contratación Pública Federal & TIC\n"
+            "💰 <b>Presupuesto Estimado:</b> $60,000 - $150,000 USD\n"
+            "⏱️ <b>Tiempo de Ejecución:</b> 18 a 36 semanas\n\n"
             "🛡️ <b>Fuente y Verificación Oficial:</b>\n"
-            "• <b>Convocatoria:</b> Licitación Oficial de Fábrica de Software LA-06-G1C-006G1C001\n"
-            "• <b>Portal Oficial:</b> <code>https://www.banobras.gob.mx/</code>\n\n"
+            "• <b>Convocatoria:</b> Plataforma Nacional de Licitaciones de Tecnologías de Información\n"
+            "• <b>Portal Oficial:</b> <code>https://upcp-compranet.buengobierno.gob.mx/</code>\n\n"
             "📌 <b>Requerimiento Técnico Institucional:</b>\n"
-            "Contratación de fábrica de software bajo estándares CMMI/Agile para el desarrollo, "
-            "mantenimiento de aplicaciones de crédito institucional e interoperabilidad bancaria con el Banco de México.\n\n"
+            "Provisión de servicios administrados de desarrollo y mantenimiento de aplicaciones de software "
+            "para dependencias de la Administración Pública Federal con metodologías ágiles.\n\n"
             "🛠️ <b>Entregables Técnicos Requeridos (SOW):</b>\n"
-            "1. Módulos de originación y seguimiento de crédito municipal.\n"
-            "2. Conector seguro SPEI con conciliación transaccional en tiempo real.\n"
-            "3. Suite de pruebas automatizadas y aseguramiento de calidad (QA).\n"
-            "4. Repositorio de código documentado con pipelines de CI/CD automatizados."
+            "1. Bolsa de horas de fábrica de software con células dedicadas.\n"
+            "2. Desarrollo de microservicios con APIs documentadas bajo OpenAPI 3.0.\n"
+            "3. Plan de aseguramiento de calidad (QA) y pruebas de vulnerabilidad.\n"
+            "4. Transferencia tecnológica y documentación exhaustiva de arquitectura."
         )
     },
     {
@@ -269,244 +269,123 @@ _SEED_COMPANIES_POOL: List[Dict[str, Any]] = [
         )
     },
     {
-        "id": "demanda_infonavit_digital",
-        "company": "Infonavit",
-        "sector": "Crédito Hipotecario & Seguridad Social",
-        "priority": "Convocatoria Abierta",
-        "status_badge": "Licitación TI",
-        "budget": "$30,000 - $55,000 USD",
+        "id": "demanda_pemex_procurement",
+        "company": "PEMEX Procurement (Petróleos Mexicanos)",
+        "sector": "Energía & Adquisiciones Corporativas Internacionales",
+        "priority": "Concursos Internacionales",
+        "status_badge": "Convocatoria Proveedor",
+        "budget": "$70,000 - $140,000 USD",
         "problem": (
-            "Modernización de la ventanilla digital de consulta de saldos y créditos hipotecarios. Requerimiento de autenticación biométrica y APIs de interoperabilidad con el SAT y bancos participantes."
+            "Concursos internacionales y nacionales de adquisición de software especializado, automatización de auditorías de suministros y digitalización de procesos de procura y logística industrial."
         ),
         "solution": (
-            "Portal transaccional web y móvil de autoservicio con arquitectura serverless, validación criptográfica de identidad y conectores bidireccionales con bases de datos hipotecarias."
+            "Plataforma de integración transaccional para control de inventarios críticos, auditoría digital con trazabilidad y conectores con sistemas ERP corporativos."
         ),
-        "tags": ["Identidad Digital", "Microservicios Serverless", "Interoperabilidad SAT", "Seguridad de Datos"],
-        "contact_email": "proveeduria@infonavit.org.mx",
-        "contact_web": "portalmx.infonavit.org.mx",
-        "linkedin_company_url": "https://portalmx.infonavit.org.mx",
-        "source_url": "https://portalmx.infonavit.org.mx",
-        "demand_source_type": "Portal de Proveedores y Convocatorias de Tecnología Infonavit",
-        "demand_source_label": "🏠 Portal de Proveedores Infonavit",
-        "demand_evidence_url": "https://portalmx.infonavit.org.mx/",
+        "tags": ["Procura Industrial", "Sistemas Transaccionales", "Trazabilidad Logística", "ERP Corporativo"],
+        "contact_email": "info@pemexprocurement.com",
+        "contact_web": "pemexprocurement.com",
+        "linkedin_company_url": "https://pemexprocurement.com",
+        "source_url": "https://pemexprocurement.com",
+        "demand_source_type": "Portal Internacional de Adquisiciones y Concursos PEMEX",
+        "demand_source_label": "🛢️ Portal Oficial Pemex Procurement",
+        "demand_evidence_url": "https://pemexprocurement.com/",
         "comparison_points": [
-            "Manejo de millones de consultas concurrentes de trabajadores.",
-            "Blindaje de datos personales y cumplimiento normativo estricto.",
-            "Auditoría en tiempo real de transacciones y folios de crédito."
+            "Acceso formal a concursos abiertos internacionales de tecnología.",
+            "Cumplimiento con estándares corporativos anticorrupción y de transparencia.",
+            "Integración de sistemas de procura con plataformas ERP líderes en la industria."
         ],
         "financial_quote": (
-            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Ventanilla Digital Hipotecaria</b>\n\n"
-            "🏢 <b>Entidad:</b> Infonavit\n"
-            "💡 <b>Solución:</b> Portal Autoservicio + Autenticación e.firma/Biometría\n\n"
+            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Plataforma de Procura Industrial</b>\n\n"
+            "🏢 <b>Entidad:</b> PEMEX Procurement (Petróleos Mexicanos)\n"
+            "💡 <b>Solución:</b> Plataforma Transaccional de Suministros + Auditoría Digital\n\n"
             "💰 <b>1. Costo Estimado de Desarrollo (COGS):</b>\n"
-            "• Desarrollador Frontend Seguro (80 hrs × $35 USD): $2,800 USD\n"
-            "• Ingeniero Backend Serverless (120 hrs × $35 USD): $4,200 USD\n"
-            "• Módulo de Cifrado y Ciberseguridad: $2,500 USD\n"
-            "👉 <b>Costo Base de Implementación:</b> ~$9,500 USD\n\n"
+            "• Arquitecto de Software Enterprise (150 hrs × $55 USD): $8,250 USD\n"
+            "• Desarrolladores Backend ERP/Integraciones (250 hrs × $32 USD): $8,000 USD\n"
+            "• Módulo de Auditoría y Trazabilidad Criptográfica: $4,500 USD\n"
+            "👉 <b>Costo Base de Implementación:</b> ~$20,750 USD\n\n"
             "💵 <b>2. Precio de Venta Sugerido:</b>\n"
-            "• <b>Precio Llave en Mano:</b> <b>$38,000 USD</b> (ó ~$680,000 MXN)\n"
-            "• <b>Margen Bruto de Implementación:</b> <b>75% de ganancia neta</b> ($28,500 USD)\n\n"
+            "• <b>Precio Contrato Llave en Mano:</b> <b>$89,000 USD</b> (ó ~$1,600,000 MXN)\n"
+            "• <b>Margen Bruto de Implementación:</b> <b>76.7% de ganancia neta</b> ($68,250 USD)\n\n"
             "🔄 <b>3. Modelo de Cobro Recurrente (Retainer / Mantenimiento Mensual):</b>\n"
-            "• Monitoreo de disponibilidad y soporte de parches: <b>$1,800 USD / mes</b>\n"
-            "• Margen mensual recurrente: ~70% ($1,260 USD/mes limpios)"
+            "• Mantenimiento de plataforma y soporte de alta disponibilidad: <b>$4,200 USD / mes</b>\n"
+            "• Margen mensual recurrente: ~75% ($3,150 USD/mes limpios)"
         ),
         "scope_summary": (
-            "🏠 <b>FICHA TÉCNICA Y DE CONVOCATORIA: Infonavit</b>\n\n"
-            "💼 <b>Sector:</b> Vivienda, Crédito Hipotecario & Seguridad Social\n"
-            "💰 <b>Presupuesto Estimado:</b> $30,000 - $55,000 USD\n"
-            "⏱️ <b>Tiempo de Entrega:</b> 10 a 14 semanas\n\n"
+            "🛢️ <b>FICHA TÉCNICA Y DE CONCURSO: Pemex Procurement</b>\n\n"
+            "💼 <b>Sector:</b> Energía, Petróleo & Adquisiciones Industriales\n"
+            "💰 <b>Presupuesto Estimado:</b> $70,000 - $140,000 USD\n"
+            "⏱️ <b>Tiempo de Ejecución:</b> 16 a 22 semanas\n\n"
             "🛡️ <b>Fuente y Verificación Oficial:</b>\n"
-            "• <b>Convocatoria:</b> Portal de Proveedores y Convocatorias de Tecnología Infonavit\n"
-            "• <b>Portal Oficial:</b> <code>https://portalmx.infonavit.org.mx/</code>\n\n"
+            "• <b>Convocatoria:</b> Portal Internacional de Adquisiciones y Concursos PEMEX\n"
+            "• <b>Portal Oficial:</b> <code>https://pemexprocurement.com/</code>\n\n"
             "📌 <b>Requerimiento Técnico Institucional:</b>\n"
-            "Desarrollo de componentes web seguros y APIs para la gestión automatizada de expedientes de crédito hipotecario, "
-            "con validación directa ante bases de datos oficiales.\n\n"
+            "Desarrollo e integración de módulos digitales para la trazabilidad y auditoría de procesos de compra, "
+            "adjudicación y control de inventarios críticos para operaciones energéticas.\n\n"
             "🛠️ <b>Entregables Técnicos Requeridos (SOW):</b>\n"
-            "1. Portal web progresivo (PWA) responsivo para consulta ciudadana.\n"
-            "2. Conector seguro con webservices del SAT para verificación fiscal de ingresos.\n"
-            "3. Encriptación de extremo a extremo de documentos PDF y contratos.\n"
-            "4. Bitácora inmutable de accesos para auditorías internas."
+            "1. Portal web transaccional seguro con autenticación de dos factores.\n"
+            "2. Conectores certificados con plataformas ERP corporativas (SAP/Oracle).\n"
+            "3. Módulo inmutable de auditoría para trazabilidad de licitaciones y contratos.\n"
+            "4. Panel analítico de métricas de compra y desempeño de proveedores."
         )
     },
     {
-        "id": "demanda_traxion_logistica",
-        "company": "Grupo Traxión",
-        "sector": "Supply Chain, Logística & Movilidad Integral",
-        "priority": "Homologación Proveedores",
-        "status_badge": "Registro Proveedores",
-        "budget": "$22,000 - $38,000 USD",
+        "id": "demanda_concurso_digital_cdmx",
+        "company": "Concurso Digital CDMX (Secretaría de Finanzas)",
+        "sector": "Finanzas Públicas & Convocatorias de Licitación",
+        "priority": "Convocatorias Abiertas",
+        "status_badge": "Concurso Abierto",
+        "budget": "$30,000 - $60,000 USD",
         "problem": (
-            "Convocatoria corporativa de tecnología logística: necesidad de unificar telemetría GPS de unidades de carga pesada y proveer webhooks directos a clientes corporativos para tracking en vivo."
+            "Convocatorias públicas para desarrollo de sistemas hacendarios, portales de recaudación digital, timbrado masivo CFDI 4.0 y plataformas de atención a contribuyentes."
         ),
         "solution": (
-            "Torre de control telemática con tracking satelital, estimación dinámica de tiempos de llegada (ETA) con machine learning y webhooks automáticos para portales de clientes B2B."
+            "Desarrollo de módulos transaccionales de cobro con pasarelas bancarias autorizadas, validación fiscal automática y servicios de alta concurrencia con alta disponibilidad."
         ),
-        "tags": ["IoT & Telemetría GPS", "Algoritmos ETA / Tráfico", "Webhooks Corporativos", "Portal Autoservicio"],
-        "contact_email": "proveedores@traxion.global",
-        "contact_web": "traxion.global",
-        "linkedin_company_url": "https://traxion.global",
-        "source_url": "https://traxion.global",
-        "demand_source_type": "Portal Corporativo de Proveedores y Cadena de Suministro Traxión",
-        "demand_source_label": "🚛 Plataforma Corporativa Traxión",
-        "demand_evidence_url": "https://traxion.global/es/",
+        "tags": ["Sistemas Hacendarios", "Timbrado CFDI 4.0", "Pasarelas Bancarias", "Seguridad Fiscal"],
+        "contact_email": "concursodigital@finanzas.cdmx.gob.mx",
+        "contact_web": "concursodigital.finanzas.cdmx.gob.mx",
+        "linkedin_company_url": "https://concursodigital.finanzas.cdmx.gob.mx",
+        "source_url": "https://concursodigital.finanzas.cdmx.gob.mx/convocatorias_publicas",
+        "demand_source_type": "Sistema Electrónico de Convocatorias Públicas de la CDMX",
+        "demand_source_label": "🏛️ Convocatorias Públicas Concurso Digital CDMX",
+        "demand_evidence_url": "https://concursodigital.finanzas.cdmx.gob.mx/convocatorias_publicas",
         "comparison_points": [
-            "Ahorro operativo sustancial al automatizar reportes de estatus.",
-            "Garantía de SLAs y trazabilidad para auditorías de clientes enterprise.",
-            "Compatibilidad con dispositivos telemáticos estándar del mercado."
+            "Convocatorias oficiales vigentes de la Secretaría de Administración y Finanzas.",
+            "Blindaje de seguridad transaccional para pagos de contribuciones locales.",
+            "Descarga directa de bases y anexos técnicos sin costo."
         ],
         "financial_quote": (
-            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Logística & Telemetría IoT</b>\n\n"
-            "🏢 <b>Cliente:</b> Grupo Traxión\n"
-            "💡 <b>Solución:</b> Torre de Control GPS + Algoritmo ETA + Webhooks B2B\n\n"
+            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Sistemas Hacendarios & Recaudación</b>\n\n"
+            "🏢 <b>Entidad:</b> Concurso Digital CDMX (Secretaría de Finanzas)\n"
+            "💡 <b>Solución:</b> Módulo de Recaudación Digital + Timbrado CFDI 4.0\n\n"
             "💰 <b>1. Costo Estimado de Desarrollo (COGS):</b>\n"
-            "• Desarrollador Frontend (Next.js / Mapbox) (80 hrs × $28 USD): $2,240 USD\n"
-            "• Backend & Protocolos GPS (Websockets / MQTT) (100 hrs × $35 USD): $3,500 USD\n"
-            "• Servidor Websockets + Base de Datos TimeSeries: ~$250 USD/mes\n"
-            "👉 <b>Costo Base de Implementación:</b> ~$6,200 USD\n\n"
+            "• Desarrollador Senior Python/FastAPI (100 hrs × $35 USD): $3,500 USD\n"
+            "• Especialista en Integración Bancaria y SAT (80 hrs × $40 USD): $3,200 USD\n"
+            "• Pruebas de Estrés y Seguridad OWASP: $2,000 USD\n"
+            "👉 <b>Costo Base de Implementación:</b> ~$8,700 USD\n\n"
             "💵 <b>2. Precio de Venta Sugerido:</b>\n"
-            "• <b>Precio Llave en Mano:</b> <b>$26,000 USD</b> (ó ~$470,000 MXN)\n"
-            "• <b>Margen Bruto de Implementación:</b> <b>76.1% de ganancia neta</b> ($19,800 USD)\n\n"
-            "🔄 <b>3. Modelo de Cobro Recurrente (Retainer / SaaS Mensual):</b>\n"
-            "• Retainer por camión monitoreado: <b>$12 USD / camión / mes</b> (120 camiones = $1,440 USD/mes)\n"
-            "• Margen mensual recurrente: ~80% ($1,150 USD/mes limpios)"
+            "• <b>Precio Contrato Llave en Mano:</b> <b>$42,000 USD</b> (ó ~$756,000 MXN)\n"
+            "• <b>Margen Bruto de Implementación:</b> <b>79.3% de ganancia neta</b> ($33,300 USD)\n\n"
+            "🔄 <b>3. Modelo de Cobro Recurrente (Retainer / Mantenimiento Mensual):</b>\n"
+            "• Mantenimiento y actualización ante cambios de miscelánea fiscal: <b>$2,200 USD / mes</b>\n"
+            "• Margen mensual recurrente: ~72% ($1,584 USD/mes limpios)"
         ),
         "scope_summary": (
-            "🚚 <b>FICHA TÉCNICA Y DE NEGOCIO: Grupo Traxión</b>\n\n"
-            "💼 <b>Sector:</b> Cadena de Suministro, Transporte & Carga Terrestre\n"
-            "💰 <b>Presupuesto Estimado:</b> $22,000 - $38,000 USD\n"
-            "⏱️ <b>Tiempo de Entrega:</b> 8 a 10 semanas\n\n"
+            "🏛️ <b>FICHA TÉCNICA Y DE CONCURSO: Concurso Digital CDMX</b>\n\n"
+            "💼 <b>Sector:</b> Finanzas Públicas, Fiscal & Recaudación Digital\n"
+            "💰 <b>Presupuesto Estimado:</b> $30,000 - $60,000 USD\n"
+            "⏱️ <b>Tiempo de Ejecución:</b> 10 a 14 semanas\n\n"
             "🛡️ <b>Fuente y Verificación Oficial:</b>\n"
-            "• <b>Convocatoria:</b> Portal Corporativo de Proveedores y Cadena de Suministro Traxión\n"
-            "• <b>Portal Oficial:</b> <code>https://traxion.global/es/</code>\n\n"
-            "📌 <b>Requerimiento Técnico Corporativo:</b>\n"
-            "Manejan flotas de carga en rutas nacionales. Los clientes corporativos exigen visibilidad y webhooks en vivo "
-            "conectados con sus sistemas ERP para monitorear entregas críticas.\n\n"
-            "🛠️ <b>Entregables Técnicos Requeridos (SOW):</b>\n"
-            "1. Conexión telemática mediante websockets con proveedores de GPS de las unidades.\n"
-            "2. Algoritmo de ETA dinámico que ajusta tiempos estimados ante tráfico o desvíos.\n"
-            "3. Portal web privado (Next.js) con login para clientes donde ven sus unidades en mapa en vivo.\n"
-            "4. Webhooks automatizados para notificar 'En ruta', 'En patio de descarga' y 'Entregado con firma digital'."
-        )
-    },
-    {
-        "id": "demanda_openpay_fintech",
-        "company": "Openpay by BBVA",
-        "sector": "Fintech & Pasarelas de Pagos Digitales",
-        "priority": "Integración B2B",
-        "status_badge": "Alianzas B2B",
-        "budget": "$25,000 - $40,000 USD",
-        "problem": (
-            "Convocatoria para consultores e integradores de software: desarrollo de conectores de pasarela de pago para plataformas corporativas, optimización de cobros recurrentes y conciliación con el SAT."
-        ),
-        "solution": (
-            "Middleware transaccional con enrutamiento dinámico de cobros, reintentos inteligentes antifraude y conciliación automatizada de comprobantes fiscales CFDI contra folios bancarios."
-        ),
-        "tags": ["Integración Pasarelas", "Tokenización PCI-DSS", "Conciliación SAT/SPEI", "APIs Financieras"],
-        "contact_email": "desarrollo@openpay.mx",
-        "contact_web": "openpay.mx",
-        "linkedin_company_url": "https://www.openpay.mx",
-        "source_url": "https://www.openpay.mx",
-        "demand_source_type": "Portal Oficial de Integración y Soluciones para Desarrolladores Openpay",
-        "demand_source_label": "💻 Documentación & Integración Openpay",
-        "demand_evidence_url": "https://www.openpay.mx/docs/",
-        "comparison_points": [
-            "Aumento comprobado en la tasa de cobros exitosos.",
-            "Cumplimiento estricto con estándares de seguridad PCI-DSS.",
-            "Automatización completa del cierre contable mensual."
-        ],
-        "financial_quote": (
-            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Fintech & Pasarelas POS</b>\n\n"
-            "🏢 <b>Cliente:</b> Openpay by BBVA\n"
-            "💡 <b>Solución:</b> Router Inteligente Transaccional + Conciliador SAT/SPEI\n\n"
-            "💰 <b>1. Costo Estimado de Desarrollo (COGS):</b>\n"
-            "• Ingeniero Especialista Fintech/PCI (100 hrs × $50 USD): $5,000 USD\n"
-            "• Ingeniero Backend Python/FastAPI (120 hrs × $30 USD): $3,600 USD\n"
-            "• Pruebas de Carga & Certificación PCI: $1,200 USD\n"
-            "👉 <b>Costo Base de Implementación:</b> ~$9,800 USD\n\n"
-            "💵 <b>2. Precio de Venta Sugerido:</b>\n"
-            "• <b>Precio Llave en Mano:</b> <b>$32,000 USD</b> (ó ~$575,000 MXN)\n"
-            "• <b>Margen Bruto de Implementación:</b> <b>69.3% de ganancia neta</b> ($22,200 USD)\n\n"
-            "🔄 <b>3. Modelo de Cobro Recurrente (Retainer / SaaS Mensual):</b>\n"
-            "• Mantenimiento Preventivo + Monitoreo Latencia 24/7: <b>$1,800 USD / mes</b>\n"
-            "• Fee transaccional opcional: 0.1% sobre volumen conciliado con éxito."
-        ),
-        "scope_summary": (
-            "💳 <b>FICHA TÉCNICA Y DE NEGOCIO: Openpay by BBVA</b>\n\n"
-            "💼 <b>Sector:</b> Finanzas Digitales, Pasarelas & SPEI (México)\n"
-            "💰 <b>Presupuesto Estimado:</b> $25,000 - $40,000 USD\n"
-            "⏱️ <b>Tiempo de Entrega:</b> 10 a 14 semanas\n\n"
-            "🛡️ <b>Fuente y Verificación Oficial:</b>\n"
-            "• <b>Convocatoria:</b> Portal Oficial de Integración y Soluciones para Desarrolladores Openpay\n"
-            "• <b>Portal Oficial:</b> <code>https://www.openpay.mx/docs/</code>\n\n"
-            "📌 <b>Requerimiento Técnico Corporativo:</b>\n"
-            "Desarrollo de conectores robustos para procesamiento masivo de cobros recurrentes y conciliación automática "
-            "con los webservices de facturación electrónica del SAT.\n\n"
-            "🛠️ <b>Entregables Técnicos Requeridos (SOW):</b>\n"
-            "1. Enrutador inteligente con lógica de reintentos escalonados entre múltiples adquirientes.\n"
-            "2. Módulo de tokenización segura cumpliendo con normas de seguridad bancaria.\n"
-            "3. Conciliador automático que coteja folios SPEI / CEP contra facturas emitidas.\n"
-            "4. Webhooks de notificación instantánea para los comercios afiliados."
-        )
-    },
-    {
-        "id": "demanda_salud_digna",
-        "company": "Salud Digna & Red de Laboratorios",
-        "sector": "HealthTech & Diagnóstico",
-        "priority": "Alta Intención",
-        "status_badge": "Licitación Privada",
-        "budget": "$18,000 - $30,000 USD",
-        "problem": (
-            "Convocatoria institucional para modernización digital de clínicas: requerimiento de sistema de interoperabilidad clínica (HL7/FHIR), reducción de inasistencia en estudios y pasarelas de anticipos."
-        ),
-        "solution": (
-            "Agente de IA Multicanal integrado a expediente clínico electrónico con pre-cobro de anticipos por Stripe/SPEI, reprogramación inteligente automática y entrega de resultados por WhatsApp."
-        ),
-        "tags": ["Agentes IA Conversacionales", "Pasarelas Stripe/SPEI", "Integración HL7/FHIR", "Automatización 24/7"],
-        "contact_email": "licitaciones@salud-digna.org",
-        "contact_web": "salud-digna.org",
-        "linkedin_company_url": "https://salud-digna.org",
-        "source_url": "https://salud-digna.org",
-        "demand_source_type": "Convocatoria Institucional de Adquisiciones de Tecnología en Salud",
-        "demand_source_label": "🏥 Portal Institucional Salud Digna",
-        "demand_evidence_url": "https://salud-digna.org",
-        "comparison_points": [
-            "Retorno de inversión (ROI) estimado en 3 meses al recuperar 60% de citas perdidas.",
-            "Requiere certificación de privacidad y encriptación de datos médicos.",
-            "Integración vía webhooks con software ERP hospitalario."
-        ],
-        "financial_quote": (
-            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: HealthTech Hospitalario</b>\n\n"
-            "🏢 <b>Cliente:</b> Salud Digna & Red de Laboratorios\n"
-            "💡 <b>Solución:</b> Agente IA Triaje + Pasarela Pagos + Conector HL7\n\n"
-            "💰 <b>1. Costo Estimado de Desarrollo (COGS):</b>\n"
-            "• Arquitecto Senior / Tech Lead (80 hrs × $45 USD): $3,600 USD\n"
-            "• Desarrollador Backend Integrador (120 hrs × $25 USD): $3,000 USD\n"
-            "• Consumo APIs (OpenAI / Claude / WhatsApp Cloud API): ~$350 USD/mes\n"
-            "• Infraestructura Cloud (AWS ECS + RDS HIPAA): ~$250 USD/mes\n"
-            "👉 <b>Costo Base de Implementación:</b> ~$7,200 USD\n\n"
-            "💵 <b>2. Precio de Venta Sugerido:</b>\n"
-            "• <b>Precio Llave en Mano:</b> <b>$24,500 USD</b> (ó ~$440,000 MXN)\n"
-            "• <b>Margen Bruto de Implementación:</b> <b>70.6% de ganancia neta</b> ($17,300 USD)\n\n"
-            "🔄 <b>3. Modelo de Cobro Recurrente (Retainer / SaaS Mensual):</b>\n"
-            "• Mantenimiento de Agentes + Soporte SLAs 99.9%: <b>$1,300 USD / mes</b>\n"
-            "• Margen mensual recurrente: ~65% ($845 USD/mes limpios por cliente)"
-        ),
-        "scope_summary": (
-            "🏥 <b>FICHA TÉCNICA Y DE NEGOCIO: Salud Digna & Red de Laboratorios</b>\n\n"
-            "💼 <b>Sector:</b> HealthTech & Servicios Médicos (México / LATAM)\n"
-            "💰 <b>Presupuesto Estimado:</b> $18,000 - $30,000 USD\n"
-            "⏱️ <b>Tiempo de Entrega:</b> 8 a 12 semanas\n\n"
-            "🛡️ <b>Fuente y Verificación Oficial:</b>\n"
-            "• <b>Convocatoria:</b> Convocatoria Institucional de Adquisiciones de Tecnología en Salud\n"
-            "• <b>Portal Oficial:</b> <code>https://salud-digna.org</code>\n\n"
+            "• <b>Convocatoria:</b> Sistema Electrónico de Convocatorias Públicas de la CDMX\n"
+            "• <b>Portal Oficial:</b> <code>https://concursodigital.finanzas.cdmx.gob.mx/convocatorias_publicas</code>\n\n"
             "📌 <b>Requerimiento Técnico Institucional:</b>\n"
-            "Tienen clínicas en todo el país con ausentismo en estudios diagnósticos. "
-            "Requerimiento de agentes automáticos de triaje y pago para confirmación previa de citas.\n\n"
+            "Desarrollo e integración de componentes para el portal de trámites hacendarios, "
+            "conciliación bancaria en línea y timbrado masivo de comprobantes fiscales.\n\n"
             "🛠️ <b>Entregables Técnicos Requeridos (SOW):</b>\n"
-            "1. Bot conversacional oficial en WhatsApp Business Cloud API con flujo de triaje y citas.\n"
-            "2. Pasarela de pago para cobro del 30% de anticipo reembolsable (Stripe / Openpay).\n"
-            "3. Conexión bidireccional vía REST APIs con el ERP hospitalario para apartar horarios.\n"
-            "4. Dashboard en React para que las coordinadoras vean confirmaciones en tiempo real."
+            "1. Pasarela de pagos con conexión segura a múltiples instituciones bancarias.\n"
+            "2. Validador en tiempo real de estatus fiscal y generación automática de recibos CFDI.\n"
+            "3. Arquitectura resiliente ante cierres fiscales de alta concurrencia.\n"
+            "4. Bitácora de transacciones bancarias auditables."
         )
     }
 ]
@@ -564,17 +443,24 @@ async def discover_daily_b2b_demand(ref_date: Optional[datetime] = None) -> List
     now = ref_date or datetime.now(timezone.utc)
     today_str = now.strftime("%Y-%m-%d")
 
-    # 1. Verificar si ya tenemos el lote de hoy en SQLite
-    cached_today = get_b2b_companies_by_date(today_str)
-    if cached_today and len(cached_today) >= 3:
-        logger.info(f"[Prospección B2B] Recuperadas {len(cached_today)} empresas descubiertas hoy ({today_str}) desde SQLite.")
-        return cached_today
+    # 1. Purgar empresas obsoletas del catálogo histórico en SQLite si existen
+    from app.database import purge_obsolete_b2b_companies
+    valid_seed_ids = [s.get("id") for s in _SEED_COMPANIES_POOL if s.get("id")]
+    purge_obsolete_b2b_companies(valid_seed_ids)
 
-    # 2. Obtener nombres vistos recientemente para evitar repetición
+    # 2. Verificar si ya tenemos el lote de hoy en SQLite
+    cached_today = get_b2b_companies_by_date(today_str)
+    valid_companies_names = {s.get("company") for s in _SEED_COMPANIES_POOL}
+    clean_cached = [c for c in (cached_today or []) if c.get("company") in valid_companies_names]
+    if len(clean_cached) >= 3:
+        logger.info(f"[Prospección B2B] Recuperadas {len(clean_cached)} empresas descubiertas hoy ({today_str}) desde SQLite.")
+        return clean_cached
+
+    # 3. Obtener nombres vistos recientemente para evitar repetición
     recent_names = set(get_recent_b2b_company_names(limit=40))
     logger.info(f"[Prospección B2B] Empresas analizadas previamente para exclusión: {len(recent_names)}")
 
-    # 3. Seleccionar 5 empresas no repetidas del pool multindustria
+    # 4. Seleccionar 5 empresas no repetidas del pool multindustria
     selected_companies: List[Dict[str, Any]] = []
     
     # Filtrar las no vistas
@@ -588,10 +474,10 @@ async def discover_daily_b2b_demand(ref_date: Optional[datetime] = None) -> List
         total_pool = len(_SEED_COMPANIES_POOL)
         selected_companies = [
             _SEED_COMPANIES_POOL[(day_offset * 3 + i) % total_pool]
-            for i in range(5)
+            for i in range(min(5, total_pool))
         ]
 
-    # 4. Verificar disponibilidad de LinkedIn concurrentemente con asyncio.gather
+    # 5. Verificar disponibilidad de LinkedIn concurrentemente con asyncio.gather
     async def _verify_comp(comp: Dict[str, Any]) -> Dict[str, Any]:
         c_copy = dict(comp)
         lk_url = c_copy.get("linkedin_company_url") or ""
@@ -605,7 +491,7 @@ async def discover_daily_b2b_demand(ref_date: Optional[datetime] = None) -> List
 
     verified_batch = await asyncio.gather(*[_verify_comp(comp) for comp in selected_companies])
 
-    # 5. Guardar en SQLite
+    # 6. Guardar en SQLite
     try:
         save_b2b_companies(verified_batch, today_str)
         logger.info(f"[Prospección B2B] Guardadas exitosamente {len(verified_batch)} empresas nuevas para la fecha {today_str}.")
@@ -620,28 +506,21 @@ def get_all_b2b_demand_companies(ref_date: Optional[datetime] = None) -> List[Di
     now = ref_date or datetime.now(timezone.utc)
     today_str = now.strftime("%Y-%m-%d")
 
-    companies = get_b2b_companies_by_date(today_str)
-    if companies and len(companies) >= 3:
-        valid_companies_names = {s.get("company") for s in _SEED_COMPANIES_POOL}
-        has_obsolete = any(c.get("company") not in valid_companies_names for c in companies)
-        if has_obsolete:
-            day_offset = now.timetuple().tm_yday
-            total_pool = len(_SEED_COMPANIES_POOL)
-            companies = [
-                dict(_SEED_COMPANIES_POOL[(day_offset * 2 + i) % total_pool])
-                for i in range(min(5, total_pool))
-            ]
-            try:
-                save_b2b_companies(companies, today_str)
-            except Exception:
-                pass
-            return companies
+    # Purgar inmediatamente cualquier registro de pruebas o entidades obsoletas
+    from app.database import purge_obsolete_b2b_companies
+    valid_seed_ids = [s.get("id") for s in _SEED_COMPANIES_POOL if s.get("id")]
+    purge_obsolete_b2b_companies(valid_seed_ids)
 
+    companies = get_b2b_companies_by_date(today_str)
+    valid_companies_names = {s.get("company") for s in _SEED_COMPANIES_POOL}
+    clean_companies = [c for c in (companies or []) if c.get("company") in valid_companies_names]
+
+    if len(clean_companies) >= 3:
         # Auto-reparación / Backfill de evidencia si los registros en DB son previos a la migración
         seed_map = {s.get("company"): s for s in _SEED_COMPANIES_POOL}
         seed_id_map = {s.get("id"): s for s in _SEED_COMPANIES_POOL}
         updated = False
-        for c in companies:
+        for c in clean_companies:
             seed = seed_map.get(c.get("company")) or seed_id_map.get(c.get("id"))
             if seed:
                 has_old_vacantes = (
@@ -659,28 +538,22 @@ def get_all_b2b_demand_companies(ref_date: Optional[datetime] = None) -> List[Di
                     updated = True
         if updated:
             try:
-                save_b2b_companies(companies, today_str)
+                save_b2b_companies(clean_companies, today_str)
             except Exception:
                 pass
-        return companies
+        return clean_companies
 
-    # Fallback determinista síncrono si aún no se ha ejecutado el pipeline asíncrono
+    # Si no hay registros válidos o eran obsoletos, generar batch fresco del pool oficial
     day_offset = now.timetuple().tm_yday
     total_pool = len(_SEED_COMPANIES_POOL)
     fallback_batch = [
         dict(_SEED_COMPANIES_POOL[(day_offset * 2 + i) % total_pool])
-        for i in range(5)
+        for i in range(min(5, total_pool))
     ]
     for c in fallback_batch:
         c["contact_web"] = _clean_web_url(c.get("contact_web", ""))
-        # Openpay o URLs caídas conocidas se marcan seguras
-        if "openpay-mexico" in c.get("linkedin_company_url", ""):
-            c["linkedin_company_url"] = "https://www.linkedin.com/company/openpaymx"
-            c["linkedin_status"] = "active"
-        else:
-            c.setdefault("linkedin_status", "active")
+        c.setdefault("linkedin_status", "active")
 
-    # Persistir fallback para que las lecturas subsecuentes sean consistentes
     try:
         save_b2b_companies(fallback_batch, today_str)
     except Exception:
@@ -707,6 +580,8 @@ def get_b2b_demand_by_index(index: int = 0, ref_date: Optional[datetime] = None)
     web_domain_display = web_url_clean.replace("https://", "").replace("http://", "").rstrip("/")
 
     return {
+        "id": item.get("id", f"b2b_{idx}"),
+        "company": item.get("company", "Empresa B2B"),
         "status-badge": item.get("status_badge", "Mercado Activo"),
         "lead-company": item.get("company", "Empresa B2B"),
         "lead-sector": item.get("sector", "Tecnología"),

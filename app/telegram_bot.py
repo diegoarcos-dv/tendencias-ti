@@ -1935,13 +1935,14 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
 
             today_str = datetime.now(timezone.utc).strftime("%Y%m%d")
             demand_data = get_b2b_demand_by_index(new_idx)
-            cache_key = f"demand_b2b_{new_idx}_{today_str}"
+            comp_slug = demand_data.get("id") or f"idx_{new_idx}"
+            cache_key = f"demand_b2b_{comp_slug}_{today_str}"
             cached_file_id = get_catalog_cached_file_id(cache_key)
 
             if cached_file_id:
                 photo_to_use = cached_file_id
             else:
-                target_png = settings.BASE_DIR / f"temp_demand_{new_idx}_{today_str}.png"
+                target_png = settings.BASE_DIR / f"temp_demand_{comp_slug}_{today_str}.png"
                 if not target_png.exists():
                     from app.visual_engine import create_b2b_demand_png_card
                     await create_b2b_demand_png_card(output_path=target_png, data=demand_data)
@@ -1977,13 +1978,14 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
 
             today_str = datetime.now(timezone.utc).strftime("%Y%m%d")
             demand_data = get_b2b_demand_by_index(0)
-            cache_key = f"demand_b2b_0_{today_str}"
+            comp_slug = demand_data.get("id") or "idx_0"
+            cache_key = f"demand_b2b_{comp_slug}_{today_str}"
             cached_file_id = get_catalog_cached_file_id(cache_key)
 
             if cached_file_id:
                 photo_to_use = cached_file_id
             else:
-                target_png = settings.BASE_DIR / f"temp_demand_0_{today_str}.png"
+                target_png = settings.BASE_DIR / f"temp_demand_{comp_slug}_{today_str}.png"
                 if not target_png.exists():
                     from app.visual_engine import create_b2b_demand_png_card
                     await create_b2b_demand_png_card(output_path=target_png, data=demand_data)

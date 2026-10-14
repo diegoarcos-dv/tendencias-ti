@@ -1120,6 +1120,13 @@ def save_b2b_companies(companies: List[Dict[str, Any]], discovered_date: str) ->
     """Guarda o actualiza las empresas demandantes descubiertas para una fecha específica."""
     now_iso = datetime.now(timezone.utc).isoformat()
     with _get_connection() as conn:
+        incoming_ids = [c.get("id") or f"demanda_{hashlib.md5(c.get('company', '').encode('utf-8')).hexdigest()[:8]}" for c in companies]
+        if incoming_ids:
+            placeholders = ",".join("?" for _ in incoming_ids)
+            conn.execute(
+                f"DELETE FROM b2b_empresas_demandantes WHERE discovered_date = ? AND company_id NOT IN ({placeholders})",
+                [str(discovered_date), *incoming_ids]
+            )
         for c in companies:
             c_id = c.get("id") or f"demanda_{hashlib.md5(c.get('company', '').encode('utf-8')).hexdigest()[:8]}"
             tags_json = json.dumps(c.get("tags", []), ensure_ascii=False)
@@ -1244,6 +1251,21 @@ def get_recent_b2b_company_names(limit: int = 50) -> List[str]:
             (int(limit),)
         ).fetchall()
         return [str(r["company_name"]) for r in rows if r["company_name"]]
+
+
+def purge_obsolete_b2b_companies(valid_ids: List[str]) -> int:
+    """Elimina de la base de datos cualquier empresa que no pertenezca a la lista de IDs autorizados."""
+    if not valid_ids:
+        return 0
+    with _get_connection() as conn:
+        placeholders = ",".join("?" for _ in valid_ids)
+        cur = conn.execute(
+            f"DELETE FROM b2b_empresas_demandantes WHERE company_id NOT IN ({placeholders})",
+            valid_ids
+        )
+        conn.commit()
+        return cur.rowcount
+
 
 
 

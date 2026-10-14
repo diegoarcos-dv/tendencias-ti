@@ -4,23 +4,26 @@ from typing import Dict, Any
 from app.b2b_demand import _SEED_COMPANIES_POOL, get_all_b2b_demand_companies, get_b2b_demand_by_index
 from app.telegram_bot import build_demand_keyboard
 
-# TDD: Entities expected in the new real procurement & corporate tender pool
+# TDD: Entities expected in the pure procurement & corporate tender pool
 EXPECTED_ENTITIES = [
     "Tianguis Digital CDMX (ADIP)",
     "CFE (Comisión Federal de Electricidad)",
-    "Banobras (Banca de Desarrollo)",
+    "ComprasMX (Plataforma Federal de Contrataciones TI)",
     "Walmart de México & Centroamérica",
-    "Infonavit",
-    "Grupo Traxión",
-    "Openpay by BBVA",
-    "Salud Digna & Red de Laboratorios"
+    "PEMEX Procurement (Petróleos Mexicanos)",
+    "Concurso Digital CDMX (Secretaría de Finanzas)"
 ]
 
 OBSOLETE_ENTITIES = [
     "Clip México",
     "Kavak México",
     "Jüsto Supermercado Digital",
-    "Clara Gastos Corporativos"
+    "Clara Gastos Corporativos",
+    "Salud Digna & Red de Laboratorios",
+    "Openpay by BBVA",
+    "Grupo Traxión",
+    "Banobras (Banca de Desarrollo)",
+    "Infonavit"
 ]
 
 
