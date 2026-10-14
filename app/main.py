@@ -349,7 +349,7 @@ async def run_group_pipeline(chat_id: Optional[str] = None) -> Dict[str, Any]:
 
         chart_png = settings.BASE_DIR / "temp_chart.png"
         await create_chart_png_card(output_path=chart_png)
-        logger.info("[Pipeline Grupo] Catálogos auxiliares (Empresas Demandantes, Calendario Eventos Jóvenes, Gráfica) pre-renderizados con éxito.")
+        logger.info("[Pipeline Grupo] Catálogos auxiliares (Empresas Demandantes, Agenda Eventos Enterprise, Gráfica) pre-renderizados con éxito.")
     except Exception as ex_aux:
         logger.warning(f"[Pipeline Grupo] Advertencia al pre-renderizar catálogos auxiliares: {ex_aux}")
 
@@ -788,7 +788,7 @@ async def prewarm_auxiliary_cards() -> None:
 
         # 4. Pre-renderizar todos los eventos CDMX del catálogo
         from app.events_cdmx import get_events_cdmx_by_index, get_all_events_cdmx
-        total_evts = min(len(get_all_events_cdmx()), 4)
+        total_evts = len(get_all_events_cdmx())
         for idx in range(total_evts):
             ev_png = settings.BASE_DIR / f"temp_events_{idx}_{today_str}.png"
             if not ev_png.exists():

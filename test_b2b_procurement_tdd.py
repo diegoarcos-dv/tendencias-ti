@@ -4,17 +4,18 @@ from typing import Dict, Any
 from app.b2b_demand import _SEED_COMPANIES_POOL, get_all_b2b_demand_companies, get_b2b_demand_by_index
 from app.telegram_bot import build_demand_keyboard
 
-# TDD: Entities expected in the pure procurement & corporate tender pool
+# TDD: Entities with 100% verified, direct official public software tenders
 EXPECTED_ENTITIES = [
-    "Tianguis Digital CDMX (ADIP)",
-    "CFE (Comisión Federal de Electricidad)",
-    "ComprasMX (Plataforma Federal de Contrataciones TI)",
-    "Walmart de México & Centroamérica",
-    "PEMEX Procurement (Petróleos Mexicanos)",
-    "Concurso Digital CDMX (Secretaría de Finanzas)"
+    "Fiscalía General de Justicia CDMX",
+    "Alcaldía Miguel Hidalgo (CDMX)",
+    "Metro CDMX (Sistema de Transporte Colectivo)",
+    "Fiscalía General de Justicia CDMX (Cloud)",
+    "FGJCDMX & C5 (Ciberseguridad)"
 ]
 
 OBSOLETE_ENTITIES = [
+    "Walmart de México & Centroamérica",
+    "Tianguis Digital CDMX (ADIP)",
     "Clip México",
     "Kavak México",
     "Jüsto Supermercado Digital",

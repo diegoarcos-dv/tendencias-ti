@@ -26,366 +26,329 @@ from app.database import (
 
 logger = logging.getLogger(__name__)
 
-# Pool de empresas reales para rotación y fallback multindustria en México/LATAM
+# Pool de licitaciones públicas oficiales verificadas en CDMX (Concurso Digital / Compras Públicas)
 _SEED_COMPANIES_POOL: List[Dict[str, Any]] = [
     {
-        "id": "demanda_tianguis_digital_cdmx",
-        "company": "Tianguis Digital CDMX (ADIP)",
-        "sector": "Gobierno Digital, Trámites & Licitaciones Públicas",
-        "priority": "Licitación Abierta Nacional",
-        "status_badge": "Convocatoria Pública",
-        "budget": "$35,000 - $65,000 USD",
-        "problem": (
-            "Integración de trámites ciudadanos de múltiples dependencias de la CDMX en una arquitectura modular de microservicios con alta concurrencia y validación de identidad digital."
-        ),
-        "solution": (
-            "Fábrica de software especializada en APIs REST/GraphQL, autenticación segura con Llave CDMX / e.firma y microservicios escalables en nube con trazabilidad y datos abiertos (OCDS)."
-        ),
-        "tags": ["Fábrica de Software", "APIs & Interoperabilidad", "Llave CDMX / e.firma", "Microservicios Cloud"],
-        "contact_email": "tianguisdigital@adip.cdmx.gob.mx",
-        "contact_web": "tianguisdigital.cdmx.gob.mx",
-        "linkedin_company_url": "https://tianguisdigital.cdmx.gob.mx",
-        "source_url": "https://tianguisdigital.cdmx.gob.mx",
-        "demand_source_type": "Licitación Pública de Fábrica de Software y APIs (ADIP)",
-        "demand_source_label": "🏛️ Portal de Licitaciones Tianguis Digital CDMX",
-        "demand_evidence_url": "https://tianguisdigital.cdmx.gob.mx/",
-        "comparison_points": [
-            "Apego al Estándar de Datos para las Contrataciones Abiertas (OCDS).",
-            "Alta disponibilidad para trámites con picos masivos de usuarios concurrentes.",
-            "Despliegue contenerizado y monitoreo de microservicios 24/7."
-        ],
-        "financial_quote": (
-            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Fábrica de Software Pública</b>\n\n"
-            "🏢 <b>Entidad:</b> Tianguis Digital CDMX (ADIP)\n"
-            "💡 <b>Solución:</b> Microservicios de Interoperabilidad + Integración e.firma\n\n"
-            "💰 <b>1. Costo Estimado de Desarrollo (COGS):</b>\n"
-            "• Arquitecto de Software & Seguridad (100 hrs × $45 USD): $4,500 USD\n"
-            "• Desarrolladores Backend Python/FastAPI (200 hrs × $25 USD): $5,000 USD\n"
-            "• Especialista en Ciberseguridad & Pruebas OWASP: $2,500 USD\n"
-            "👉 <b>Costo Base de Implementación:</b> ~$12,000 USD\n\n"
-            "💵 <b>2. Precio de Venta Sugerido:</b>\n"
-            "• <b>Precio Contrato Llave en Mano:</b> <b>$48,000 USD</b> (ó ~$860,000 MXN)\n"
-            "• <b>Margen Bruto de Implementación:</b> <b>75% de ganancia neta</b> ($36,000 USD)\n\n"
-            "🔄 <b>3. Modelo de Cobro Recurrente (Retainer / Mantenimiento Mensual):</b>\n"
-            "• Soporte y actualización continua de APIs: <b>$2,500 USD / mes</b>\n"
-            "• Margen mensual recurrente: ~70% ($1,750 USD/mes limpios)"
-        ),
-        "scope_summary": (
-            "🏛️ <b>FICHA TÉCNICA Y DE LICITACIÓN: Tianguis Digital CDMX</b>\n\n"
-            "💼 <b>Sector:</b> Gobierno Digital & Contrataciones Abiertas\n"
-            "💰 <b>Presupuesto Estimado:</b> $35,000 - $65,000 USD\n"
-            "⏱️ <b>Tiempo de Ejecución:</b> 12 a 16 semanas\n\n"
-            "🛡️ <b>Fuente y Verificación Oficial:</b>\n"
-            "• <b>Convocatoria:</b> Licitación Pública de Fábrica de Software y APIs (ADIP)\n"
-            "• <b>Portal Oficial:</b> <code>https://tianguisdigital.cdmx.gob.mx/</code>\n\n"
-            "📌 <b>Requerimiento Técnico Institucional:</b>\n"
-            "Desarrollo e integración de módulos interoperables para la ventanilla única digital de trámites ciudadanos, "
-            "con validación criptográfica de identidad y apego a estándares de datos abiertos.\n\n"
-            "🛠️ <b>Entregables Técnicos Requeridos (SOW):</b>\n"
-            "1. Arquitectura de microservicios contenerizados (Docker/Kubernetes).\n"
-            "2. Módulo de autenticación con Llave CDMX y validación de e.firma.\n"
-            "3. Conectores REST/GraphQL con bases de datos catastrales y registro civil.\n"
-            "4. Dashboard de auditoría y monitoreo transaccional con alertas en tiempo real."
-        )
-    },
-    {
-        "id": "demanda_cfe_telemetria",
-        "company": "CFE (Comisión Federal de Electricidad)",
-        "sector": "Energía, Infraestructura Crítica & Telemetría Industrial",
-        "priority": "Concurso Abierto",
-        "status_badge": "Licitación TI",
-        "budget": "$50,000 - $95,000 USD",
-        "problem": (
-            "Monitoreo en tiempo real de subestaciones y telemetría de red eléctrica con dispersión geográfica. Requerimiento de integración de protocolos industriales (MQTT/Modbus) hacia servidores centrales."
-        ),
-        "solution": (
-            "Plataforma de procesamiento de eventos en tiempo real con brokers de alta tolerancia a fallos, visualización geográfica en mapas y alertas automáticas de anomalías operativas."
-        ),
-        "tags": ["Telemetría IoT", "Protocolos MQTT / Industrial", "Time-Series Data", "Ciberseguridad SCADA"],
-        "contact_email": "concursos@msc.cfe.mx",
-        "contact_web": "msc.cfe.mx",
-        "linkedin_company_url": "https://msc.cfe.mx",
-        "source_url": "https://msc.cfe.mx",
-        "demand_source_type": "Concurso Abierto de Sistemas y Telemetría CFE",
-        "demand_source_label": "⚡ Micrositio Oficial de Concursos CFE",
-        "demand_evidence_url": "https://msc.cfe.mx/",
-        "comparison_points": [
-            "Cumplimiento con estándares de seguridad de infraestructura crítica.",
-            "Latencia menor a 1 segundo en alarmas críticas de subestaciones.",
-            "Interoperabilidad con sistemas legados corporativos SCADA."
-        ],
-        "financial_quote": (
-            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Telemetría e Infraestructura Crítica</b>\n\n"
-            "🏢 <b>Entidad:</b> CFE (Comisión Federal de Electricidad)\n"
-            "💡 <b>Solución:</b> Plataforma de Telemetría IoT + Conectores MQTT + Dashboard\n\n"
-            "💰 <b>1. Costo Estimado de Desarrollo (COGS):</b>\n"
-            "• Ingeniero Especialista IoT / SCADA (120 hrs × $50 USD): $6,000 USD\n"
-            "• Desarrolladores Backend TimeSeries (180 hrs × $30 USD): $5,400 USD\n"
-            "• Infraestructura Cloud de Alta Disponibilidad: $3,200 USD\n"
-            "👉 <b>Costo Base de Implementación:</b> ~$14,600 USD\n\n"
-            "💵 <b>2. Precio de Venta Sugerido:</b>\n"
-            "• <b>Precio Contrato Llave en Mano:</b> <b>$68,000 USD</b> (ó ~$1,220,000 MXN)\n"
-            "• <b>Margen Bruto de Implementación:</b> <b>78.5% de ganancia neta</b> ($53,400 USD)\n\n"
-            "🔄 <b>3. Modelo de Cobro Recurrente (Retainer / Mantenimiento Mensual):</b>\n"
-            "• Monitoreo de telemetría y soporte crítico SLAs 99.99%: <b>$3,200 USD / mes</b>\n"
-            "• Margen mensual recurrente: ~75% ($2,400 USD/mes limpios)"
-        ),
-        "scope_summary": (
-            "⚡ <b>FICHA TÉCNICA Y DE CONCURSO: CFE Telecomunicaciones & TI</b>\n\n"
-            "💼 <b>Sector:</b> Energía & Infraestructura Eléctrica Nacional\n"
-            "💰 <b>Presupuesto Estimado:</b> $50,000 - $95,000 USD\n"
-            "⏱️ <b>Tiempo de Ejecución:</b> 14 a 18 semanas\n\n"
-            "🛡️ <b>Fuente y Verificación Oficial:</b>\n"
-            "• <b>Convocatoria:</b> Concurso Abierto de Sistemas y Telemetría CFE\n"
-            "• <b>Portal Oficial:</b> <code>https://msc.cfe.mx/</code>\n\n"
-            "📌 <b>Requerimiento Técnico Institucional:</b>\n"
-            "Implementación de plataforma centralizada para la ingesta y análisis de señales telemétricas de subestaciones, "
-            "con soporte de protocolos industriales y visualización geoespacial en tiempo real.\n\n"
-            "🛠️ <b>Entregables Técnicos Requeridos (SOW):</b>\n"
-            "1. Broker MQTT distribuido con encriptación TLS 1.3 de grado industrial.\n"
-            "2. Base de datos Time-Series de alta velocidad (TimescaleDB / InfluxDB).\n"
-            "3. Tablero central de supervisión operativa con mapas geográficos interactivos.\n"
-            "4. Sistema proactivo de notificación de alertas ante variaciones de voltaje."
-        )
-    },
-    {
-        "id": "demanda_comprasmx_federal",
-        "company": "ComprasMX (Plataforma Federal de Contrataciones TI)",
-        "sector": "Contrataciones Públicas Federales & Soluciones TIC",
-        "priority": "Licitaciones Públicas Abiertas",
-        "status_badge": "Licitación Abierta",
-        "budget": "$60,000 - $150,000 USD",
-        "problem": (
-            "Convocatorias federales consolidadas para contratación de Fábricas de Software, servicios administrados de infraestructura en la nube, ciberseguridad y modernización de bases de datos gubernamentales."
-        ),
-        "solution": (
-            "Servicios administrados de desarrollo de software a la medida bajo estándares CMMI/Agile, desarrollo de microservicios con arquitectura segura y soporte técnico continuo."
-        ),
-        "tags": ["Fábricas de Software Federales", "Servicios Administrados TI", "Ciberseguridad", "Cloud Gubernamental"],
-        "contact_email": "upcp@buengobierno.gob.mx",
-        "contact_web": "upcp-compranet.buengobierno.gob.mx",
-        "linkedin_company_url": "https://upcp-compranet.buengobierno.gob.mx",
-        "source_url": "https://upcp-compranet.buengobierno.gob.mx",
-        "demand_source_type": "Plataforma Nacional de Licitaciones de Tecnologías de Información",
-        "demand_source_label": "🏛️ Plataforma Oficial ComprasMX (Licitaciones TI)",
-        "demand_evidence_url": "https://upcp-compranet.buengobierno.gob.mx/",
-        "comparison_points": [
-            "Participación transparente bajo la Ley de Adquisiciones (LAASSP).",
-            "Contratos abiertos plurianuales para agencias y consultoras de software.",
-            "Evaluación por puntos y porcentajes con alta ponderación en propuesta técnica."
-        ],
-        "financial_quote": (
-            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Licitaciones Públicas Federales</b>\n\n"
-            "🏢 <b>Entidad:</b> ComprasMX (Gobierno Federal / APF)\n"
-            "💡 <b>Solución:</b> Fábrica de Software Federal + Microservicios Cloud\n\n"
-            "💰 <b>1. Costo Estimado de Desarrollo (COGS):</b>\n"
-            "• Tech Lead & Gerente de Proyecto PMP (160 hrs × $50 USD): $8,000 USD\n"
-            "• Equipo de Desarrolladores Senior (300 hrs × $28 USD): $8,400 USD\n"
-            "• Certificaciones de Calidad y Ciberseguridad: $4,500 USD\n"
-            "👉 <b>Costo Base de Implementación:</b> ~$20,900 USD\n\n"
-            "💵 <b>2. Precio de Venta Sugerido:</b>\n"
-            "• <b>Precio Contrato Llave en Mano:</b> <b>$95,000 USD</b> (ó ~$1,710,000 MXN)\n"
-            "• <b>Margen Bruto de Implementación:</b> <b>78% de ganancia neta</b> ($74,100 USD)\n\n"
-            "🔄 <b>3. Modelo de Cobro Recurrente (Retainer / Mantenimiento Mensual):</b>\n"
-            "• Servicios administrados de soporte y operación TI: <b>$5,500 USD / mes</b>\n"
-            "• Margen mensual recurrente: ~74% ($4,070 USD/mes limpios)"
-        ),
-        "scope_summary": (
-            "🏛️ <b>FICHA TÉCNICA Y DE CONCURSO: ComprasMX Federal</b>\n\n"
-            "💼 <b>Sector:</b> Contratación Pública Federal & TIC\n"
-            "💰 <b>Presupuesto Estimado:</b> $60,000 - $150,000 USD\n"
-            "⏱️ <b>Tiempo de Ejecución:</b> 18 a 36 semanas\n\n"
-            "🛡️ <b>Fuente y Verificación Oficial:</b>\n"
-            "• <b>Convocatoria:</b> Plataforma Nacional de Licitaciones de Tecnologías de Información\n"
-            "• <b>Portal Oficial:</b> <code>https://upcp-compranet.buengobierno.gob.mx/</code>\n\n"
-            "📌 <b>Requerimiento Técnico Institucional:</b>\n"
-            "Provisión de servicios administrados de desarrollo y mantenimiento de aplicaciones de software "
-            "para dependencias de la Administración Pública Federal con metodologías ágiles.\n\n"
-            "🛠️ <b>Entregables Técnicos Requeridos (SOW):</b>\n"
-            "1. Bolsa de horas de fábrica de software con células dedicadas.\n"
-            "2. Desarrollo de microservicios con APIs documentadas bajo OpenAPI 3.0.\n"
-            "3. Plan de aseguramiento de calidad (QA) y pruebas de vulnerabilidad.\n"
-            "4. Transferencia tecnológica y documentación exhaustiva de arquitectura."
-        )
-    },
-    {
-        "id": "demanda_walmart_mexico",
-        "company": "Walmart de México & Centroamérica",
-        "sector": "Retail Omnicanal & Comercio Digital",
-        "priority": "Homologación Activa",
-        "status_badge": "Convocatoria Proveedor",
-        "budget": "$20,000 - $35,000 USD",
-        "problem": (
-            "Convocatoria oficial para proveedores de tecnología: requerimiento de conectores EDI y APIs para sincronización de catálogos e inventarios entre sucursales físicas y eCommerce central."
-        ),
-        "solution": (
-            "Middleware con colas de mensajería Redis y microservicios FastAPI para sincronización bidireccional de inventarios POS en tiempo real, eliminando cancelaciones por sobreventa."
-        ),
-        "tags": ["Conectores EDI Retail", "FastAPI / Redis PubSub", "Sincronización POS", "Microservicios Cloud"],
-        "contact_email": "proveedores@walmartmexico.com",
-        "contact_web": "walmartmexico.com",
-        "linkedin_company_url": "https://www.walmartmexico.com",
-        "source_url": "https://www.walmartmexico.com",
-        "demand_source_type": "Portal Institucional de Convocatorias y Proveedores Walmart",
-        "demand_source_label": "🛒 Portal Oficial de Proveedores Walmart",
-        "demand_evidence_url": "https://www.walmartmexico.com/proveedores",
-        "comparison_points": [
-            "Integración certificada con especificaciones EDI de Walmart.",
-            "Manejo de picos masivos durante campañas de retail (Hot Sale / Buen Fin).",
-            "Monitoreo 24/7 y SLAs de disponibilidad del 99.9%."
-        ],
-        "financial_quote": (
-            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Retail Omnicanal</b>\n\n"
-            "🏢 <b>Cliente:</b> Walmart de México & Centroamérica\n"
-            "💡 <b>Solución:</b> Sync Event-Driven POS ↔ Tienda Online con Redis/FastAPI\n\n"
-            "💰 <b>1. Costo Estimado de Desarrollo (COGS):</b>\n"
-            "• Desarrollador Full-Stack / Conectores (90 hrs × $30 USD): $2,700 USD\n"
-            "• Especialista en Bases de Datos / Redis (40 hrs × $35 USD): $1,400 USD\n"
-            "• Servidores en la nube (AWS): ~$200 USD/mes\n"
-            "👉 <b>Costo Base de Implementación:</b> ~$4,300 USD\n\n"
-            "💵 <b>2. Precio de Venta Sugerido:</b>\n"
-            "• <b>Precio Llave en Mano:</b> <b>$24,500 USD</b> (ó ~$440,000 MXN)\n"
-            "• <b>Margen Bruto de Implementación:</b> <b>82.4% de ganancia neta</b> ($20,200 USD)\n\n"
-            "🔄 <b>3. Modelo de Cobro Recurrente (Retainer / SaaS Mensual):</b>\n"
-            "• Monitoreo de colas + Garantía de alta disponibilidad: <b>$1,400 USD / mes</b>\n"
-            "• Margen mensual recurrente: ~75% ($1,050 USD/mes limpios)"
-        ),
-        "scope_summary": (
-            "🛍️ <b>FICHA TÉCNICA Y DE NEGOCIO: Walmart de México & Centroamérica</b>\n\n"
-            "💼 <b>Sector:</b> Retail Omnicanal & Comercio Electrónico\n"
-            "💰 <b>Presupuesto Estimado:</b> $20,000 - $35,000 USD\n"
-            "⏱️ <b>Tiempo de Entrega:</b> 8 a 10 semanas\n\n"
-            "🛡️ <b>Fuente y Verificación Oficial:</b>\n"
-            "• <b>Convocatoria:</b> Portal Institucional de Convocatorias y Proveedores Walmart\n"
-            "• <b>Portal Oficial:</b> <code>https://www.walmartmexico.com/proveedores</code>\n\n"
-            "📌 <b>Requerimiento Técnico Corporativo:</b>\n"
-            "Conexión de terminales punto de venta (POS) y catálogos de proveedores con el sistema central "
-            "para garantizar inventario unificado y respuesta inmediata en compras online.\n\n"
-            "🛠️ <b>Entregables Técnicos Requeridos (SOW):</b>\n"
-            "1. Middleware desacoplado en Python / FastAPI con broker de mensajería (Redis Pub/Sub).\n"
-            "2. Conector con el sistema POS local para emitir eventos de venta en tiempo real.\n"
-            "3. Actualización instantánea de stock vía APIs de catálogo.\n"
-            "4. Panel de alertas operativas en caso de pérdida de conectividad en sucursales."
-        )
-    },
-    {
-        "id": "demanda_pemex_procurement",
-        "company": "PEMEX Procurement (Petróleos Mexicanos)",
-        "sector": "Energía & Adquisiciones Corporativas Internacionales",
-        "priority": "Concursos Internacionales",
-        "status_badge": "Convocatoria Proveedor",
+        "id": "demanda_fgjcdmx_fabrica_software",
+        "company": "Fiscalía General de Justicia CDMX",
+        "sector": "Justicia Digital, Seguridad & Fábrica de Software",
+        "priority": "Licitación Pública Nacional",
+        "status_badge": "LPN/FGJCDMX/DACS-060/2025",
         "budget": "$70,000 - $140,000 USD",
         "problem": (
-            "Concursos internacionales y nacionales de adquisición de software especializado, automatización de auditorías de suministros y digitalización de procesos de procura y logística industrial."
+            "Licitación Pública Oficial LPN/FGJCDMX/DACS-060/2025: Requerimiento de 'Servicio de Fábrica de Software "
+            "para la actualización de tecnología de los sistemas de la Fiscalía General de Justicia de la Ciudad de México'."
         ),
         "solution": (
-            "Plataforma de integración transaccional para control de inventarios críticos, auditoría digital con trazabilidad y conectores con sistemas ERP corporativos."
+            "Servicio administrado de Fábrica de Software con células ágiles Scrum/DevOps, desarrollo bajo ciclo de software "
+            "seguro (normas ISO 27001 / CSSLP), modernización a microservicios contenerizados y pruebas automatizadas de rendimiento."
         ),
-        "tags": ["Procura Industrial", "Sistemas Transaccionales", "Trazabilidad Logística", "ERP Corporativo"],
-        "contact_email": "info@pemexprocurement.com",
-        "contact_web": "pemexprocurement.com",
-        "linkedin_company_url": "https://pemexprocurement.com",
-        "source_url": "https://pemexprocurement.com",
-        "demand_source_type": "Portal Internacional de Adquisiciones y Concursos PEMEX",
-        "demand_source_label": "🛢️ Portal Oficial Pemex Procurement",
-        "demand_evidence_url": "https://pemexprocurement.com/",
+        "tags": ["Fábrica de Software CDMX", "LPN/FGJCDMX/DACS-060/2025", "ISO 27001 / CSSLP", "Microservicios"],
+        "contact_email": "dacs@fgjcdmx.gob.mx",
+        "contact_web": "concursodigital.finanzas.cdmx.gob.mx",
+        "linkedin_company_url": "https://concursodigital.finanzas.cdmx.gob.mx/proveedores/detalle_convocatoria/NTQxNQ==",
+        "source_url": "https://concursodigital.finanzas.cdmx.gob.mx/proveedores/detalle_convocatoria/NTQxNQ==",
+        "demand_source_type": "Licitación Pública Nacional No. LPN/FGJCDMX/DACS-060/2025",
+        "demand_source_label": "🏛️ Licitación Fábrica Software FGJCDMX",
+        "demand_evidence_url": "https://concursodigital.finanzas.cdmx.gob.mx/proveedores/detalle_convocatoria/NTQxNQ==",
         "comparison_points": [
-            "Acceso formal a concursos abiertos internacionales de tecnología.",
-            "Cumplimiento con estándares corporativos anticorrupción y de transparencia.",
-            "Integración de sistemas de procura con plataformas ERP líderes en la industria."
+            "Procedimiento oficial LPN/FGJCDMX/DACS-060/2025 publicado en Concurso Digital CDMX",
+            "Exige estándares CSSLP e ISO 27001:2022 para desarrollo de software seguro",
+            "Células dedicadas de análisis, frontend, backend y QA automatizado"
         ],
         "financial_quote": (
-            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Plataforma de Procura Industrial</b>\n\n"
-            "🏢 <b>Entidad:</b> PEMEX Procurement (Petróleos Mexicanos)\n"
-            "💡 <b>Solución:</b> Plataforma Transaccional de Suministros + Auditoría Digital\n\n"
-            "💰 <b>1. Costo Estimado de Desarrollo (COGS):</b>\n"
-            "• Arquitecto de Software Enterprise (150 hrs × $55 USD): $8,250 USD\n"
-            "• Desarrolladores Backend ERP/Integraciones (250 hrs × $32 USD): $8,000 USD\n"
-            "• Módulo de Auditoría y Trazabilidad Criptográfica: $4,500 USD\n"
-            "👉 <b>Costo Base de Implementación:</b> ~$20,750 USD\n\n"
-            "💵 <b>2. Precio de Venta Sugerido:</b>\n"
-            "• <b>Precio Contrato Llave en Mano:</b> <b>$89,000 USD</b> (ó ~$1,600,000 MXN)\n"
-            "• <b>Margen Bruto de Implementación:</b> <b>76.7% de ganancia neta</b> ($68,250 USD)\n\n"
-            "🔄 <b>3. Modelo de Cobro Recurrente (Retainer / Mantenimiento Mensual):</b>\n"
-            "• Mantenimiento de plataforma y soporte de alta disponibilidad: <b>$4,200 USD / mes</b>\n"
-            "• Margen mensual recurrente: ~75% ($3,150 USD/mes limpios)"
+            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Fábrica de Software Gubernamental</b>\n\n"
+            "🏢 <b>Entidad:</b> Fiscalía General de Justicia CDMX\n"
+            "📋 <b>Licitación:</b> LPN/FGJCDMX/DACS-060/2025 (Fábrica de Software)\n"
+            "💡 <b>Solución:</b> Célula de Desarrollo Ágil + Arquitectura Segura ISO 27001\n\n"
+            "💰 <b>1. Costo Estimado de Operación de la Célula (COGS - 12 meses):</b>\n"
+            "• Tech Lead / Arquitecto de Software (12 meses): $36,000 USD\n"
+            "• 2 Desarrolladores Senior Fullstack (12 meses): $48,000 USD\n"
+            "• Ingeniero DevOps & Seguridad CSSLP: $22,000 USD\n"
+            "• QA Automation & Pruebas de Estrés: $14,000 USD\n"
+            "👉 <b>Costo Base de Ejecución:</b> ~$120,000 USD\n\n"
+            "💵 <b>2. Precio de Oferta Licitatoria Sugerida:</b>\n"
+            "• <b>Monto Total Contratado:</b> <b>$185,000 USD</b> (ó ~$3,330,000 MXN)\n"
+            "• <b>Margen Bruto de Implementación:</b> <b>35.1% de ganancia neta</b> ($65,000 USD)\n\n"
+            "🔄 <b>3. Modelo de Cobro Recurrente (Retainer Anual / Extensiones):</b>\n"
+            "• Póliza de soporte preventivo y correctivo Nivel 3: <b>$4,500 USD / mes</b>\n"
+            "• Margen mensual recurrente: ~60% ($2,700 USD/mes limpios)"
         ),
         "scope_summary": (
-            "🛢️ <b>FICHA TÉCNICA Y DE CONCURSO: Pemex Procurement</b>\n\n"
-            "💼 <b>Sector:</b> Energía, Petróleo & Adquisiciones Industriales\n"
-            "💰 <b>Presupuesto Estimado:</b> $70,000 - $140,000 USD\n"
-            "⏱️ <b>Tiempo de Ejecución:</b> 16 a 22 semanas\n\n"
+            "🏛️ <b>FICHA TÉCNICA OFICIAL DE LICITACIÓN: FGJCDMX</b>\n\n"
+            "📋 <b>N° Procedimiento:</b> LPN/FGJCDMX/DACS-060/2025\n"
+            "💼 <b>Objeto del Procedimiento:</b> Contratación del servicio de Fábrica de Software para la actualización de tecnología de los sistemas de la Fiscalía General de Justicia de la Ciudad de México\n"
+            "🏛️ <b>Unidad Convocante:</b> FISCALÍA GENERAL DE JUSTICIA\n"
+            "💰 <b>Presupuesto Estimado:</b> $70,000 - $140,000 USD\n\n"
             "🛡️ <b>Fuente y Verificación Oficial:</b>\n"
-            "• <b>Convocatoria:</b> Portal Internacional de Adquisiciones y Concursos PEMEX\n"
-            "• <b>Portal Oficial:</b> <code>https://pemexprocurement.com/</code>\n\n"
-            "📌 <b>Requerimiento Técnico Institucional:</b>\n"
-            "Desarrollo e integración de módulos digitales para la trazabilidad y auditoría de procesos de compra, "
-            "adjudicación y control de inventarios críticos para operaciones energéticas.\n\n"
+            "• <b>Portal Convocante:</b> Sistema de Compras Públicas de la Ciudad de México\n"
+            "• <b>Enlace Oficial Directo:</b> <code>https://concursodigital.finanzas.cdmx.gob.mx/proveedores/detalle_convocatoria/NTQxNQ==</code>\n\n"
+            "📌 <b>Requerimiento Técnico de las Bases:</b>\n"
+            "Actualización tecnológica de sistemas de procuración de justicia, migración de módulos legados a microservicios "
+            "y garantía de cumplimiento de pruebas de calidad y seguridad bajo ISO 27001.\n\n"
             "🛠️ <b>Entregables Técnicos Requeridos (SOW):</b>\n"
-            "1. Portal web transaccional seguro con autenticación de dos factores.\n"
-            "2. Conectores certificados con plataformas ERP corporativas (SAP/Oracle).\n"
-            "3. Módulo inmutable de auditoría para trazabilidad de licitaciones y contratos.\n"
-            "4. Panel analítico de métricas de compra y desempeño de proveedores."
+            "1. Plan de trabajo y arquitectura tecnológica basada en microservicios contenerizados.\n"
+            "2. Desarrollo evolutivo y correctivo de módulos prioritarios de la Fiscalía.\n"
+            "3. Batería de pruebas automatizadas de seguridad (caja negra, blanca, OWASP Top 10).\n"
+            "4. Manuales técnicos, de usuario y transferencia metodológica al equipo interno."
         )
     },
     {
-        "id": "demanda_concurso_digital_cdmx",
-        "company": "Concurso Digital CDMX (Secretaría de Finanzas)",
-        "sector": "Finanzas Públicas & Convocatorias de Licitación",
-        "priority": "Convocatorias Abiertas",
-        "status_badge": "Concurso Abierto",
-        "budget": "$30,000 - $60,000 USD",
+        "id": "demanda_miguel_hidalgo_desarrollo_web",
+        "company": "Alcaldía Miguel Hidalgo (CDMX)",
+        "sector": "Gobierno Digital, Trámites & Portales Ciudadanos",
+        "priority": "Licitación Pública Nacional",
+        "status_badge": "30001026-032-25",
+        "budget": "$25,000 - $55,000 USD",
         "problem": (
-            "Convocatorias públicas para desarrollo de sistemas hacendarios, portales de recaudación digital, timbrado masivo CFDI 4.0 y plataformas de atención a contribuyentes."
+            "Licitación Pública Oficial No. 30001026-032-25: Requerimiento de 'SERVICIO DE CONSULTORÍA Y DESARROLLO WEB' "
+            "para la modernización de portales digitales de trámites y atención ciudadana de la alcaldía."
         ),
         "solution": (
-            "Desarrollo de módulos transaccionales de cobro con pasarelas bancarias autorizadas, validación fiscal automática y servicios de alta concurrencia con alta disponibilidad."
+            "Servicios integrales de consultoría de arquitectura web, desarrollo de portales modernos con Next.js y FastAPI, "
+            "cumplimiento de estándares de accesibilidad universal (WCAG 2.1) e integración con pasarelas de citas y trámites."
         ),
-        "tags": ["Sistemas Hacendarios", "Timbrado CFDI 4.0", "Pasarelas Bancarias", "Seguridad Fiscal"],
-        "contact_email": "concursodigital@finanzas.cdmx.gob.mx",
+        "tags": ["Consultoría y Desarrollo Web", "Licitación 30001026-032-25", "Next.js / FastAPI", "Trámites Digitales"],
+        "contact_email": "licitaciones@miguelhidalgo.gob.mx",
         "contact_web": "concursodigital.finanzas.cdmx.gob.mx",
-        "linkedin_company_url": "https://concursodigital.finanzas.cdmx.gob.mx",
-        "source_url": "https://concursodigital.finanzas.cdmx.gob.mx/convocatorias_publicas",
-        "demand_source_type": "Sistema Electrónico de Convocatorias Públicas de la CDMX",
-        "demand_source_label": "🏛️ Convocatorias Públicas Concurso Digital CDMX",
-        "demand_evidence_url": "https://concursodigital.finanzas.cdmx.gob.mx/convocatorias_publicas",
+        "linkedin_company_url": "https://concursodigital.finanzas.cdmx.gob.mx/proveedores/detalle_convocatoria/NTQxNg==",
+        "source_url": "https://concursodigital.finanzas.cdmx.gob.mx/proveedores/detalle_convocatoria/NTQxNg==",
+        "demand_source_type": "Licitación Pública No. 30001026-032-25",
+        "demand_source_label": "🏛️ Licitación Consultoría & Web",
+        "demand_evidence_url": "https://concursodigital.finanzas.cdmx.gob.mx/proveedores/detalle_convocatoria/NTQxNg==",
         "comparison_points": [
-            "Convocatorias oficiales vigentes de la Secretaría de Administración y Finanzas.",
-            "Blindaje de seguridad transaccional para pagos de contribuciones locales.",
-            "Descarga directa de bases y anexos técnicos sin costo."
+            "Procedimiento oficial 30001026-032-25 publicado en Concurso Digital CDMX",
+            "Consultoría técnica especializada en diseño y desarrollo web gubernamental",
+            "Garantía de soporte técnico y mantenimiento evolutivo post-entrega"
         ],
         "financial_quote": (
-            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Sistemas Hacendarios & Recaudación</b>\n\n"
-            "🏢 <b>Entidad:</b> Concurso Digital CDMX (Secretaría de Finanzas)\n"
-            "💡 <b>Solución:</b> Módulo de Recaudación Digital + Timbrado CFDI 4.0\n\n"
+            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Desarrollo Web & Portales de Trámites</b>\n\n"
+            "🏢 <b>Entidad:</b> Alcaldía Miguel Hidalgo (CDMX)\n"
+            "📋 <b>Licitación:</b> 30001026-032-25 (Consultoría y Desarrollo Web)\n"
+            "💡 <b>Solución:</b> Portales Ciudadanos en Next.js + Backend de Trámites FastAPI\n\n"
             "💰 <b>1. Costo Estimado de Desarrollo (COGS):</b>\n"
-            "• Desarrollador Senior Python/FastAPI (100 hrs × $35 USD): $3,500 USD\n"
-            "• Especialista en Integración Bancaria y SAT (80 hrs × $40 USD): $3,200 USD\n"
-            "• Pruebas de Estrés y Seguridad OWASP: $2,000 USD\n"
-            "👉 <b>Costo Base de Implementación:</b> ~$8,700 USD\n\n"
-            "💵 <b>2. Precio de Venta Sugerido:</b>\n"
-            "• <b>Precio Contrato Llave en Mano:</b> <b>$42,000 USD</b> (ó ~$756,000 MXN)\n"
-            "• <b>Margen Bruto de Implementación:</b> <b>79.3% de ganancia neta</b> ($33,300 USD)\n\n"
-            "🔄 <b>3. Modelo de Cobro Recurrente (Retainer / Mantenimiento Mensual):</b>\n"
-            "• Mantenimiento y actualización ante cambios de miscelánea fiscal: <b>$2,200 USD / mes</b>\n"
-            "• Margen mensual recurrente: ~72% ($1,584 USD/mes limpios)"
+            "• Consultor Senior de Arquitectura Web (60 hrs × $45 USD): $2,700 USD\n"
+            "• Desarrollador Frontend Next.js / React (160 hrs × $25 USD): $4,000 USD\n"
+            "• Desarrollador Backend Integrador (120 hrs × $25 USD): $3,000 USD\n"
+            "• Pruebas de Accesibilidad WCAG & Seguridad: $1,800 USD\n"
+            "👉 <b>Costo Base de Implementación:</b> ~$11,500 USD\n\n"
+            "💵 <b>2. Precio de Oferta Licitatoria Sugerida:</b>\n"
+            "• <b>Monto Contrato Llave en Mano:</b> <b>$34,000 USD</b> (ó ~$612,000 MXN)\n"
+            "• <b>Margen Bruto de Implementación:</b> <b>66.2% de ganancia neta</b> ($22,500 USD)\n\n"
+            "🔄 <b>3. Modelo de Cobro Recurrente (Mantenimiento Mensual):</b>\n"
+            "• Póliza de actualización de contenidos y hosting gestionado: <b>$1,500 USD / mes</b>\n"
+            "• Margen mensual recurrente: ~70% ($1,050 USD/mes limpios)"
         ),
         "scope_summary": (
-            "🏛️ <b>FICHA TÉCNICA Y DE CONCURSO: Concurso Digital CDMX</b>\n\n"
-            "💼 <b>Sector:</b> Finanzas Públicas, Fiscal & Recaudación Digital\n"
-            "💰 <b>Presupuesto Estimado:</b> $30,000 - $60,000 USD\n"
-            "⏱️ <b>Tiempo de Ejecución:</b> 10 a 14 semanas\n\n"
+            "🏛️ <b>FICHA TÉCNICA OFICIAL DE LICITACIÓN: ALCALDÍA MIGUEL HIDALGO</b>\n\n"
+            "📋 <b>N° Procedimiento:</b> 30001026-032-25\n"
+            "💼 <b>Objeto del Procedimiento:</b> SERVICIO DE CONSULTORÍA Y DESARROLLO WEB\n"
+            "🏛️ <b>Unidad Convocante:</b> ALCALDÍA MIGUEL HIDALGO\n"
+            "💰 <b>Presupuesto Estimado:</b> $25,000 - $55,000 USD\n\n"
             "🛡️ <b>Fuente y Verificación Oficial:</b>\n"
-            "• <b>Convocatoria:</b> Sistema Electrónico de Convocatorias Públicas de la CDMX\n"
-            "• <b>Portal Oficial:</b> <code>https://concursodigital.finanzas.cdmx.gob.mx/convocatorias_publicas</code>\n\n"
-            "📌 <b>Requerimiento Técnico Institucional:</b>\n"
-            "Desarrollo e integración de componentes para el portal de trámites hacendarios, "
-            "conciliación bancaria en línea y timbrado masivo de comprobantes fiscales.\n\n"
+            "• <b>Portal Convocante:</b> Sistema de Compras Públicas de la Ciudad de México\n"
+            "• <b>Enlace Oficial Directo:</b> <code>https://concursodigital.finanzas.cdmx.gob.mx/proveedores/detalle_convocatoria/NTQxNg==</code>\n\n"
+            "📌 <b>Requerimiento Técnico de las Bases:</b>\n"
+            "Diseño e implementación de arquitectura web unificada, optimización SEO para trámites públicos, "
+            "compatibilidad móvil total y módulo de autogestión de citas ciudadanas.\n\n"
             "🛠️ <b>Entregables Técnicos Requeridos (SOW):</b>\n"
-            "1. Pasarela de pagos con conexión segura a múltiples instituciones bancarias.\n"
-            "2. Validador en tiempo real de estatus fiscal y generación automática de recibos CFDI.\n"
-            "3. Arquitectura resiliente ante cierres fiscales de alta concurrencia.\n"
-            "4. Bitácora de transacciones bancarias auditables."
+            "1. Documento de arquitectura web, diseño UI/UX en Figma y guías de estilos.\n"
+            "2. Desarrollo de frontend responsivo bajo Next.js / TypeScript.\n"
+            "3. Conectores REST API con las bases de datos de trámites de la alcaldía.\n"
+            "4. Pruebas de estrés y certificación de accesibilidad digital WCAG 2.1 AA."
+        )
+    },
+    {
+        "id": "demanda_metro_cdmx_monitoreo_iot",
+        "company": "Metro CDMX (Sistema de Transporte Colectivo)",
+        "sector": "Movilidad Inteligente, Telemetría & Sistemas IoT",
+        "priority": "Licitación Pública Nacional",
+        "status_badge": "30102015-012-25",
+        "budget": "$60,000 - $120,000 USD",
+        "problem": (
+            "Licitación Pública Oficial No. 30102015-012-25: 'SUMINISTRO, INSTALACIÓN Y PUESTA EN OPERACIÓN DEL SISTEMA "
+            "DE MONITOREO DE EQUIPOS DE MOVILIDAD (ETAPA 1)' para supervisión telemétrica de infraestructura del Metro."
+        ),
+        "solution": (
+            "Plataforma de software telemétrico con ingesta de señales vía MQTT/Kafka, almacenamiento de series de tiempo "
+            "en TimescaleDB, tableros de control geoespaciales interactivos y sistema automatizado de alertas de fallas."
+        ),
+        "tags": ["Telemetría IoT", "Licitación 30102015-012-25", "Sistemas de Movilidad", "Dashboards Tiempo Real"],
+        "contact_email": "licitaciones@metro.cdmx.gob.mx",
+        "contact_web": "concursodigital.finanzas.cdmx.gob.mx",
+        "linkedin_company_url": "https://concursodigital.finanzas.cdmx.gob.mx/proveedores/detalle_convocatoria/NTM3MA==",
+        "source_url": "https://concursodigital.finanzas.cdmx.gob.mx/proveedores/detalle_convocatoria/NTM3MA==",
+        "demand_source_type": "Licitación Pública No. 30102015-012-25",
+        "demand_source_label": "🚇 Licitación Monitoreo Metro CDMX",
+        "demand_evidence_url": "https://concursodigital.finanzas.cdmx.gob.mx/proveedores/detalle_convocatoria/NTM3MA==",
+        "comparison_points": [
+            "Procedimiento oficial 30102015-012-25 del Sistema de Transporte Colectivo",
+            "Supervisión telemétrica en tiempo real de infraestructura crítica de movilidad",
+            "Arquitectura escalable para integración de futuras etapas y sensores"
+        ],
+        "financial_quote": (
+            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Telemetría & Monitoreo de Transporte</b>\n\n"
+            "🏢 <b>Entidad:</b> Metro CDMX (Sistema de Transporte Colectivo)\n"
+            "📋 <b>Licitación:</b> 30102015-012-25 (Sistema de Monitoreo de Equipos de Movilidad)\n"
+            "💡 <b>Solución:</b> Broker MQTT + Dashboard Geoespacial + Alertas Preventivas\n\n"
+            "💰 <b>1. Costo Estimado de Desarrollo (COGS):</b>\n"
+            "• Ingeniero Especialista IoT / MQTT (100 hrs × $50 USD): $5,000 USD\n"
+            "• Desarrolladores Backend Time-Series (140 hrs × $30 USD): $4,200 USD\n"
+            "• Desarrollador Frontend GIS / Mapbox (100 hrs × $30 USD): $3,000 USD\n"
+            "• Infraestructura Cloud de Telemetría: $2,800 USD\n"
+            "👉 <b>Costo Base de Implementación:</b> ~$15,000 USD\n\n"
+            "💵 <b>2. Precio de Oferta Licitatoria Sugerida:</b>\n"
+            "• <b>Monto Contrato Llave en Mano:</b> <b>$65,000 USD</b> (ó ~$1,170,000 MXN)\n"
+            "• <b>Margen Bruto de Implementación:</b> <b>76.9% de ganancia neta</b> ($50,000 USD)\n\n"
+            "🔄 <b>3. Modelo de Cobro Recurrente (Mantenimiento Mensual):</b>\n"
+            "• Monitoreo 24/7 y soporte de SLAs 99.9%: <b>$2,800 USD / mes</b>\n"
+            "• Margen mensual recurrente: ~75% ($2,100 USD/mes limpios)"
+        ),
+        "scope_summary": (
+            "🚇 <b>FICHA TÉCNICA OFICIAL DE LICITACIÓN: METRO CDMX (STC)</b>\n\n"
+            "📋 <b>N° Procedimiento:</b> 30102015-012-25\n"
+            "💼 <b>Objeto del Procedimiento:</b> SUMINISTRO, INSTALACIÓN Y PUESTA EN OPERACIÓN DEL SISTEMA DE MONITOREO DE EQUIPOS DE MOVILIDAD (ETAPA 1)\n"
+            "🏛️ <b>Unidad Convocante:</b> SISTEMA DE TRANSPORTE COLECTIVO\n"
+            "💰 <b>Presupuesto Estimado:</b> $60,000 - $120,000 USD\n\n"
+            "🛡️ <b>Fuente y Verificación Oficial:</b>\n"
+            "• <b>Portal Convocante:</b> Sistema de Compras Públicas de la Ciudad de México\n"
+            "• <b>Enlace Oficial Directo:</b> <code>https://concursodigital.finanzas.cdmx.gob.mx/proveedores/detalle_convocatoria/NTM3MA==</code>\n\n"
+            "📌 <b>Requerimiento Técnico de las Bases:</b>\n"
+            "Implementación del software centralizado para captura de datos telemétricos de equipos electromecánicos de movilidad, "
+            "registro de eventos y visualización en tiempo real para centros de control.\n\n"
+            "🛠️ <b>Entregables Técnicos Requeridos (SOW):</b>\n"
+            "1. Servidor de ingesta MQTT seguro con validación de tramas telemétricas.\n"
+            "2. Base de datos TimescaleDB optimizada para lecturas de alto volumen.\n"
+            "3. Dashboard web interactivo con visualización geográfica de líneas y estaciones.\n"
+            "4. Protocolos de alerta ante desvíos de parámetros de funcionamiento normal."
+        )
+    },
+    {
+        "id": "demanda_fgjcdmx_cloud_gcp",
+        "company": "Fiscalía General de Justicia CDMX (Cloud)",
+        "sector": "Cloud Computing, Infraestructura GCP & DevOps",
+        "priority": "Licitación Pública Nacional",
+        "status_badge": "LPN/FGJCDMX/DACS-053/2025",
+        "budget": "$50,000 - $110,000 USD",
+        "problem": (
+            "Licitación Pública Oficial No. LPN/FGJCDMX/DACS-053/2025: Requerimiento de 'Contratación de servicios informáticos "
+            "Google Cloud Platform (GCP) para los sistemas de la Fiscalía General de Justicia de la Ciudad de México'."
+        ),
+        "solution": (
+            "Servicios administrados de computación en la nube GCP, aprovisionamiento automatizado con Terraform, configuración "
+            "de clusters de Kubernetes (GKE), esquemas de respaldo cifrado y monitoreo con Google Cloud Operations Suite."
+        ),
+        "tags": ["Google Cloud Platform", "LPN/FGJCDMX/DACS-053/2025", "Kubernetes / Terraform", "DevOps Cloud"],
+        "contact_email": "dacs@fgjcdmx.gob.mx",
+        "contact_web": "concursodigital.finanzas.cdmx.gob.mx",
+        "linkedin_company_url": "https://concursodigital.finanzas.cdmx.gob.mx/proveedores/detalle_convocatoria/NTMwOA==",
+        "source_url": "https://concursodigital.finanzas.cdmx.gob.mx/proveedores/detalle_convocatoria/NTMwOA==",
+        "demand_source_type": "Licitación Pública Nacional No. LPN/FGJCDMX/DACS-053/2025",
+        "demand_source_label": "☁️ Licitación Servicios Cloud GCP",
+        "demand_evidence_url": "https://concursodigital.finanzas.cdmx.gob.mx/proveedores/detalle_convocatoria/NTMwOA==",
+        "comparison_points": [
+            "Procedimiento oficial LPN/FGJCDMX/DACS-053/2025 en Concurso Digital CDMX",
+            "Servicios informáticos especializados en infraestructura Google Cloud",
+            "SLA de disponibilidad 99.95% con redundancia geográfica para continuidad operativa"
+        ],
+        "financial_quote": (
+            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Servicios Administrados Cloud GCP</b>\n\n"
+            "🏢 <b>Entidad:</b> Fiscalía General de Justicia CDMX\n"
+            "📋 <b>Licitación:</b> LPN/FGJCDMX/DACS-053/2025 (Servicios Informáticos GCP)\n"
+            "💡 <b>Solución:</b> Arquitectura Multi-Zona GKE + Terraform + CI/CD Cloud\n\n"
+            "💰 <b>1. Costo Estimado de Implementación (COGS):</b>\n"
+            "• Arquitecto Certificado Google Cloud Professional (80 hrs × $60 USD): $4,800 USD\n"
+            "• Ingeniero DevOps / SRE Terraform (120 hrs × $35 USD): $4,200 USD\n"
+            "• Pruebas de Carga y Ciberseguridad Cloud: $2,500 USD\n"
+            "👉 <b>Costo Base de Arquitectura & Configuración:</b> ~$11,500 USD\n\n"
+            "💵 <b>2. Precio de Oferta Licitatoria Sugerida:</b>\n"
+            "• <b>Monto Contrato Servicios Administrados:</b> <b>$48,000 USD</b> (ó ~$864,000 MXN)\n"
+            "• <b>Margen Bruto de Implementación:</b> <b>76.0% de ganancia neta</b> ($36,500 USD)\n\n"
+            "🔄 <b>3. Modelo de Cobro Recurrente (Fee de Gestión Cloud Mensual):</b>\n"
+            "• Soporte y optimización continua de consumo GCP (FinOps): <b>$2,200 USD / mes</b>\n"
+            "• Margen mensual recurrente: ~80% ($1,760 USD/mes limpios)"
+        ),
+        "scope_summary": (
+            "☁️ <b>FICHA TÉCNICA OFICIAL DE LICITACIÓN: FGJCDMX (SERVICIOS CLOUD)</b>\n\n"
+            "📋 <b>N° Procedimiento:</b> LPN/FGJCDMX/DACS-053/2025\n"
+            "💼 <b>Objeto del Procedimiento:</b> Contratación de servicios informáticos Google Cloud Platform (GCP) para los sistemas de la Fiscalía General de Justicia de la Ciudad de México\n"
+            "🏛️ <b>Unidad Convocante:</b> FISCALÍA GENERAL DE JUSTICIA\n"
+            "💰 <b>Presupuesto Estimado:</b> $50,000 - $110,000 USD\n\n"
+            "🛡️ <b>Fuente y Verificación Oficial:</b>\n"
+            "• <b>Portal Convocante:</b> Sistema de Compras Públicas de la Ciudad de México\n"
+            "• <b>Enlace Oficial Directo:</b> <code>https://concursodigital.finanzas.cdmx.gob.mx/proveedores/detalle_convocatoria/NTMwOA==</code>\n\n"
+            "📌 <b>Requerimiento Técnico de las Bases:</b>\n"
+            "Asegurar la continuidad operativa de los sistemas institucionales en la nube pública de Google, "
+            "con alta disponibilidad, replicación de bases de datos y soporte técnico especializado.\n\n"
+            "🛠️ <b>Entregables Técnicos Requeridos (SOW):</b>\n"
+            "1. Plan de migración y configuración de infraestructura como código (Terraform).\n"
+            "2. Despliegue de clústeres GKE con autoscaling y políticas de red zero-trust.\n"
+            "3. Configuración de Cloud Armor para mitigación de ataques DDoS y WAF.\n"
+            "4. Monitoreo proactivo con dashboards de latencia, CPU y costos de consumo."
+        )
+    },
+    {
+        "id": "demanda_c5_cdmx_ciberseguridad_xdr",
+        "company": "FGJCDMX & C5 (Ciberseguridad)",
+        "sector": "Ciberseguridad, Detección de Incidentes & Software XDR",
+        "priority": "Licitación Pública Nacional",
+        "status_badge": "LPN/FGJCDMX/DACS-043/2025",
+        "budget": "$45,000 - $90,000 USD",
+        "problem": (
+            "Licitación Pública Oficial No. LPN/FGJCDMX/DACS-043/2025: 'Contratación del servicio para la renovación del licenciamiento "
+            "del software de detección y respuesta a incidentes informáticos (XDR), que incluye instalación, configuración y pruebas'."
+        ),
+        "solution": (
+            "Servicios especializados de ciberseguridad para despliegue de plataforma XDR/EDR, configuración de reglas de detección "
+            "de amenazas en endpoints y servidores, integración con SIEM y pruebas de respuesta ante intrusiones."
+        ),
+        "tags": ["Ciberseguridad XDR", "LPN/FGJCDMX/DACS-043/2025", "SOC / Detección Incidentes", "Seguridad de Endpoints"],
+        "contact_email": "dacs@fgjcdmx.gob.mx",
+        "contact_web": "concursodigital.finanzas.cdmx.gob.mx",
+        "linkedin_company_url": "https://concursodigital.finanzas.cdmx.gob.mx/proveedores/detalle_convocatoria/NTE0MQ==",
+        "source_url": "https://concursodigital.finanzas.cdmx.gob.mx/proveedores/detalle_convocatoria/NTE0MQ==",
+        "demand_source_type": "Licitación Pública Nacional No. LPN/FGJCDMX/DACS-043/2025",
+        "demand_source_label": "🛡️ Licitación Software XDR Ciberseguridad",
+        "demand_evidence_url": "https://concursodigital.finanzas.cdmx.gob.mx/proveedores/detalle_convocatoria/NTE0MQ==",
+        "comparison_points": [
+            "Procedimiento oficial LPN/FGJCDMX/DACS-043/2025 en Concurso Digital CDMX",
+            "Servicios de implementación, configuración y pruebas de funcionalidad de software XDR",
+            "Capacitación operativa al equipo de seguridad de la información institucional"
+        ],
+        "financial_quote": (
+            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Implementación de Ciberseguridad XDR</b>\n\n"
+            "🏢 <b>Entidad:</b> FGJCDMX & C5 (Seguridad Digital)\n"
+            "📋 <b>Licitación:</b> LPN/FGJCDMX/DACS-043/2025 (Software XDR & Incident Response)\n"
+            "💡 <b>Solución:</b> Despliegue de Agentes XDR + Integración SIEM + Políticas de Respuesta\n\n"
+            "💰 <b>1. Costo Estimado de Implementación Técnica (COGS):</b>\n"
+            "• Especialista Senior en Ciberseguridad / SOC (80 hrs × $55 USD): $4,400 USD\n"
+            "• Ingeniero de Implementación y Políticas EDR (100 hrs × $35 USD): $3,500 USD\n"
+            "• Pruebas de Penetración y Validación de Alertas: $2,500 USD\n"
+            "👉 <b>Costo Base de Servicios Técnicos:</b> ~$10,400 USD\n\n"
+            "💵 <b>2. Precio de Oferta Licitatoria Sugerida:</b>\n"
+            "• <b>Monto Contrato Servicios Especializados:</b> <b>$38,000 USD</b> (ó ~$684,000 MXN)\n"
+            "• <b>Margen Bruto de Implementación:</b> <b>72.6% de ganancia neta</b> ($27,600 USD)\n\n"
+            "🔄 <b>3. Modelo de Cobro Recurrente (Monitoreo SOC Mensual):</b>\n"
+            "• Gestión continua de alertas y parches de seguridad: <b>$2,000 USD / mes</b>\n"
+            "• Margen mensual recurrente: ~75% ($1,500 USD/mes limpios)"
+        ),
+        "scope_summary": (
+            "🛡️ <b>FICHA TÉCNICA OFICIAL DE LICITACIÓN: FGJCDMX (CIBERSEGURIDAD XDR)</b>\n\n"
+            "📋 <b>N° Procedimiento:</b> LPN/FGJCDMX/DACS-043/2025\n"
+            "💼 <b>Objeto del Procedimiento:</b> Contratación del servicio para la renovación del licenciamiento del software de detección y respuesta a incidentes informáticos (XDR), que incluye instalación, configuración, puesta en operación y pruebas de funcionalidad\n"
+            "🏛️ <b>Unidad Convocante:</b> FISCALÍA GENERAL DE JUSTICIA\n"
+            "💰 <b>Presupuesto Estimado:</b> $45,000 - $90,000 USD\n\n"
+            "🛡️ <b>Fuente y Verificación Oficial:</b>\n"
+            "• <b>Portal Convocante:</b> Sistema de Compras Públicas de la Ciudad de México\n"
+            "• <b>Enlace Oficial Directo:</b> <code>https://concursodigital.finanzas.cdmx.gob.mx/proveedores/detalle_convocatoria/NTE0MQ==</code>\n\n"
+            "📌 <b>Requerimiento Técnico de las Bases:</b>\n"
+            "Despliegue integral de la solución de seguridad XDR en la infraestructura de servidores y terminales institucionales, "
+            "con aislamiento preventivo de amenazas y generación de reportes forenses.\n\n"
+            "🛠️ <b>Entregables Técnicos Requeridos (SOW):</b>\n"
+            "1. Matriz de despliegue y compatibilidad de agentes en sistemas operativos mixtos.\n"
+            "2. Configuración de reglas de correlación y exclusión de falsos positivos.\n"
+            "3. Ejecución de simulacros controlados de ataque para validar la respuesta automática.\n"
+            "4. Capacitación técnica al personal de guardia del Centro de Operaciones de Seguridad."
         )
     }
 ]

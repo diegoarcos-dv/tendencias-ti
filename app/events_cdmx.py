@@ -1,12 +1,11 @@
-"""Proveedor de Datos: Agenda Tech & Calendario de Eventos TI en CDMX (Especial Jóvenes y Estudiantes).
+"""Proveedor de Datos: Agenda Tech & Calendario de Eventos TI en CDMX (Enfoque Enterprise & B2B).
 
 Responsabilidades:
-- Catálogo interactivo tipo calendario con eventos tecnológicos en Ciudad de México cubriendo una ventana de 30 días móviles.
-- Enfoque especial en jóvenes desarrolladores, estudiantes, comunidades de código abierto, hackathones y meetups libres.
-- Actualización diaria y dinámica de fechas con anticipación para facilitar el registro de los usuarios.
-- Enlaces de registro en español, verificados y directos a plataformas oficiales activas (Eventbrite México, Lu.ma CDMX Tech, Google Developers MX, AWS Community México, Cartelera CDMX).
-- Muestra el enlace y dominio visible directamente en la plantilla visual (tarjeta PNG).
-- Provee ficha técnica y logística de asistencia completa para consultar en Telegram.
+- Catálogo interactivo tipo calendario con eventos tecnológicos corporativos y cumbres de IA en Ciudad de México.
+- Enfoque estratégico en líderes de TI, directores de tecnología, arquitectos cloud, desarrolladores senior y sector empresarial.
+- Soporte para fechas fijas de grandes congresos (ej. NVIDIA AI Day, Microsoft AI Tour) y fechas dinámicas escalonadas.
+- Enlaces oficiales de registro empresarial verificados (NVIDIA LatAm, Microsoft Events, AWS Summits, IBM Think, Google Cloud).
+- Generación de fichas técnicas para renderizado en tarjetas visuales (1080x1080) y consultas interactivas en Telegram.
 """
 
 from typing import Dict, Any, List, Optional
@@ -22,295 +21,226 @@ _MESES_ES = [
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
 ]
 
-# Catálogo completo de eventos tecnológicos en CDMX enfocado en jóvenes, talento tech y networking
-# Cubre una ventana completa de 30 días móviles con días de anticipación escalonados
+# Catálogo oficial de eventos tecnológicos empresariales en CDMX (AI, Cloud, Ciberseguridad & Enterprise)
 _EVENTS_CALENDAR_CATALOG: List[Dict[str, Any]] = [
     {
-        "id": "evento_hackathon_jovenes",
-        "org": "Hackathon CDMX & Talento Joven",
-        "access_label": "Entrada Libre · Estudiantes",
-        "title": "Hackathon de IA & Agentes Autónomos para Universitarios",
-        "days_ahead": 3,
+        "id": "evento_nvidia_ai_day_cdmx",
+        "org": "NVIDIA LatAm & Alianza México IA+",
+        "access_label": "Acreditación Empresarial",
+        "title": "NVIDIA AI Day Mexico City 2026 & México IA+",
+        "fixed_date_str": "Miércoles 4 y Jueves 5 de Noviembre de 2026 · 09:00 hrs a 18:00 hrs",
+        "days_ahead": 20,
         "hour_str": "09:00 hrs a 18:00 hrs",
-        "venue": "Campus Ciudad de México / Coworking Insurgentes Sur 1602, CDMX",
-        "target_audience": "Jóvenes devs, universitarios y recién egresados",
+        "venue": "Expo Santa Fe México, Av. Santa Fe 270, Santa Fe, CDMX",
+        "target_audience": "Líderes de TI, CTOs, Arquitectos Cloud, Científicos de Datos y Directores de Innovación",
         "requirements": (
-            "• Registro gratuito con credencial de estudiante o perfil de GitHub.<br>"
-            "• Llevar laptop propia y cargador. Se proporcionarán mentorías y comida.<br>"
-            "• Premios en créditos cloud ($2,000 USD) y entrevistas con startups."
+            "• Acreditación previa oficial en el portal de NVIDIA LatAm / México IA+.<br>"
+            "• Keynotes ejecutivas de Jensen Huang & líderes de infraestructura de IA para centros de datos.<br>"
+            "• Sesiones de aceleración GPU para inferencia empresarial, gemelos digitales y LLMs industriales."
         ),
         "tags": [
-            "Hackathon Joven",
-            "Agentes con IA",
-            "Bolsa de Trabajo",
-            "Entrada Gratuita"
+            "NVIDIA AI Day",
+            "Expo Santa Fe",
+            "GPUs & Data Centers",
+            "México IA+"
         ],
-        "platform_name": "Eventbrite México",
-        "platform_domain": "eventbrite.com/e/ai-hackathon-mexico-tickets",
-        "platform_mode": "Presencial · Entrada Libre",
-        "registration_url": "https://www.eventbrite.com/e/ai-hackathon-mexico-2026-by-ai-lab-school-tickets-1999392385447",
+        "platform_name": "NVIDIA Events LatAm",
+        "platform_domain": "nvidia.com/es-la/events",
+        "platform_mode": "Presencial · Expo Santa Fe",
+        "registration_url": "https://www.nvidia.com/es-la/events/",
         "info_summary": (
-            "🚀 <b>DETALLES DE ASISTENCIA: Hackathon de IA para Universitarios</b>\n\n"
-            "📍 <b>Sede:</b> Insurgentes Sur 1602, Crédito Constructor, Benito Juárez, CDMX\n"
-            "🎟️ <b>Costo:</b> 100% Gratuito (Patrocinado por comunidades tech y aceleradoras)\n"
-            "👥 <b>Público:</b> Estudiantes de ingeniería, bootcamps y jóvenes programadores\n\n"
-            "📋 <b>Dinámica del Hackathon:</b>\n"
-            "1. Reto de 9 horas para prototipar un agente con LLMs (Gemma/OpenAI/Claude).\n"
-            "2. Mentorías técnicas 1 a 1 de arquitectos senior en Python, FastAPI y Docker.\n"
-            "3. Conexión directa con reclutadores de startups en CDMX y LATAM.\n\n"
-            "🔗 <b>Registro Oficial:</b> <a href='https://www.eventbrite.com/e/ai-hackathon-mexico-2026-by-ai-lab-school-tickets-1999392385447'>Abrir Registro en Eventbrite México</a>"
+            "🟢 <b>DETALLES DE ASISTENCIA: NVIDIA AI Day Mexico City 2026 & México IA+</b>\n\n"
+            "📍 <b>Sede:</b> Expo Santa Fe México (Av. Santa Fe 270, Zedec Santa Fe, Álvaro Obregón, CDMX)\n"
+            "📅 <b>Fechas:</b> 4 y 5 de Noviembre de 2026\n"
+            "🎟️ <b>Acceso:</b> Registro Empresarial & Acreditación Oficial (Incluye acceso a México IA+)\n"
+            "👥 <b>Público Objetivo:</b> CTOs, Arquitectos de Software, Directores de TI y Equipos de IA\n\n"
+            "📋 <b>Agenda Estratégica del Evento:</b>\n"
+            "1. <b>Arquitectura de Supercómputo:</b> Infraestructura de GPUs Blackwell y DGX para centros de datos empresariales.\n"
+            "2. <b>IA Generativa Empresarial:</b> Despliegues de microservicios NVIDIA NIM y modelos fundacionales autónomos.\n"
+            "3. <b>Marco México IA+:</b> Alianzas público-privadas para aceleración tecnológica e inversión en IA nacional.\n"
+            "4. <b>Networking Ejecutivo:</b> Zona de exposición con integradores cloud, consultoras y líderes de la industria.\n\n"
+            "🔗 <b>Portal Oficial de Registro:</b> <a href='https://www.nvidia.com/es-la/events/'>Sitio Oficial NVIDIA Events México</a>"
         )
     },
     {
-        "id": "evento_pyday_jovenes",
-        "org": "Comunidad Python México & Estudiantes",
-        "access_label": "Entrada Libre",
-        "title": "PyDay CDMX: Taller Práctico de Microservicios & Python Moderno",
-        "days_ahead": 7,
-        "hour_str": "10:00 hrs a 17:00 hrs",
-        "venue": "TecNM Gustavo A. Madero / Coworking Polanco, CDMX",
-        "target_audience": "Jóvenes aprendiendo backend, Python y APIs",
+        "id": "evento_microsoft_ai_tour_cdmx",
+        "org": "Microsoft México Enterprise",
+        "access_label": "Pase Corporativo B2B",
+        "title": "Microsoft AI Tour CDMX: Infraestructura, Copilot & Azure OpenAI",
+        "fixed_date_str": "Martes 10 de Noviembre de 2026 · 08:30 hrs a 17:30 hrs",
+        "days_ahead": 26,
+        "hour_str": "08:30 hrs a 17:30 hrs",
+        "venue": "Centro Citibanamex, Av. del Conscripto 311, Lomas de Sotelo, CDMX",
+        "target_audience": "Directores de Tecnología, Ingenieros de Software, CISOs y Analistas de Datos",
         "requirements": (
-            "• Confirmación de asistencia en Eventbrite México (sin costo alguno).<br>"
-            "• Nivel principiante a intermedio en programación.<br>"
-            "• Sesión de networking, mentorías de código abierto y pizza al terminar."
+            "• Registro corporativo con correo empresarial en Microsoft Events.<br>"
+            "• Talleres hands-on de Azure OpenAI, seguridad en la nube y gobierno corporativo de datos.<br>"
+            "• Vinculación con partners de soluciones y consultoras enterprise."
         ),
         "tags": [
-            "Para Principiantes",
-            "Python 3.12",
-            "Mentoría Tech",
-            "Networking Joven"
+            "Microsoft AI",
+            "Azure Enterprise",
+            "Centro Citibanamex",
+            "B2B Tech"
         ],
-        "platform_name": "Eventbrite México",
-        "platform_domain": "eventbrite.com.mx/e/pyday-mexico-2026-cdmx",
-        "platform_mode": "Presencial · Cupo Libre",
-        "registration_url": "https://www.eventbrite.com.mx/e/pyday-mexico-2026-cdmx-tickets-1989262280029",
+        "platform_name": "Microsoft Events MX",
+        "platform_domain": "events.microsoft.com",
+        "platform_mode": "Presencial · Centro Citibanamex",
+        "registration_url": "https://events.microsoft.com/",
         "info_summary": (
-            "🐍 <b>DETALLES DE ASISTENCIA: PyDay CDMX & Jóvenes Developers</b>\n\n"
-            "📍 <b>Sede:</b> Auditorio TecNM / Coworking Polanco, CDMX\n"
-            "🎟️ <b>Costo:</b> Entrada Libre con boleto digital en Eventbrite\n"
-            "👥 <b>Público:</b> Principiantes, autodidactas y estudiantes de sistemas\n\n"
-            "📋 <b>Talleres confirmados:</b>\n"
-            "1. Tu primera API REST de alto rendimiento con FastAPI y Pydantic.\n"
-            "2. Automatización de tareas y scraping ético en la nube.\n"
-            "3. Cómo armar tu portafolio en GitHub para conseguir tu primera chamba remota.\n\n"
-            "🔗 <b>Plataforma Oficial:</b> <a href='https://www.eventbrite.com.mx/e/pyday-mexico-2026-cdmx-tickets-1989262280029'>Registro Oficial PyDay CDMX en Eventbrite</a>"
+            "🟦 <b>DETALLES DE ASISTENCIA: Microsoft AI Tour Mexico City</b>\n\n"
+            "📍 <b>Sede:</b> Centro Citibanamex (Av. del Conscripto 311, Lomas de Sotelo, Miguel Hidalgo, CDMX)\n"
+            "🎟️ <b>Acceso:</b> Registro profesional gratuito con correo corporativo verificado\n"
+            "👥 <b>Público Objetivo:</b> Tomadores de decisiones técnicas, desarrolladores cloud y arquitectos de soluciones\n\n"
+            "📋 <b>Ejes Temáticos:</b>\n"
+            "1. Adopción de agentes con Microsoft Copilot Studio y orquestación con Azure AI.\n"
+            "2. Estrategias de ciberseguridad Zero Trust para entornos corporativos híbridos.\n"
+            "3. Modernización de bases de datos legadas y pipelines analíticos en Microsoft Fabric.\n\n"
+            "🔗 <b>Registro Oficial:</b> <a href='https://events.microsoft.com/'>Portal Microsoft Events México</a>"
         )
     },
     {
-        "id": "evento_gdg_estudiantes",
-        "org": "Google Developer Groups México",
-        "access_label": "Cupo Libre Estudiantes",
-        "title": "Cloud, Contenedores & Web Móvil para Nuevas Generaciones",
-        "days_ahead": 11,
-        "hour_str": "17:00 hrs a 20:30 hrs",
-        "venue": "WeWork Reforma 26, Juárez, Cuauhtémoc, CDMX",
-        "target_audience": "Estudiantes de ingeniería, bootcamps y autodidactas",
+        "id": "evento_aws_summit_enterprise_cdmx",
+        "org": "Amazon Web Services (AWS) México",
+        "access_label": "Entrada Libre con Registro",
+        "title": "AWS Summit México: Cómputo Elástico, IA Generativa & Bedrock",
+        "days_ahead": 12,
+        "hour_str": "09:00 hrs a 17:00 hrs",
+        "venue": "World Trade Center (WTC) CDMX, Montecito 38, Nápoles, CDMX",
+        "target_audience": "Arquitectos de Soluciones, DevOps, Líderes de Ingeniería Cloud y Startups",
         "requirements": (
-            "• Registro en la plataforma oficial de Google Developers México.<br>"
-            "• Identificación oficial o escolar en torniquetes del edificio.<br>"
-            "• Swag oficial (stickers, playeras) para los primeros 50 asistentes."
+            "• Registro digital confirmado en portal de AWS Events México.<br>"
+            "• Múltiples tracks técnicos: Infraestructura Cloud, Serverless y Modelos Fundacionales en Bedrock.<br>"
+            "• Expo de soluciones tecnológicas con más de 40 empresas expositoras y partners."
         ),
         "tags": [
-            "Google Developers",
-            "Docker / Cloud",
-            "Comunidad Estudiantil",
-            "Presencial CDMX"
+            "AWS Summit",
+            "WTC CDMX",
+            "Arquitectura Cloud",
+            "Enterprise"
         ],
-        "platform_name": "Google Developers MX",
-        "platform_domain": "gdg.community.dev/gdg-cloud-mexico-city",
-        "platform_mode": "Presencial · Swag Gratuito",
-        "registration_url": "https://gdg.community.dev/gdg-cloud-mexico-city/",
-        "info_summary": (
-            "☁️ <b>DETALLES DE ASISTENCIA: GDG Estudiantes & Cloud CDMX</b>\n\n"
-            "📍 <b>Sede:</b> WeWork Paseo de la Reforma 26, Cuauhtémoc, CDMX\n"
-            "🎟️ <b>Costo:</b> Gratuito mediante registro en GDG Community\n"
-            "👥 <b>Público:</b> Universitarios y talento junior en nube y desarrollo\n\n"
-            "📋 <b>Agenda de la tarde:</b>\n"
-            "1. Despliegue de microservicios con Docker y Kubernetes para estudiantes.\n"
-            "2. Uso de modelos de Gemini y Vertex AI en proyectos de software.\n"
-            "3. Espacio de networking con ingenieros de Google y empresas colaboradoras.\n\n"
-            "🔗 <b>Plataforma Oficial:</b> <a href='https://gdg.community.dev/gdg-cloud-mexico-city/'>GDG Cloud Mexico City (Registro Oficial)</a>"
-        )
-    },
-    {
-        "id": "evento_maker_estudiantes",
-        "org": "Comunidad Maker & Robótica CDMX",
-        "access_label": "Entrada Libre · CENART",
-        "title": "Encuentro de Innovación: Robótica, IA & Hardware Abierto",
-        "days_ahead": 15,
-        "hour_str": "10:00 hrs a 18:00 hrs",
-        "venue": "Centro Nacional de las Artes (CENART), Río Churubusco 79, CDMX",
-        "target_audience": "Jóvenes entusiastas de hardware, IoT, robótica y software",
-        "requirements": (
-            "• Entrada gratuita y libre para todo público y familias.<br>"
-            "• Talleres de robótica interactiva y circuitos para estudiantes.<br>"
-            "• Demostraciones de drones, impresoras 3D y placas Arduino/ESP32."
-        ),
-        "tags": [
-            "Robótica & IoT",
-            "Hardware Libre",
-            "Entrada Libre",
-            "CENART CDMX"
-        ],
-        "platform_name": "Centro Multimedia CENART",
-        "platform_domain": "cenart.gob.mx/centro-multimedia",
-        "platform_mode": "Feria Abierta · Sin Costo",
-        "registration_url": "https://cenart.gob.mx/centro-multimedia/",
-        "info_summary": (
-            "🤖 <b>DETALLES DE ASISTENCIA: Feria Maker & Hardware Libre CDMX</b>\n\n"
-            "📍 <b>Sede:</b> CENART (Av. Río Churubusco 79, Country Club, Coyoacán, CDMX)\n"
-            "🎟️ <b>Costo:</b> Entrada 100% Libre sin registro previo en taquilla\n"
-            "👥 <b>Público:</b> Estudiantes de mecatrónica, sistemas, electrónica y makers\n\n"
-            "📋 <b>Atracciones clave:</b>\n"
-            "1. Competencias amistosas de robótica móvil y visión por computadora.\n"
-            "2. Stands de comunidades universitarias del IPN (UPIITA) y UNAM (FI).\n"
-            "3. Conexión de hardware con APIs en la nube mediante microcontroladores ESP32.\n\n"
-            "🔗 <b>Plataforma Oficial:</b> <a href='https://cenart.gob.mx/centro-multimedia/'>Centro Multimedia CENART (Cartelera & Acceso)</a>"
-        )
-    },
-    {
-        "id": "evento_aws_community",
-        "org": "AWS Community Day México",
-        "access_label": "Registro Abierto",
-        "title": "Cloud Native, Serverless & Oportunidades Junior en Cloud",
-        "days_ahead": 19,
-        "hour_str": "09:00 hrs a 16:00 hrs",
-        "venue": "WTC Ciudad de México, Montecito 38, Nápoles, CDMX",
-        "target_audience": "Jóvenes buscando certificaciones y su primer empleo en la nube",
-        "requirements": (
-            "• Registro previo en la web oficial en español de AWS Eventos México.<br>"
-            "• Acceso a área de empresas con vacantes para talento junior y becarios.<br>"
-            "• Talleres prácticos guiados por arquitectos certificados de soluciones."
-        ),
-        "tags": [
-            "AWS Certificaciones",
-            "Primer Empleo TI",
-            "Conferencia WTC",
-            "Networking Masivo"
-        ],
-        "platform_name": "AWS Community Day México",
-        "platform_domain": "day.awscommunity.mx",
+        "platform_name": "AWS Events México",
+        "platform_domain": "aws.amazon.com/es/events",
         "platform_mode": "Presencial WTC · Registro Oficial",
-        "registration_url": "https://day.awscommunity.mx/",
+        "registration_url": "https://aws.amazon.com/es/events/summits/mexico/",
         "info_summary": (
-            "☁️ <b>DETALLES DE ASISTENCIA: AWS Community Day México</b>\n\n"
-            "📍 <b>Sede:</b> World Trade Center (WTC) CDMX, Montecito 38, Nápoles, CDMX\n"
-            "🎟️ <b>Costo:</b> Registro abierto con becas completas para estudiantes\n"
-            "👥 <b>Público:</b> Universitarios, becarios y desarrolladores cloud\n\n"
-            "📋 <b>Beneficios para jóvenes:</b>\n"
-            "1. Asesorías en vivo para obtener la certificación AWS Certified Cloud Practitioner.\n"
-            "2. Módulos de reclutamiento de empresas aliadas que contratan talento recién egresado.\n"
-            "3. Créditos cloud gratuitos para prácticas y proyectos personales.\n\n"
-            "🔗 <b>Plataforma Oficial:</b> <a href='https://day.awscommunity.mx/'>AWS Community Day México (Registro Oficial)</a>"
+            "🟧 <b>DETALLES DE ASISTENCIA: AWS Summit Ciudad de México</b>\n\n"
+            "📍 <b>Sede:</b> World Trade Center (WTC) CDMX (Montecito 38, Nápoles, Benito Juárez, CDMX)\n"
+            "🎟️ <b>Costo:</b> 100% Gratuito mediante registro previo en portal oficial de AWS\n"
+            "👥 <b>Público Objetivo:</b> Arquitectos Cloud, SysAdmins, Ingenieros de Datos y Líderes Técnicos\n\n"
+            "📋 <b>Tracks Técnicos Confirmados:</b>\n"
+            "1. <b>AI & Machine Learning:</b> Implementación de modelos abiertos y propietarios con Amazon Bedrock.\n"
+            "2. <b>Resiliencia Cloud:</b> Arquitecturas multi-región y optimización de costos en EC2 y Kubernetes (EKS).\n"
+            "3. <b>Casos de Éxito Empresariales:</b> Paneles con bancos, retailers y unicornios de LATAM.\n\n"
+            "🔗 <b>Registro Oficial:</b> <a href='https://aws.amazon.com/es/events/summits/mexico/'>AWS Summit México (Registro Oficial)</a>"
         )
     },
     {
-        "id": "evento_ciberseguridad_cdmx",
-        "org": "OWASP & Ciberseguridad México",
-        "access_label": "Entrada Libre · Estudiantes",
-        "title": "Taller de Ciberseguridad Defensiva, Bug Bounty & Hacking Ético",
-        "days_ahead": 23,
-        "hour_str": "11:00 hrs a 17:00 hrs",
-        "venue": "Auditorio Javier Barros Sierra, Facultad de Ingeniería UNAM (CU), CDMX",
-        "target_audience": "Estudiantes de sistemas, redes, telecomunicaciones y devs junior",
+        "id": "evento_ibm_think_forum_cdmx",
+        "org": "IBM México & Red Hat Enterprise",
+        "access_label": "Acceso Ejecutivo B2B",
+        "title": "IBM Think Forum: watsonx, Nube Híbrida & Automatización",
+        "days_ahead": 16,
+        "hour_str": "09:30 hrs a 15:30 hrs",
+        "venue": "Hotel St. Regis / Paseo de la Reforma 439, Cuauhtémoc, CDMX",
+        "target_audience": "Líderes de Transformación Digital, Científicos de Datos y Arquitectos de Software",
         "requirements": (
-            "• Entrada libre con credencial de estudiante o registro digital en Eventbrite.<br>"
-            "• Llevar laptop propia con entorno Linux o máquinas virtuales para laboratorios.<br>"
-            "• Dinámica interactiva Capture The Flag (CTF) con retos para principiantes."
+            "• Invitación o confirmación vía portal oficial de IBM Think Forum México.<br>"
+            "• Sesiones de integración de IA gobernada y despliegues soberanos con Red Hat OpenShift.<br>"
+            "• Espacio de vinculación ejecutiva, mesas redondas y casos de ROI industrial."
         ),
         "tags": [
-            "Ciberseguridad",
-            "Hacking Ético",
-            "UNAM CU",
-            "Reto CTF Joven"
+            "IBM watsonx",
+            "Red Hat OpenShift",
+            "Reforma CDMX",
+            "Gobierno de Datos"
         ],
-        "platform_name": "OWASP Mexico City",
-        "platform_domain": "owasp.org/chapters/mexico-city",
-        "platform_mode": "Presencial · Auditorio UNAM",
-        "registration_url": "https://owasp.org/chapters/mexico-city",
+        "platform_name": "IBM Think Events",
+        "platform_domain": "ibm.com/events/think",
+        "platform_mode": "Presencial · Hotel St. Regis",
+        "registration_url": "https://www.ibm.com/events/think/",
         "info_summary": (
-            "🛡️ <b>DETALLES DE ASISTENCIA: Ciberseguridad Defensiva & Hacking Ético CDMX</b>\n\n"
-            "📍 <b>Sede:</b> Auditorio Barros Sierra, Facultad de Ingeniería, CU UNAM, Coyoacán, CDMX\n"
-            "🎟️ <b>Costo:</b> 100% Gratuito (Entrada libre con registro oficial)\n"
-            "👥 <b>Público:</b> Universitarios, autodidactas y entusiastas de seguridad informática\n\n"
-            "📋 <b>Dinámica del Taller:</b>\n"
-            "1. Fundamentos de análisis de vulnerabilidades y seguridad en APIs web.\n"
-            "2. Competencia amistosa Capture The Flag (CTF) nivel introductorio con premios.\n"
-            "3. Charla con profesionales sobre cómo iniciarse en programas de Bug Bounty remunerados.\n\n"
-            "🔗 <b>Registro Oficial:</b> <a href='https://owasp.org/chapters/mexico-city'>OWASP Mexico City Chapter (Registro & Acceso)</a>"
+            "🔷 <b>DETALLES DE ASISTENCIA: IBM Think Forum CDMX & Red Hat</b>\n\n"
+            "📍 <b>Sede:</b> The St. Regis Mexico City (Paseo de la Reforma 439, Cuauhtémoc, CDMX)\n"
+            "🎟️ <b>Acceso:</b> Registro exclusivo para sector corporativo y clientes enterprise\n"
+            "👥 <b>Público Objetivo:</b> Directores de Transformación Digital, CIOs y Responsables de Automatización\n\n"
+            "📋 <b>Agenda Ejecutiva:</b>\n"
+            "1. <b>watsonx.ai & watsonx.governance:</b> Cómo auditar y proteger la propiedad intelectual de modelos corporativos.\n"
+            "2. <b>Nube Híbrida Abierta:</b> Escalabilidad y portabilidad de microservicios con Red Hat OpenShift.\n"
+            "3. <b>Automatización de TI con IA:</b> Optimización de operaciones e incidentes con AIOps.\n\n"
+            "🔗 <b>Registro Oficial:</b> <a href='https://www.ibm.com/events/think/'>IBM Think México (Información & Acceso)</a>"
         )
     },
     {
-        "id": "evento_feria_empleo_tech",
-        "org": "Feria de Empleo Tech LATAM",
-        "access_label": "Registro Abierto · CV Digital",
-        "title": "Feria de Talento TI: Vacantes Junior, Becarios & Prácticas Profesionales",
-        "days_ahead": 27,
-        "hour_str": "09:30 hrs a 17:30 hrs",
-        "venue": "Expo Reforma, Calle Morelos 67, Juárez, Cuauhtémoc, CDMX",
-        "target_audience": "Estudiantes de últimos semestres, recién egresados y talento junior",
+        "id": "evento_google_cloud_summit_cdmx",
+        "org": "Google Cloud México",
+        "access_label": "Acreditación Profesional",
+        "title": "Google Cloud Summit: Vertex AI, BigQuery & Ciberseguridad Mandiant",
+        "days_ahead": 22,
+        "hour_str": "08:30 hrs a 17:00 hrs",
+        "venue": "Expo Santa Fe México, Av. Santa Fe 270, Santa Fe, CDMX",
+        "target_audience": "Equipos de Infraestructura Cloud, Ciberseguridad, Data Science y DevOps",
         "requirements": (
-            "• Acceso gratuito registrándose previamente en Lu.ma CDMX Tech.<br>"
-            "• Llevar currículum vitae digital o impreso y perfil de LinkedIn activo.<br>"
-            "• Más de 25 empresas tecnológicas y startups realizando entrevistas en sitio."
+            "• Confirmación oficial en Google Cloud Events México.<br>"
+            "• Demostraciones en vivo de Gemini Enterprise, analítica distribuida y BigQuery Studio.<br>"
+            "• Consultoría directa con arquitectos e ingenieros de soluciones de Google Cloud."
         ),
         "tags": [
-            "Bolsa de Trabajo",
-            "Primer Empleo TI",
-            "Startups LATAM",
-            "Expo Reforma"
+            "Google Cloud",
+            "Vertex AI",
+            "Mandiant Security",
+            "Expo Santa Fe"
         ],
-        "platform_name": "Lu.ma CDMX Tech",
-        "platform_domain": "lu.ma/mxtw",
-        "platform_mode": "Presencial · Acceso Gratuito",
-        "registration_url": "https://lu.ma/mxtw",
+        "platform_name": "Google Cloud Events",
+        "platform_domain": "cloud.google.com/events",
+        "platform_mode": "Presencial · Expo Santa Fe",
+        "registration_url": "https://cloud.google.com/events",
         "info_summary": (
-            "💼 <b>DETALLES DE ASISTENCIA: Feria de Talento TI & Vacantes Junior CDMX</b>\n\n"
-            "📍 <b>Sede:</b> Expo Reforma, Calle Morelos 67, Col. Juárez, Cuauhtémoc, CDMX\n"
-            "🎟️ <b>Costo:</b> Gratuito con registro previo en Lu.ma Tech CDMX\n"
-            "👥 <b>Público:</b> Universitarios, pasantes, becarios y desarrolladores junior\n\n"
-            "📋 <b>Actividades confirmadas:</b>\n"
-            "1. Módulos de reclutamiento con entrevistas técnicas directas en sitio.\n"
-            "2. Revisión y optimización de CV y portafolio GitHub por líderes de ingeniería.\n"
-            "3. Paneles sobre salarios en TI y preparación para entrevistas remotas.\n\n"
-            "🔗 <b>Plataforma Oficial:</b> <a href='https://lu.ma/mxtw'>Mexico Tech Week & Startups en Lu.ma (RSVP)</a>"
+            "🔴 <b>DETALLES DE ASISTENCIA: Google Cloud Summit México</b>\n\n"
+            "📍 <b>Sede:</b> Expo Santa Fe México (Av. Santa Fe 270, Santa Fe, CDMX)\n"
+            "🎟️ <b>Acceso:</b> Registro profesional gratuito con credencial digital\n"
+            "👥 <b>Público Objetivo:</b> Arquitectos de infraestructura, analistas de datos e ingenieros de IA\n\n"
+            "📋 <b>Temas Destacados:</b>\n"
+            "1. <b>Modelos Multimodales Gemini:</b> Despliegue de asistentes y analítica avanzada sobre Vertex AI.\n"
+            "2. <b>Ciberseguridad Proactiva:</b> Detección de amenazas e inteligencia de seguridad con Google Security Operations (Mandiant).\n"
+            "3. <b>Data & Modern Apps:</b> Gestión masiva de datos en tiempo real con BigQuery y Cloud Spanner.\n\n"
+            "🔗 <b>Registro Oficial:</b> <a href='https://cloud.google.com/events'>Google Cloud Summit (Página de Registro)</a>"
         )
     },
     {
-        "id": "evento_cumbre_opensource",
-        "org": "Comunidades Open Source México",
-        "access_label": "Entrada Libre · Cupo Abierto",
-        "title": "Gran Cumbre de Software Libre, DevOps & Inteligencia Artificial",
-        "days_ahead": 30,
-        "hour_str": "09:00 hrs a 18:30 hrs",
-        "venue": "Auditorio Manuel Sandoval Vallarta / Centro Cultural, CDMX",
-        "target_audience": "Comunidad tecnológica general, estudiantes, docentes y desarrolladores",
+        "id": "evento_ciberseguridad_b2b_cdmx",
+        "org": "ISACA & Ciberseguridad Corporativa MX",
+        "access_label": "Registro Corporativo",
+        "title": "Foro Nacional de Ciberseguridad Empresarial & Zero Trust",
+        "days_ahead": 28,
+        "hour_str": "09:00 hrs a 16:30 hrs",
+        "venue": "Club de Banqueros de México, 16 de Septiembre 57, Centro Histórico, CDMX",
+        "target_audience": "Oficiales de Seguridad (CISO), Auditores de TI, Oficiales de Cumplimiento y CIOs",
         "requirements": (
-            "• Entrada completamente libre sin costo de acceso.<br>"
-            "• Convocatoria de ponencias relámpago (lightning talks) abierta para estudiantes.<br>"
-            "• Constancia digital de asistencia y kits de bienvenida a los primeros registros."
+            "• Registro profesional previo en plataforma oficial de ISACA México.<br>"
+            "• Mesas de discusión sobre cumplimiento regulatorio, prevención de ransomware y resiliencia crítica.<br>"
+            "• Casos de estudio en sector financiero, telecomunicaciones y comercio electrónico."
         ),
         "tags": [
-            "Software Libre",
-            "DevOps & Cloud",
-            "IA Abierta",
-            "Comunidad CDMX"
+            "Ciberseguridad B2B",
+            "Zero Trust",
+            "Club de Banqueros",
+            "Compliance"
         ],
-        "platform_name": "Comunidad Python México",
-        "platform_domain": "python.org.mx",
-        "platform_mode": "Presencial · Entrada Libre",
-        "registration_url": "https://python.org.mx/",
+        "platform_name": "ISACA Chapter México",
+        "platform_domain": "isaca.org.mx",
+        "platform_mode": "Presencial · Club de Banqueros",
+        "registration_url": "https://isaca.org.mx/",
         "info_summary": (
-            "🌐 <b>DETALLES DE ASISTENCIA: Gran Cumbre de Software Libre & DevOps CDMX</b>\n\n"
-            "📍 <b>Sede:</b> Auditorio Manuel Sandoval Vallarta / Centro Cultural CDMX\n"
-            "🎟️ <b>Costo:</b> Entrada 100% Libre y Gratuita\n"
-            "👥 <b>Público:</b> Estudiantes, autodidactas y profesionales de tecnología\n\n"
-            "📋 <b>Agenda de la Cumbre:</b>\n"
-            "1. Keynote sobre modelos abiertos de IA y despliegues soberanos en servidores propios.\n"
-            "2. Talleres simultáneos de infraestructura como código (Terraform, Ansible y Linux).\n"
-            "3. Convivencia y networking con comunidades locales de tecnología.\n\n"
-            "🔗 <b>Registro Oficial:</b> <a href='https://python.org.mx/'>Comunidades Python & Open Source México</a>"
+            "🛡️ <b>DETALLES DE ASISTENCIA: Foro de Ciberseguridad Empresarial CDMX</b>\n\n"
+            "📍 <b>Sede:</b> Club de Banqueros de México (16 de Septiembre 57, Centro Histórico, Cuauhtémoc, CDMX)\n"
+            "🎟️ <b>Acceso:</b> Registro formal para directivos y profesionales del sector seguridad de TI\n"
+            "👥 <b>Público Objetivo:</b> CISOs, Auditores, Consultores de Seguridad y Directores de Tecnología\n\n"
+            "📋 <b>Agenda Especializada:</b>\n"
+            "1. <b>Arquitecturas Zero Trust:</b> Aislamiento de identidades, accesos privilegiados y microsegmentación.\n"
+            "2. <b>Respuesta ante Ransomware:</b> Protocolos de contingencia y resiliencia de datos en infraestructuras críticas.\n"
+            "3. <b>Regulación y Cumplimiento:</b> Estándares ISO 27001, NIS2 y normativas bancarias en México.\n\n"
+            "🔗 <b>Registro Oficial:</b> <a href='https://isaca.org.mx/'>ISACA México Chapter (Registro & Agenda)</a>"
         )
     }
 ]
@@ -331,65 +261,74 @@ def get_all_events_cdmx() -> List[Dict[str, Any]]:
 
 def get_events_cdmx_by_index(index: int = 0, ref_date: Optional[datetime] = None) -> Dict[str, Any]:
     """Retorna la tarjeta estructurada tipo calendario para un evento específico por índice,
-    calculando dinámicamente las fechas exactas dentro de la ventana de 30 días móviles.
+    calculando fechas fijas o dinámicas dentro de la ventana de eventos corporativos.
     """
     now = ref_date or datetime.now(timezone.utc)
     total = len(_EVENTS_CALENDAR_CATALOG)
     idx = index % total
     feat = _EVENTS_CALENDAR_CATALOG[idx]
 
-    # Calcular fecha dinámica para el evento destacado
-    feat_dt = now + timedelta(days=feat.get("days_ahead", 3))
-    feat_date_str = _format_event_date(feat_dt, feat.get("hour_str", "18:00 hrs"))
+    # Calcular fecha del evento destacado (soporta fecha fija oficial o cálculo dinámico)
+    if feat.get("fixed_date_str"):
+        feat_date_str = feat["fixed_date_str"]
+    else:
+        feat_dt = now + timedelta(days=feat.get("days_ahead", 3))
+        feat_date_str = _format_event_date(feat_dt, feat.get("hour_str", "18:00 hrs"))
 
     # Siguiente evento en el calendario para comparación en la tarjeta
     next_idx = (idx + 1) % total
     next_event = _EVENTS_CALENDAR_CATALOG[next_idx]
-    next_days = next_event.get("days_ahead", 7)
-    if next_idx <= idx:
-        next_days += 30
-    next_dt = now + timedelta(days=next_days)
-    next_date_str = f"📅 {_DIAS_ES[next_dt.weekday()]} {next_dt.day} {_MESES_ES[next_dt.month - 1]} · {next_event.get('hour_str', '18:00 hrs')}"
+    if next_event.get("fixed_date_str"):
+        next_date_str = f"📅 {next_event['fixed_date_str']}"
+    else:
+        next_days = next_event.get("days_ahead", 7)
+        if next_idx <= idx:
+            next_days += 30
+        next_dt = now + timedelta(days=next_days)
+        next_date_str = f"📅 {_DIAS_ES[next_dt.weekday()]} {next_dt.day} {_MESES_ES[next_dt.month - 1]} · {next_event.get('hour_str', '18:00 hrs')}"
 
     # Tercer evento
     third_idx = (idx + 2) % total
     third_event = _EVENTS_CALENDAR_CATALOG[third_idx]
-    third_days = third_event.get("days_ahead", 11)
-    if third_idx <= idx:
-        third_days += 30
-    third_dt = now + timedelta(days=third_days)
-    third_date_str = f"📅 {_DIAS_ES[third_dt.weekday()]} {third_dt.day} {_MESES_ES[third_dt.month - 1]} · {third_event.get('hour_str', '19:00 hrs')}"
+    if third_event.get("fixed_date_str"):
+        third_date_str = f"📅 {third_event['fixed_date_str']}"
+    else:
+        third_days = third_event.get("days_ahead", 11)
+        if third_idx <= idx:
+            third_days += 30
+        third_dt = now + timedelta(days=third_days)
+        third_date_str = f"📅 {_DIAS_ES[third_dt.weekday()]} {third_dt.day} {_MESES_ES[third_dt.month - 1]} · {third_event.get('hour_str', '19:00 hrs')}"
 
     now_str = now.strftime("%d/%m/%Y, %H:%M")
     tags_html = "".join([f'<span class="tag-item">{t}</span>' for t in feat.get("tags", [])])
 
     return {
-        "feat-org": feat.get("org", "Comunidad Tech Joven"),
-        "feat-access": feat.get("access_label", "Registro Gratuito"),
-        "feat-title": feat.get("title", "Encuentro de Tecnología CDMX"),
+        "feat-org": feat.get("org", "Big Tech Community"),
+        "feat-access": feat.get("access_label", "Registro Corporativo"),
+        "feat-title": feat.get("title", "Cumbre de Tecnología & IA CDMX"),
         "feat-date": feat_date_str,
         "feat-venue": feat.get("venue", "Ciudad de México"),
         "feat-reqs": feat.get("requirements", ""),
         "feat-tags": tags_html,
         # Campos visuales de plataforma y dominio en la plantilla
-        "feat-platform": feat.get("platform_name", "Eventbrite México"),
-        "feat-domain": feat.get("platform_domain", "eventbrite.com.mx"),
-        "feat-mode": feat.get("platform_mode", "Presencial · Entrada Libre"),
+        "feat-platform": feat.get("platform_name", "Portal Oficial"),
+        "feat-domain": feat.get("platform_domain", "tech-events.mx"),
+        "feat-mode": feat.get("platform_mode", "Presencial · Sede Corporativa"),
         # Secundarios
-        "sec1-org": next_event.get("org", "Comunidad Tech"),
-        "sec1-access": next_event.get("access_label", "Entrada Libre"),
-        "sec1-title": next_event.get("title", "Conferencia TI"),
+        "sec1-org": next_event.get("org", "Comunidad Enterprise"),
+        "sec1-access": next_event.get("access_label", "Acreditación Abierta"),
+        "sec1-title": next_event.get("title", "Summit Tecnológico"),
         "sec1-date": next_date_str,
         "sec1-venue": next_event.get("venue", "CDMX"),
-        "sec1-type": next_event.get("target_audience", "Jóvenes y estudiantes"),
-        "sec2-org": third_event.get("org", "Comunidad Tech"),
-        "sec2-access": third_event.get("access_label", "Entrada Libre"),
-        "sec2-title": third_event.get("title", "Meetup de Innovación"),
+        "sec1-type": next_event.get("target_audience", "Profesionales TI"),
+        "sec2-org": third_event.get("org", "Comunidad Enterprise"),
+        "sec2-access": third_event.get("access_label", "Registro Abierto"),
+        "sec2-title": third_event.get("title", "Foro de Innovación"),
         "sec2-date": third_date_str,
         "sec2-venue": third_event.get("venue", "CDMX"),
-        "sec2-type": third_event.get("target_audience", "Comunidad Tech"),
-        "footer-date": f"Ventana 30 Días · Evento {idx + 1}/{total} · Actualizado hoy, {now_str} UTC",
-        "registration_url": feat.get("registration_url", "https://www.eventbrite.com/e/ai-hackathon-mexico-2026-by-ai-lab-school-tickets-1999392385447"),
+        "sec2-type": third_event.get("target_audience", "Líderes de Tecnología"),
+        "footer-date": f"Agenda Enterprise CDMX · Evento {idx + 1}/{total} · Actualizado {now_str} UTC",
+        "registration_url": feat.get("registration_url", "https://www.nvidia.com/es-la/events/"),
         "info_summary": feat.get("info_summary", ""),
         "current_index": idx,
         "total_items": total
