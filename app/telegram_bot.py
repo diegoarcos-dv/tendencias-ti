@@ -618,8 +618,11 @@ async def send_telegram_message(
     if not bot_token or not target_chat:
         return {"success": False, "error": "MISSING_CREDENTIALS"}
 
-    if len(text) > 4000:
-        chunks = [text[i:i+3800] for i in range(0, len(text), 3800)]
+    from app.security import redact_sensitive_data
+    safe_text = redact_sensitive_data(text)
+
+    if len(safe_text) > 4000:
+        chunks = [safe_text[i:i+3800] for i in range(0, len(safe_text), 3800)]
         last_res = {"success": False}
         for idx, chunk in enumerate(chunks):
             # Adjuntar reply_markup solo al último chunk
@@ -637,7 +640,7 @@ async def send_telegram_message(
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     payload: Dict[str, Any] = {
         "chat_id": target_chat,
-        "text": text,
+        "text": safe_text,
     }
     if parse_mode:
         payload["parse_mode"] = parse_mode

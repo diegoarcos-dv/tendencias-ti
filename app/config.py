@@ -67,6 +67,10 @@ class Settings:
     USER_DAILY_SEND_LIMIT: int = int(os.getenv("USER_DAILY_SEND_LIMIT", "3"))
     CARD_TTL_DAYS: int = int(os.getenv("CARD_TTL_DAYS", "7"))
     MAX_TREND_AGE_HOURS: int = int(os.getenv("MAX_TREND_AGE_HOURS", "48"))
+    
+    # Seguridad de APIs (api-security-best-practices)
+    API_SECRET_KEY: str = os.getenv("API_SECRET_KEY", "tendencias_b2b_secret_key_2026")
+    TELEGRAM_WEBHOOK_SECRET: str = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")
 
 
 settings = Settings()

@@ -30,7 +30,7 @@ def proactor_loop_factory(*args, **kwargs):
     return lambda: asyncio.new_event_loop()
 
 
-from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, Depends
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -887,11 +887,27 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+from app.security import (
+    verify_api_key,
+    verify_telegram_webhook_secret,
+    redact_sensitive_data
+)
+
+# Configuración de CORS segura (api-security-best-practices: evitar wildcard indiscriminado)
+allowed_origins = [
+    "http://localhost",
+    "http://localhost:8000",
+    "http://localhost:8005",
+    "http://127.0.0.1",
+    "http://127.0.0.1:8000",
+    "http://127.0.0.1:8005"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins if settings.APP_ENV == "production" else ["*"],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -902,7 +918,7 @@ app.add_middleware(
 
 @app.get("/health", tags=["Salud"])
 async def health_check() -> Dict[str, Any]:
-    """Endpoint de estado del servidor, scheduler y memoria."""
+    """Endpoint de estado del servidor, scheduler y memoria (sin fuga de rutas ni tokens)."""
     jobs = [
         {"id": j.id, "name": j.name, "next_run_time": str(j.next_run_time)}
         for j in scheduler.get_jobs()
@@ -918,47 +934,47 @@ async def health_check() -> Dict[str, Any]:
     }
 
 
-@app.get("/api/v1/context", tags=["Contexto de Negocio"])
+@app.get("/api/v1/context", tags=["Contexto de Negocio"], dependencies=[Depends(verify_api_key)])
 async def get_business_context() -> Dict[str, Any]:
-    """Devuelve la fuente de verdad del negocio residente en memoria."""
+    """Devuelve la fuente de verdad del negocio residente en memoria (protegido con API Key)."""
     return {
-        "file_path": str(settings.BUSINESS_CONTEXT_FILE),
+        "file_name": settings.BUSINESS_CONTEXT_FILE.name,
         "total_characters": len(business_context.raw_content),
         "categories": business_context.categories,
         "keywords_sample": list(business_context.keywords)[:20],
     }
 
 
-@app.post("/api/v1/pipeline/trigger", tags=["Orquestación"])
+@app.post("/api/v1/pipeline/trigger", tags=["Orquestación"], dependencies=[Depends(verify_api_key)])
 async def trigger_pipeline_now() -> Dict[str, Any]:
-    """Fuerza la ejecución inmediata del pipeline individual completo."""
+    """Fuerza la ejecución inmediata del pipeline individual completo (protegido con API Key)."""
     result = await run_individual_pipeline()
     return result
 
 
-@app.post("/api/v1/pipeline/group", tags=["Orquestación"])
+@app.post("/api/v1/pipeline/group", tags=["Orquestación"], dependencies=[Depends(verify_api_key)])
 async def trigger_group_pipeline_endpoint(chat_id: Optional[str] = Query(default=None)) -> Dict[str, Any]:
-    """Fuerza la ejecución del pipeline para el grupo de Telegram (Alcance Global, 1 botón deep link)."""
+    """Fuerza la ejecución del pipeline para el grupo de Telegram (protegido con API Key)."""
     return await run_group_pipeline(chat_id=chat_id)
 
 
-@app.post("/api/v1/pipeline/individual", tags=["Orquestación"])
+@app.post("/api/v1/pipeline/individual", tags=["Orquestación"], dependencies=[Depends(verify_api_key)])
 async def trigger_individual_pipeline_endpoint(chat_id: Optional[str] = Query(default=None)) -> Dict[str, Any]:
-    """Fuerza la ejecución del pipeline individual (Enfoque por zona; para un chat específico o para todos los configurados)."""
+    """Fuerza la ejecución del pipeline individual (protegido con API Key)."""
     if chat_id:
         return await run_individual_pipeline(chat_id=chat_id)
     return await run_all_individual_pipelines()
 
 
-@app.post("/api/v1/pipeline/cleanup-expired", tags=["Orquestación"])
+@app.post("/api/v1/pipeline/cleanup-expired", tags=["Orquestación"], dependencies=[Depends(verify_api_key)])
 async def trigger_cleanup_expired_endpoint(days: int = Query(default=7, ge=1, le=90)) -> Dict[str, Any]:
-    """Fuerza la ejecución de la limpieza TTL (7 días) eliminando mensajes en Telegram y SQLite."""
+    """Fuerza la ejecución de la limpieza TTL (7 días) eliminando mensajes en Telegram y SQLite (protegido con API Key)."""
     return await cleanup_expired_messages(days=days)
 
 
-@app.get("/api/v1/sources/test", response_model=List[TrendItem], tags=["Ingesta"])
+@app.get("/api/v1/sources/test", response_model=List[TrendItem], tags=["Ingesta"], dependencies=[Depends(verify_api_key)])
 async def test_all_sources(limit: int = Query(default=15, ge=1, le=50)) -> List[TrendItem]:
-    """Ejecuta los conectores de ingesta y retorna los datos unificados."""
+    """Ejecuta los conectores de ingesta y retorna los datos unificados (protegido con API Key)."""
     trends = fetch_all_trends()
     return trends[:limit]
 
@@ -986,9 +1002,9 @@ async def get_single_trend(trend_id: int) -> Dict[str, Any]:
     return trend
 
 
-@app.post("/api/v1/telegram/webhook", tags=["Telegram"])
+@app.post("/api/v1/telegram/webhook", tags=["Telegram"], dependencies=[Depends(verify_telegram_webhook_secret)])
 async def telegram_webhook(update: Dict[str, Any], background_tasks: BackgroundTasks) -> Dict[str, Any]:
-    """Endpoint de webhook alternativo para recibir eventos de Telegram en tiempo real."""
+    """Endpoint de webhook de Telegram con validación de secreto anti-suplantación."""
     background_tasks.add_task(process_telegram_update, update)
     return {"ok": True, "message": "Update recibido"}
 

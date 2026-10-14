@@ -277,12 +277,17 @@ async def generate_trend_card_data(
         f"Prohibido usar descripciones genéricas de SaaS o e-commerce si el sector del usuario es diferente (ej. si es Videojuegos, enfócalo en desarrollo, motores, gaming, gráficos o jugadores).\n"
     )
 
+    from app.security import sanitize_external_text
+    safe_title = sanitize_external_text(str(trend_data.get('title', '')))
+    safe_category = sanitize_external_text(str(trend_data.get('category', '')))
+    safe_summary = sanitize_external_text(str(trend_data.get('summary', '')))
+
     user_prompt = f"""
 DATOS CRUDOS EXTRAÍDOS DE LA API:
-- Nombre de la herramienta: {trend_data.get('title')}
-- Categoría de la API: {trend_data.get('category')}
+- Nombre de la herramienta: {safe_title}
+- Categoría de la API: {safe_category}
 - Sector / Industria de Interés del Usuario: {user_industry}
-- Descripción cruda / Tagline del producto: {trend_data.get('summary')}
+- Descripción cruda / Tagline del producto: {safe_summary}
 - Región de mercado objetivo: {zona_preferida}
 - Origen: {trend_data.get('source')}
 
