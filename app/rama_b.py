@@ -29,27 +29,24 @@ async def process_private_action(user_id: str, payload: Dict[str, Any]) -> None:
     if action == "DEMANDA_QUOTE":
         company = get_b2b_demand_by_index(idx)
         text = company.get("financial_quote") or "⚠️ Simulación financiera no disponible."
-        evidence_url = company.get("demand_evidence_url")
-        evidence_label = company.get("demand_source_label") or "🏛️ Ver Evidencia Pública de Demanda"
+        evidence_url = company.get("demand_evidence_url") or company.get("contact_web")
+        evidence_label = company.get("demand_source_label") or "🏛️ Portal Oficial de Proveedores TI"
 
-        rows = []
-        if evidence_url and str(evidence_url).strip().startswith("http"):
-            rows.append([{"text": f"{evidence_label} ↗️", "url": str(evidence_url).strip()}])
-        rows.extend([
+        rows = [
             [
                 {
-                    "text": "🏢 Perfil Oficial en LinkedIn",
-                    "url": company.get("linkedin_company_url")
-                    or company.get("linkedin_search_url")
-                    or "https://www.linkedin.com",
-                }
-            ],
-            [
-                {
-                    "text": "📋 Ver Alcance & SOW",
+                    "text": "📋 Ver Propuesta de Servicio & SOW",
                     "callback_data": f"DEMANDA_SCOPE:{idx}:{ret_idx}",
                 }
-            ],
+            ]
+        ]
+        if evidence_url:
+            clean_url = str(evidence_url).strip()
+            if not clean_url.startswith("http"):
+                clean_url = f"https://{clean_url}"
+            rows.append([{"text": f"{evidence_label} ↗️", "url": clean_url}])
+
+        rows.extend([
             [
                 {
                     "text": "🔙 Volver a la Empresa",
@@ -70,27 +67,24 @@ async def process_private_action(user_id: str, payload: Dict[str, Any]) -> None:
     elif action == "DEMANDA_SCOPE":
         company = get_b2b_demand_by_index(idx)
         text = company.get("scope_summary") or "⚠️ Ficha técnica no disponible."
-        evidence_url = company.get("demand_evidence_url")
-        evidence_label = company.get("demand_source_label") or "🏛️ Ver Evidencia Pública de Demanda"
+        evidence_url = company.get("demand_evidence_url") or company.get("contact_web")
+        evidence_label = company.get("demand_source_label") or "🏛️ Portal Oficial de Proveedores TI"
 
-        rows = []
-        if evidence_url and str(evidence_url).strip().startswith("http"):
-            rows.append([{"text": f"{evidence_label} ↗️", "url": str(evidence_url).strip()}])
-        rows.extend([
+        rows = [
             [
                 {
                     "text": "📊 Simular Cotización & Margen",
                     "callback_data": f"DEMANDA_QUOTE:{idx}:{ret_idx}",
                 }
-            ],
-            [
-                {
-                    "text": "🏢 Perfil Oficial en LinkedIn",
-                    "url": company.get("linkedin_company_url")
-                    or company.get("linkedin_search_url")
-                    or "https://www.linkedin.com",
-                }
-            ],
+            ]
+        ]
+        if evidence_url:
+            clean_url = str(evidence_url).strip()
+            if not clean_url.startswith("http"):
+                clean_url = f"https://{clean_url}"
+            rows.append([{"text": f"{evidence_label} ↗️", "url": clean_url}])
+
+        rows.extend([
             [
                 {
                     "text": "🔙 Volver a la Empresa",

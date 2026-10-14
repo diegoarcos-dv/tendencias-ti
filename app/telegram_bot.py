@@ -331,28 +331,18 @@ def build_demand_keyboard(
     demand_evidence_url: Optional[str] = None,
     demand_source_label: Optional[str] = None
 ) -> Dict[str, Any]:
-    """Teclado interactivo para Catálogo de Empresas Demandantes B2B:
-    - Fila 1: Paginación de empresas
-    - Fila 2: Ver Alcance & SOW (Deep-link directo al chat privado de la Rama B)
-    - Fila 3: Opción 2 - Simular Cotización & Margen TI (Deep-link directo al chat privado de la Rama B)
-    - Fila 4: 🏛️ Fuente de Demanda & Evidencia Pública Verificable
-    - Fila 5: Opción C - Perfil Oficial en LinkedIn de la Empresa (con fallback automático a Web Oficial)
-    - Fila 6: Volver a Inicio
+    """Teclado interactivo para Catálogo de Empresas Demandantes B2B (ui-ux-pro-max & anti-ui-slop):
+    - Fila 1: Paginación ergonómica de empresas
+    - Fila 2: Ver Propuesta de Servicio & SOW (Deep-link directo al chat privado de la Rama B)
+    - Fila 3: Simular Cotización & Margen TI (Deep-link directo al chat privado de la Rama B)
+    - Fila 4: Único botón externo verificado hacia Portal Oficial de Proveedores / Soluciones B2B
+    - Fila 5: Volver al Menú Principal
     """
     total = max(1, total_items)
     idx = current_index % total
     username = (settings.TELEGRAM_BOT_USERNAME or "Tendencias_DiegoBot").lstrip("@")
     scope_url = f"https://t.me/{username}?start=scope_{idx}_{return_index}"
     quote_url = f"https://t.me/{username}?start=quote_{idx}_{return_index}"
-
-    # Perfil de LinkedIn o Fallback automático a Sitio Web Oficial si LinkedIn no está disponible
-    if linkedin_status == "active" and company_linkedin_url and "linkedin.com" in company_linkedin_url:
-        company_btn = {"text": "🏢 Perfil Oficial en LinkedIn", "url": company_linkedin_url}
-    else:
-        web_url = company_web_url or "https://www.google.com"
-        if not web_url.startswith("http://") and not web_url.startswith("https://"):
-            web_url = f"https://{web_url}"
-        company_btn = {"text": "🌐 Sitio Web Oficial", "url": web_url}
 
     rows = [
         [
@@ -361,20 +351,22 @@ def build_demand_keyboard(
             {"text": "▶️", "callback_data": f"NAV_DEMANDA_PAGE:next:{idx}:{return_index}"}
         ],
         [
-            {"text": "📋 Ver Alcance & SOW", "url": scope_url}
+            {"text": "📋 Ver Propuesta de Servicio & SOW", "url": scope_url}
         ],
         [
             {"text": "📊 Simular Cotización & Margen TI", "url": quote_url}
         ]
     ]
 
-    # Fila de Evidencia Pública Verificable de Demanda
-    if demand_evidence_url and str(demand_evidence_url).strip().startswith("http"):
-        label = demand_source_label or "🏛️ Fuente de Demanda & Evidencia"
-        rows.append([{"text": f"{label} ↗️", "url": str(demand_evidence_url).strip()}])
+    # Único botón externo de prospección: Portal de Proveedores / Integración B2B verificado
+    ext_url = demand_evidence_url or company_web_url or "https://www.google.com"
+    if not str(ext_url).startswith("http://") and not str(ext_url).startswith("https://"):
+        ext_url = f"https://{ext_url}"
 
-    rows.append([company_btn])
-    rows.append([{"text": "🏠 Inicio", "callback_data": f"CATALOG_GOTO:{return_index}"}])
+    label = demand_source_label or "🏛️ Portal Oficial de Proveedores B2B"
+    rows.append([{"text": f"{label} ↗️", "url": str(ext_url).strip()}])
+
+    rows.append([{"text": "🏠 Menú Principal", "callback_data": f"CATALOG_GOTO:{return_index}"}])
 
     return {"inline_keyboard": rows}
 
