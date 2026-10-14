@@ -618,6 +618,25 @@ def get_all_b2b_demand_companies(ref_date: Optional[datetime] = None) -> List[Di
 
     companies = get_b2b_companies_by_date(today_str)
     if companies and len(companies) >= 3:
+        # Auto-reparación / Backfill de evidencia si los registros en DB son previos a la migración
+        seed_map = {s.get("company"): s for s in _SEED_COMPANIES_POOL}
+        seed_id_map = {s.get("id"): s for s in _SEED_COMPANIES_POOL}
+        updated = False
+        for c in companies:
+            if not c.get("demand_evidence_url"):
+                seed = seed_map.get(c.get("company")) or seed_id_map.get(c.get("id"))
+                if seed:
+                    c["demand_source_type"] = seed.get("demand_source_type", "")
+                    c["demand_source_label"] = seed.get("demand_source_label", "")
+                    c["demand_evidence_url"] = seed.get("demand_evidence_url", "")
+                    if seed.get("scope_summary"):
+                        c["scope_summary"] = seed.get("scope_summary")
+                    updated = True
+        if updated:
+            try:
+                save_b2b_companies(companies, today_str)
+            except Exception:
+                pass
         return companies
 
     # Fallback determinista síncrono si aún no se ha ejecutado el pipeline asíncrono
