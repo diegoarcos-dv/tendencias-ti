@@ -130,6 +130,31 @@ def init_db(db_path: Optional[str] = None) -> None:
 
             CREATE INDEX IF NOT EXISTS idx_b2b_discovered_date
                 ON b2b_empresas_demandantes (discovered_date);
+
+            CREATE TABLE IF NOT EXISTS eventos_empresariales (
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id         TEXT    NOT NULL UNIQUE,
+                org              TEXT    NOT NULL,
+                access_label     TEXT    NOT NULL DEFAULT 'Registro Empresarial',
+                title            TEXT    NOT NULL,
+                fixed_date_str   TEXT    NOT NULL DEFAULT '',
+                days_ahead       INTEGER NOT NULL DEFAULT 15,
+                hour_str         TEXT    NOT NULL DEFAULT '09:00 hrs a 18:00 hrs',
+                venue            TEXT    NOT NULL,
+                target_audience  TEXT    NOT NULL DEFAULT '',
+                requirements     TEXT    NOT NULL DEFAULT '',
+                tags_json        TEXT    NOT NULL DEFAULT '[]',
+                platform_name    TEXT    NOT NULL DEFAULT 'Portal Oficial',
+                platform_domain  TEXT    NOT NULL DEFAULT '',
+                platform_mode    TEXT    NOT NULL DEFAULT 'Presencial · Sede Corporativa',
+                registration_url TEXT    NOT NULL DEFAULT '',
+                info_summary     TEXT    NOT NULL DEFAULT '',
+                created_at       TEXT    NOT NULL,
+                is_active        INTEGER NOT NULL DEFAULT 1
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_eventos_is_active
+                ON eventos_empresariales (is_active, id DESC);
         """)
 
         # Migración ligera: asegurar columnas nuevas si la tabla ya existía previamente
@@ -1265,6 +1290,120 @@ def purge_obsolete_b2b_companies(valid_ids: List[str]) -> int:
         )
         conn.commit()
         return cur.rowcount
+
+
+def save_enterprise_event(event_data: Dict[str, Any]) -> int:
+    """Inserta o actualiza un evento empresarial en SQLite."""
+    evt_id = str(event_data.get("id") or event_data.get("event_id") or "").strip()
+    if not evt_id:
+        import hashlib
+        title = event_data.get("title", "")
+        evt_id = "evt_" + hashlib.md5(title.encode("utf-8")).hexdigest()[:12]
+
+    tags = event_data.get("tags") or []
+    tags_json = json.dumps(tags, ensure_ascii=False) if isinstance(tags, list) else "[]"
+
+    with _get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO eventos_empresariales
+                (event_id, org, access_label, title, fixed_date_str, days_ahead, hour_str,
+                 venue, target_audience, requirements, tags_json, platform_name,
+                 platform_domain, platform_mode, registration_url, info_summary, created_at, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(event_id) DO UPDATE SET
+                org = excluded.org,
+                access_label = excluded.access_label,
+                title = excluded.title,
+                fixed_date_str = excluded.fixed_date_str,
+                days_ahead = excluded.days_ahead,
+                hour_str = excluded.hour_str,
+                venue = excluded.venue,
+                target_audience = excluded.target_audience,
+                requirements = excluded.requirements,
+                tags_json = excluded.tags_json,
+                platform_name = excluded.platform_name,
+                platform_domain = excluded.platform_domain,
+                platform_mode = excluded.platform_mode,
+                registration_url = excluded.registration_url,
+                info_summary = excluded.info_summary,
+                is_active = excluded.is_active
+            """,
+            (
+                evt_id,
+                str(event_data.get("org", "Big Tech Community")),
+                str(event_data.get("access_label", "Registro Empresarial")),
+                str(event_data.get("title", "Cumbre de Tecnología")),
+                str(event_data.get("fixed_date_str", "")),
+                int(event_data.get("days_ahead", 15)),
+                str(event_data.get("hour_str", "09:00 hrs a 18:00 hrs")),
+                str(event_data.get("venue", "Ciudad de México")),
+                str(event_data.get("target_audience", "")),
+                str(event_data.get("requirements", "")),
+                tags_json,
+                str(event_data.get("platform_name", "Portal Oficial")),
+                str(event_data.get("platform_domain", "")),
+                str(event_data.get("platform_mode", "Presencial · Sede Corporativa")),
+                str(event_data.get("registration_url", "")),
+                str(event_data.get("info_summary", "")),
+                datetime.utcnow().isoformat(),
+                int(event_data.get("is_active", 1)),
+            ),
+        )
+        conn.commit()
+        return 1
+
+
+def get_active_enterprise_events() -> List[Dict[str, Any]]:
+    """Retorna todos los eventos corporativos activos ordenados por ID."""
+    with _get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT * FROM eventos_empresariales
+            WHERE is_active = 1
+            ORDER BY id ASC
+            """
+        ).fetchall()
+        results: List[Dict[str, Any]] = []
+        for r in rows:
+            d = dict(r)
+            try:
+                tags = json.loads(d.get("tags_json", "[]"))
+            except Exception:
+                tags = []
+            results.append({
+                "id": d.get("event_id"),
+                "event_id": d.get("event_id"),
+                "org": d.get("org"),
+                "access_label": d.get("access_label"),
+                "title": d.get("title"),
+                "fixed_date_str": d.get("fixed_date_str"),
+                "days_ahead": d.get("days_ahead", 15),
+                "hour_str": d.get("hour_str", "09:00 hrs a 18:00 hrs"),
+                "venue": d.get("venue"),
+                "target_audience": d.get("target_audience"),
+                "requirements": d.get("requirements"),
+                "tags": tags,
+                "platform_name": d.get("platform_name"),
+                "platform_domain": d.get("platform_domain"),
+                "platform_mode": d.get("platform_mode"),
+                "registration_url": d.get("registration_url"),
+                "info_summary": d.get("info_summary"),
+                "created_at": d.get("created_at"),
+            })
+        return results
+
+
+def delete_enterprise_event(event_id: str) -> bool:
+    """Desactiva o elimina un evento de la base de datos."""
+    with _get_connection() as conn:
+        cur = conn.execute(
+            "DELETE FROM eventos_empresariales WHERE event_id = ?",
+            (event_id,)
+        )
+        conn.commit()
+        return cur.rowcount > 0
+
 
 
 

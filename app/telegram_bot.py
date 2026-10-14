@@ -1646,6 +1646,88 @@ async def handle_zone_command(chat_id: str) -> None:
     )
 
 
+async def handle_new_event_command(chat_id: str, raw_command: str) -> None:
+    """Procesa el comando /nuevo_evento para registrar eventos TI / Enterprise en CDMX."""
+    import re
+    payload = re.sub(r"^/(nuevo_evento|agregar_evento|eventonuevo)(?:@\w+)?", "", raw_command, flags=re.IGNORECASE).strip()
+
+    if not payload:
+        help_msg = (
+            "🎟️ <b>Registrar Nuevo Evento TI / Enterprise en CDMX</b>\n\n"
+            "Puedes incorporar un nuevo congreso o cumbre corporativa enviando el comando con el formato:\n\n"
+            "📌 <b>Formato con barras | (Recomendado):</b>\n"
+            "<code>/nuevo_evento Título | Organizador | Sede | Fecha | Enlace</code>\n\n"
+            "💡 <b>Ejemplo real:</b>\n"
+            "<code>/nuevo_evento Oracle Cloud World Tour | Oracle México | Centro Citibanamex | Jueves 19 de Noviembre · 09:00 hrs | https://oracle.com/cloudworld</code>\n\n"
+            "🌐 <b>O simplemente envía el enlace oficial:</b>\n"
+            "<code>/nuevo_evento https://events.ibm.com/think-mexico</code>\n\n"
+            "<i>El evento se guardará en la base de datos SQLite y aparecerá de inmediato en el carrusel de tarjetas.</i>"
+        )
+        await send_telegram_message(text=help_msg, chat_id=chat_id)
+        return
+
+    try:
+        from app.events_cdmx import add_custom_enterprise_event, get_all_events_cdmx
+        created_event = add_custom_enterprise_event(payload)
+
+        # Pre-renderizar imagen para respuesta instantánea en Telegram
+        from app.visual_engine import create_events_cdmx_png_card
+        from app.events_cdmx import get_events_cdmx_by_index
+        from datetime import timezone
+        today_str = datetime.now(timezone.utc).strftime("%Y%m%d")
+
+        all_evts = get_all_events_cdmx()
+        new_idx = 0
+        for i, ev in enumerate(all_evts):
+            if ev.get("id") == created_event.get("id"):
+                new_idx = i
+                break
+
+        ev_png = settings.BASE_DIR / f"temp_events_{new_idx}_{today_str}.png"
+        try:
+            await create_events_cdmx_png_card(output_path=ev_png, data=get_events_cdmx_by_index(new_idx))
+        except Exception as e_rnd:
+            logger.warning(f"No se pudo pre-renderizar tarjeta del nuevo evento: {e_rnd}")
+
+        title = created_event.get("title")
+        org = created_event.get("org")
+        venue = created_event.get("venue")
+        date_str = created_event.get("fixed_date_str") or "Por confirmar"
+        url = created_event.get("registration_url") or ""
+
+        confirm_msg = (
+            "✅ <b>¡Evento Empresarial Registrado con Éxito!</b>\n\n"
+            f"📌 <b>Título:</b> {title}\n"
+            f"🏢 <b>Organizador:</b> {org}\n"
+            f"📍 <b>Sede:</b> {venue}\n"
+            f"📅 <b>Fecha:</b> {date_str}\n"
+            f"🔗 <b>Enlace:</b> <a href='{url}'>{url}</a>\n\n"
+            f"<i>El evento ha sido guardado en la base de datos y ya está activo en el carrusel (posición {new_idx + 1} de {len(all_evts)}).</i>"
+        )
+
+        inline_keyboard = [
+            [
+                {"text": "🎟️ Ver en el Carrusel de Eventos", "callback_data": f"NAV_EVENTOS_PAGE:curr:{new_idx}:0"}
+            ],
+            [
+                {"text": "🔗 Abrir Enlace Oficial", "url": url if url.startswith("http") else "https://google.com"}
+            ]
+        ]
+
+        await send_telegram_message(
+            text=confirm_msg,
+            chat_id=chat_id,
+            reply_markup={"inline_keyboard": inline_keyboard}
+        )
+    except Exception as ex:
+        logger.error(f"Error procesando /nuevo_evento: {ex}")
+        await send_telegram_message(
+            text=f"❌ <b>Error al registrar el evento:</b> {ex}\n\nVerifica el formato e intenta nuevamente.",
+            chat_id=chat_id
+        )
+
+
+
 async def handle_set_zone(
     chat_id: str,
     callback_query_id: Optional[str] = None,
@@ -2620,6 +2702,8 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
                 )
             else:
                 await handle_deep_dive(chat_id=user_chat_id)
+        elif text.startswith("/nuevo_evento") or text.startswith("/agregar_evento") or text.startswith("/eventonuevo"):
+            await handle_new_event_command(chat_id=user_chat_id, raw_command=text)
         elif text.startswith("/start") or text.startswith("/help") or text.startswith("/ayuda"):
             welcome = (
                 "👋 <b>Bienvenido al Agente de Inteligencia Comercial B2B</b>\n\n"
@@ -2628,6 +2712,7 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
                 "• <code>/radar</code> o <code>/hoy</code> : Generar y enviar el radar de hoy inmediatamente.\n"
                 "• <code>/industria</code> : Configurar la industria o sector de interés (Fintech, Ciberseguridad, Salud, etc.).\n"
                 "• <code>/zona</code> : Configurar la región geográfica preferida (Global, México, EE.UU., Europa, Colombia).\n"
+                "• <code>/nuevo_evento</code> : Registrar un nuevo evento de TI, IA o Enterprise en CDMX.\n"
                 "• <code>/favoritos</code> : Listar todas tus tecnologías guardadas con citas a sus tarjetas originales.\n"
                 "• <code>/grafica</code> : Visualizar la gráfica de tracción semanal.\n"
                 "• <code>/profundizar</code> : Generar reporte denso sobre la última tecnología.\n\n"

@@ -255,7 +255,20 @@ def _format_event_date(target_dt: datetime, hour_str: str) -> str:
 
 
 def get_all_events_cdmx() -> List[Dict[str, Any]]:
-    """Retorna la lista completa de eventos del calendario en CDMX."""
+    """Retorna la lista completa de eventos del calendario en CDMX desde SQLite o catálogo base."""
+    try:
+        from app.database import get_active_enterprise_events, save_enterprise_event
+        db_events = get_active_enterprise_events()
+        if not db_events:
+            # Sembrar catálogo inicial en la base de datos
+            for ev in _EVENTS_CALENDAR_CATALOG:
+                save_enterprise_event(ev)
+            db_events = get_active_enterprise_events()
+        if db_events:
+            return db_events
+    except Exception as e:
+        logger.warning(f"Error consultando eventos de la base de datos: {e}")
+
     return _EVENTS_CALENDAR_CATALOG
 
 
@@ -264,9 +277,10 @@ def get_events_cdmx_by_index(index: int = 0, ref_date: Optional[datetime] = None
     calculando fechas fijas o dinámicas dentro de la ventana de eventos corporativos.
     """
     now = ref_date or datetime.now(timezone.utc)
-    total = len(_EVENTS_CALENDAR_CATALOG)
-    idx = index % total
-    feat = _EVENTS_CALENDAR_CATALOG[idx]
+    events_list = get_all_events_cdmx()
+    total = len(events_list)
+    idx = index % total if total > 0 else 0
+    feat = events_list[idx] if total > 0 else _EVENTS_CALENDAR_CATALOG[0]
 
     # Calcular fecha del evento destacado (soporta fecha fija oficial o cálculo dinámico)
     if feat.get("fixed_date_str"):
@@ -277,7 +291,7 @@ def get_events_cdmx_by_index(index: int = 0, ref_date: Optional[datetime] = None
 
     # Siguiente evento en el calendario para comparación en la tarjeta
     next_idx = (idx + 1) % total
-    next_event = _EVENTS_CALENDAR_CATALOG[next_idx]
+    next_event = events_list[next_idx]
     if next_event.get("fixed_date_str"):
         next_date_str = f"📅 {next_event['fixed_date_str']}"
     else:
@@ -289,7 +303,7 @@ def get_events_cdmx_by_index(index: int = 0, ref_date: Optional[datetime] = None
 
     # Tercer evento
     third_idx = (idx + 2) % total
-    third_event = _EVENTS_CALENDAR_CATALOG[third_idx]
+    third_event = events_list[third_idx]
     if third_event.get("fixed_date_str"):
         third_date_str = f"📅 {third_event['fixed_date_str']}"
     else:
@@ -335,6 +349,120 @@ def get_events_cdmx_by_index(index: int = 0, ref_date: Optional[datetime] = None
     }
 
 
+def add_custom_enterprise_event(raw_text: str) -> Dict[str, Any]:
+    """Procesa un texto o enlace y registra un nuevo evento empresarial en SQLite."""
+    text_clean = raw_text.strip()
+    if not text_clean:
+        raise ValueError("El texto o datos del evento no pueden estar vacíos.")
+
+    import hashlib
+    import urllib.parse
+
+    # 1. Si contiene separadores '|'
+    if "|" in text_clean:
+        parts = [p.strip() for p in text_clean.split("|") if p.strip()]
+        title = parts[0] if len(parts) > 0 else "Nuevo Evento TI"
+        org = parts[1] if len(parts) > 1 else "Comunidad Tech Enterprise"
+        venue = parts[2] if len(parts) > 2 else "Ciudad de México"
+        date_str = parts[3] if len(parts) > 3 else "Próximamente · Fecha por Confirmar"
+        url = parts[4] if len(parts) > 4 else "https://google.com"
+
+        evt_id = "custom_" + hashlib.md5(f"{title}_{date_str}".encode("utf-8")).hexdigest()[:10]
+        domain = urllib.parse.urlparse(url).netloc.replace("www.", "") or "portal-oficial.com"
+
+        event_data = {
+            "id": evt_id,
+            "event_id": evt_id,
+            "org": org,
+            "access_label": "Registro Empresarial",
+            "title": title,
+            "fixed_date_str": date_str,
+            "days_ahead": 10,
+            "hour_str": "09:00 hrs a 18:00 hrs",
+            "venue": venue,
+            "target_audience": "Líderes de TI, Desarrolladores y Profesionales Enterprise",
+            "requirements": (
+                "• Registro oficial y acreditación previa en el portal del organizador.<br>"
+                "• Sesiones ejecutivas, conferencias magistrales y networking B2B.<br>"
+                "• Identificación oficial y confirmación digital de acceso."
+            ),
+            "tags": [org[:15], "Tech Summit", "CDMX", "Enterprise"],
+            "platform_name": org,
+            "platform_domain": domain,
+            "platform_mode": "Presencial · Sede CDMX",
+            "registration_url": url,
+            "info_summary": (
+                f"🎟️ <b>DETALLES DE ASISTENCIA: {title}</b>\n\n"
+                f"🏢 <b>Organizador:</b> {org}\n"
+                f"📍 <b>Sede:</b> {venue}\n"
+                f"📅 <b>Fecha:</b> {date_str}\n"
+                f"🎟️ <b>Acceso:</b> Registro Empresarial\n\n"
+                f"🔗 <b>Enlace de Registro:</b> <a href='{url}'>{url}</a>"
+            )
+        }
+    elif text_clean.startswith("http://") or text_clean.startswith("https://"):
+        url = text_clean
+        parsed = urllib.parse.urlparse(url)
+        domain = parsed.netloc.replace("www.", "")
+
+        slug = parsed.path.strip("/").split("/")[-1].replace("-", " ").replace("_", " ").title()
+        if not slug or len(slug) < 3:
+            slug = f"Cumbre Tecnológica en {domain}"
+
+        evt_id = "custom_" + hashlib.md5(url.encode("utf-8")).hexdigest()[:10]
+
+        event_data = {
+            "id": evt_id,
+            "event_id": evt_id,
+            "org": domain.capitalize(),
+            "access_label": "Registro Confirmado",
+            "title": slug[:60],
+            "fixed_date_str": "Consulta fechas oficiales en la web",
+            "days_ahead": 14,
+            "hour_str": "Horario oficial según agenda",
+            "venue": "Ciudad de México (Ver detalles en registro)",
+            "target_audience": "Profesionales y Líderes de Tecnología",
+            "requirements": "• Registro en plataforma oficial.<br>• Consulta de agenda y confirmación vía email.",
+            "tags": ["Tech Event", domain[:12], "CDMX", "Enterprise"],
+            "platform_name": domain,
+            "platform_domain": domain,
+            "platform_mode": "Presencial / Híbrido",
+            "registration_url": url,
+            "info_summary": (
+                f"🎟️ <b>DETALLES DEL EVENTO REGISTRADO</b>\n\n"
+                f"📌 <b>Título:</b> {slug}\n"
+                f"🌐 <b>Portal:</b> {domain}\n"
+                f"🔗 <b>Registro:</b> <a href='{url}'>{url}</a>"
+            )
+        }
+    else:
+        evt_id = "custom_" + hashlib.md5(text_clean.encode("utf-8")).hexdigest()[:10]
+        event_data = {
+            "id": evt_id,
+            "event_id": evt_id,
+            "org": "Comunidad Tech B2B",
+            "access_label": "Registro Empresarial",
+            "title": text_clean[:60],
+            "fixed_date_str": "Próximamente en CDMX",
+            "days_ahead": 15,
+            "hour_str": "09:00 hrs a 18:00 hrs",
+            "venue": "Ciudad de México",
+            "target_audience": "Profesionales TI y Directivos",
+            "requirements": "• Registro oficial previo.<br>• Confirmación digital.",
+            "tags": ["Tech Event", "CDMX", "Enterprise"],
+            "platform_name": "Portal Oficial",
+            "platform_domain": "tech-events.mx",
+            "platform_mode": "Presencial CDMX",
+            "registration_url": "https://google.com",
+            "info_summary": f"🎟️ <b>{text_clean}</b>\n\n📍 Sede: Ciudad de México\n📅 Próximamente"
+        }
+
+    from app.database import save_enterprise_event
+    save_enterprise_event(event_data)
+    return event_data
+
+
 def get_latest_events_cdmx(ref_date: Optional[datetime] = None) -> Dict[str, Any]:
     """Retorna el primer evento del calendario."""
     return get_events_cdmx_by_index(0, ref_date=ref_date)
+
