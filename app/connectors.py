@@ -47,6 +47,11 @@ class TrendItem(BaseModel):
     raw_data: Dict[str, Any] = Field(default_factory=dict, description="Metadata cruda devuelta por la API")
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Fecha y hora de captura")
     business_relevant: bool = Field(default=False, description="Coincidencia con la fuente de verdad del negocio")
+    
+    # Verificación y Auditoría (api-security-best-practices: Provenance & Trust)
+    verified_source: str = Field(default="Official Media / Platform", description="Entidad o medio oficial emisor")
+    source_label: str = Field(default="Fuente Verificada", description="Etiqueta visible para UI")
+    audit_url: str = Field(default="", description="Enlace canónico oficial de auditoría")
 
     def evaluate_relevance(self) -> "TrendItem":
         """Calcula si el ítem es relevante según las reglas de negocio en memoria."""
@@ -292,6 +297,7 @@ class ProductHuntConnector:
             topics = [t["node"]["name"] for t in node.get("topics", {}).get("edges", []) if "node" in t]
             category = topics[0] if topics else "Software"
 
+            audit_url = node.get("url") or f"https://www.producthunt.com/products/{slug}"
             item = TrendItem(
                 title=title,
                 source="product_hunt",
@@ -299,7 +305,10 @@ class ProductHuntConnector:
                 url=external_url,
                 summary=tagline,
                 metric_score=votes,
-                raw_data=node
+                raw_data=node,
+                verified_source="Product Hunt Official API",
+                source_label="🚀 Product Hunt (Lanzamiento Verificado)",
+                audit_url=clean_external_url(audit_url)
             ).evaluate_relevance()
             items.append(item)
 
@@ -368,7 +377,10 @@ class ProductHuntConnector:
                     url=external_creator_url,
                     summary=cleaned_summary[:280] if cleaned_summary else "Nuevo producto lanzado en Product Hunt",
                     metric_score=85.0,
-                    raw_data={"atom_title": title, "link": external_creator_url, "redirect_url": redirect_url}
+                    raw_data={"atom_title": title, "link": external_creator_url, "redirect_url": redirect_url},
+                    verified_source="Product Hunt Feed Oficial",
+                    source_label="🚀 Product Hunt (Sindicación Oficial)",
+                    audit_url=raw_link or f"https://www.producthunt.com/products/{slug}"
                 ).evaluate_relevance()
                 items.append(item)
 
@@ -525,54 +537,67 @@ class RedditB2BConnector:
         return items
 
     def _fetch_b2b_tech_fallback(self, limit: int = 5, industry: Optional[str] = None) -> List[TrendItem]:
-        """Respaldo de alta disponibilidad para tendencias B2B y software cuando Reddit rate-limitea."""
+        """Conector de Alta Fidelidad B2B: Hacker News (YCombinator) y TechCrunch Enterprise RSS."""
         items: List[TrendItem] = []
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        
+        # 1. TechCrunch Enterprise / Tech RSS Feed
         try:
-            # RSS de noticias tecnológicas y proyectos B2B
-            feed_url = "https://news.ycombinator.com/rss"
-            headers = {"User-Agent": "Mozilla/5.0"}
-            r = requests.get(feed_url, headers=headers, timeout=8)
-            if r.status_code == 200:
-                root = ET.fromstring(r.content)
-                for entry in root.findall(".//item")[:limit]:
-                    title = entry.findtext("title") or ""
-                    link = entry.findtext("link") or "https://news.ycombinator.com"
-                    comments_link = entry.findtext("comments") or link
-                    public_b2b_url = comments_link if ("git." in link or "/api" in link or not link.startswith("http")) else link
-
-                    cat = industry if industry else "TI & Startups"
+            tc_url = "https://techcrunch.com/category/enterprise/feed/"
+            r_tc = requests.get(tc_url, headers=headers, timeout=6)
+            if r_tc.status_code == 200:
+                root_tc = ET.fromstring(r_tc.content)
+                for entry in root_tc.findall(".//item")[:limit]:
+                    t_title = entry.findtext("title") or ""
+                    t_link = entry.findtext("link") or "https://techcrunch.com"
+                    t_desc = entry.findtext("description") or ""
+                    clean_desc = re.sub(r"<[^>]+>", "", t_desc).strip()
+                    
                     item = TrendItem(
-                        title=title,
-                        source="reddit",  # Categorizado como canal de discusión B2B
-                        category=cat,
-                        url=public_b2b_url,
-                        summary=f"Discusión y validación de la comunidad B2B/Tech ({comments_link})",
-                        metric_score=120.0,
-                        raw_data={"source_channel": "HackerNews_B2B_Fallback", "link": public_b2b_url}
+                        title=t_title,
+                        source="reddit",  # Compatible con ranking de scoring
+                        category=industry or "Enterprise Tech & Negocios",
+                        url=t_link,
+                        summary=clean_desc[:280] if clean_desc else "Análisis y noticias de software empresarial en TechCrunch",
+                        metric_score=150.0,
+                        raw_data={"source_channel": "TechCrunch Enterprise", "link": t_link},
+                        verified_source="TechCrunch Enterprise",
+                        source_label="📰 TechCrunch Enterprise (Medio Oficial)",
+                        audit_url=t_link
                     ).evaluate_relevance()
                     items.append(item)
-        except Exception as e:
-            logger.warning(f"Error en fallback B2B: {e}")
+        except Exception as e_tc:
+            logger.debug(f"TechCrunch RSS omitido: {e_tc}")
 
-        # Si aún no hay items, poblar con topics clave según la industria
-        if not items:
-            topics = [
-                (f"Automatización y soluciones tecnológicas en {industry or 'TI & SaaS'}", industry or "TI & SaaS", "https://reddit.com/r/SaaS"),
-                ("Infraestructura de microservicios y reducción de costes cloud", "TI & Software", "https://reddit.com/r/technology"),
-                ("Sistemas de gestión de inventarios y logística para E-commerce B2B", "E-Commerce", "https://reddit.com/r/ecommerce"),
-            ]
-            for t_title, t_cat, t_url in topics:
-                items.append(
-                    TrendItem(
-                        title=t_title,
-                        source="reddit",
-                        category=t_cat,
-                        url=t_url,
-                        summary="Conversaciones activas en comunidades B2B sobre adopción de nuevas soluciones.",
-                        metric_score=75.0,
-                        raw_data={"topic": t_title}
-                    ).evaluate_relevance()
-                )
+        # 2. Hacker News (YCombinator) RSS de tecnología y lanzamientos
+        if len(items) < limit:
+            try:
+                feed_url = "https://news.ycombinator.com/rss"
+                r = requests.get(feed_url, headers=headers, timeout=6)
+                if r.status_code == 200:
+                    root = ET.fromstring(r.content)
+                    for entry in root.findall(".//item")[:limit]:
+                        title = entry.findtext("title") or ""
+                        link = entry.findtext("link") or "https://news.ycombinator.com"
+                        comments_link = entry.findtext("comments") or link
+                        public_b2b_url = comments_link if ("git." in link or "/api" in link or not link.startswith("http")) else link
+
+                        cat = industry if industry else "TI & Startups"
+                        item = TrendItem(
+                            title=title,
+                            source="reddit",
+                            category=cat,
+                            url=public_b2b_url,
+                            summary=f"Discusión y validación técnica en Y Combinator ({comments_link})",
+                            metric_score=140.0,
+                            raw_data={"source_channel": "Hacker News (Y Combinator)", "link": public_b2b_url, "comments": comments_link},
+                            verified_source="Hacker News (Y Combinator)",
+                            source_label="⚡ Hacker News (Y Combinator Oficial)",
+                            audit_url=comments_link
+                        ).evaluate_relevance()
+                        items.append(item)
+            except Exception as e_hn:
+                logger.debug(f"Hacker News RSS omitido: {e_hn}")
 
         return items
 
@@ -694,7 +719,10 @@ class GoogleTrendsConnector:
                         summary=desc[:250].strip() or f"Volumen de búsqueda en {g_name}: {traffic_text}",
                         metric_score=metric,
                         geo_region=g_name,
-                        raw_data={"approx_traffic": traffic_text, "source_url": public_article_url, "geo": g_name}
+                        raw_data={"approx_traffic": traffic_text, "source_url": public_article_url, "geo": g_name},
+                        verified_source="Google Trends Oficial",
+                        source_label=f"📈 Google Trends ({g_name})",
+                        audit_url=public_article_url
                     ).evaluate_relevance()
                     items.append(item)
 

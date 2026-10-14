@@ -527,6 +527,9 @@ async def run_individual_pipeline(chat_id: Optional[str] = None, ignore_daily_li
         first_card_data["fallback_activado"] = fallback_activado
         first_card_data["zona_local"] = chosen_zone_local
         first_card_data["zona_pais"] = chosen_zone_pais
+        first_card_data["verified_source"] = first_candidate.verified_source
+        first_card_data["source_label"] = first_candidate.source_label
+        first_card_data["audit_url"] = first_candidate.audit_url or first_candidate.url
 
         first_trend_id = save_trend(trend_data=first_candidate.model_dump(), card_data=first_card_data)
         first_png = settings.BASE_DIR / f"temp_trend_{first_trend_id}.png"
@@ -552,6 +555,9 @@ async def run_individual_pipeline(chat_id: Optional[str] = None, ignore_daily_li
             sec_card_data["fallback_activado"] = fallback_activado
             sec_card_data["zona_local"] = chosen_zone_local
             sec_card_data["zona_pais"] = chosen_zone_pais
+            sec_card_data["verified_source"] = cand.verified_source
+            sec_card_data["source_label"] = cand.source_label
+            sec_card_data["audit_url"] = cand.audit_url or cand.url
             sec_id = save_trend(trend_data=cand.model_dump(), card_data=sec_card_data)
             sec_png = settings.BASE_DIR / f"temp_trend_{sec_id}.png"
             saved_catalog.append({"id": sec_id, "trend": cand, "card_data": sec_card_data, "png": sec_png})
