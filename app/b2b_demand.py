@@ -29,27 +29,445 @@ logger = logging.getLogger(__name__)
 # Pool de empresas reales para rotación y fallback multindustria en México/LATAM
 _SEED_COMPANIES_POOL: List[Dict[str, Any]] = [
     {
+        "id": "demanda_tianguis_digital_cdmx",
+        "company": "Tianguis Digital CDMX (ADIP)",
+        "sector": "Gobierno Digital, Trámites & Licitaciones Públicas",
+        "priority": "Licitación Abierta Nacional",
+        "status_badge": "Convocatoria Pública",
+        "budget": "$35,000 - $65,000 USD",
+        "problem": (
+            "Integración de trámites ciudadanos de múltiples dependencias de la CDMX en una arquitectura modular de microservicios con alta concurrencia y validación de identidad digital."
+        ),
+        "solution": (
+            "Fábrica de software especializada en APIs REST/GraphQL, autenticación segura con e.firma y microservicios escalables en nube con trazabilidad y datos abiertos (OCDS)."
+        ),
+        "tags": ["Fábrica de Software", "APIs & Interoperabilidad", "e.firma SAT", "Arquitectura Microservicios"],
+        "contact_email": "tianguisdigital@adip.cdmx.gob.mx",
+        "contact_web": "tianguisdigital.cdmx.gob.mx",
+        "linkedin_company_url": "https://tianguisdigital.cdmx.gob.mx",
+        "source_url": "https://tianguisdigital.cdmx.gob.mx",
+        "demand_source_type": "Licitación Pública de Fábrica de Software y APIs (ADIP)",
+        "demand_source_label": "🏛️ Portal Oficial Tianguis Digital CDMX",
+        "demand_evidence_url": "https://tianguisdigital.cdmx.gob.mx/",
+        "comparison_points": [
+            "Apego al Estándar de Datos para las Contrataciones Abiertas (OCDS).",
+            "Alta disponibilidad para trámites con picos masivos de usuarios concurrentes.",
+            "Despliegue contenerizado y monitoreo de microservicios 24/7."
+        ],
+        "financial_quote": (
+            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Fábrica de Software Pública</b>\n\n"
+            "🏢 <b>Entidad:</b> Tianguis Digital CDMX (ADIP)\n"
+            "💡 <b>Solución:</b> Microservicios de Interoperabilidad + Integración e.firma\n\n"
+            "💰 <b>1. Costo Estimado de Desarrollo (COGS):</b>\n"
+            "• Arquitecto de Software & Seguridad (100 hrs × $45 USD): $4,500 USD\n"
+            "• Desarrolladores Backend Python/FastAPI (200 hrs × $25 USD): $5,000 USD\n"
+            "• Especialista en Ciberseguridad & Pruebas OWASP: $2,500 USD\n"
+            "👉 <b>Costo Base de Implementación:</b> ~$12,000 USD\n\n"
+            "💵 <b>2. Precio de Venta Sugerido:</b>\n"
+            "• <b>Precio Contrato Llave en Mano:</b> <b>$48,000 USD</b> (ó ~$860,000 MXN)\n"
+            "• <b>Margen Bruto de Implementación:</b> <b>75% de ganancia neta</b> ($36,000 USD)\n\n"
+            "🔄 <b>3. Modelo de Cobro Recurrente (Retainer / Mantenimiento Mensual):</b>\n"
+            "• Soporte y actualización continua de APIs: <b>$2,500 USD / mes</b>\n"
+            "• Margen mensual recurrente: ~70% ($1,750 USD/mes limpios)"
+        ),
+        "scope_summary": (
+            "🏛️ <b>FICHA TÉCNICA Y DE LICITACIÓN: Tianguis Digital CDMX</b>\n\n"
+            "💼 <b>Sector:</b> Gobierno Digital & Contrataciones Abiertas\n"
+            "💰 <b>Presupuesto Estimado:</b> $35,000 - $65,000 USD\n"
+            "⏱️ <b>Tiempo de Ejecución:</b> 12 a 16 semanas\n\n"
+            "🛡️ <b>Fuente y Verificación Oficial:</b>\n"
+            "• <b>Convocatoria:</b> Licitación Pública de Fábrica de Software y APIs (ADIP)\n"
+            "• <b>Portal Oficial:</b> <code>https://tianguisdigital.cdmx.gob.mx/</code>\n\n"
+            "📌 <b>Requerimiento Técnico Institucional:</b>\n"
+            "Desarrollo e integración de módulos interoperables para la ventanilla única digital de trámites ciudadanos, "
+            "con validación criptográfica de identidad y apego a estándares de datos abiertos.\n\n"
+            "🛠️ <b>Entregables Técnicos Requeridos (SOW):</b>\n"
+            "1. Arquitectura de microservicios contenerizados (Docker/Kubernetes).\n"
+            "2. Módulo de autenticación con Llave CDMX y validación de e.firma.\n"
+            "3. Conectores REST/GraphQL con bases de datos catastrales y registro civil.\n"
+            "4. Dashboard de auditoría y monitoreo transaccional con alertas en tiempo real."
+        )
+    },
+    {
+        "id": "demanda_cfe_telemetria",
+        "company": "CFE (Comisión Federal de Electricidad)",
+        "sector": "Energía, Infraestructura Crítica & Telemetría Industrial",
+        "priority": "Concurso Abierto",
+        "status_badge": "Licitación TI",
+        "budget": "$50,000 - $95,000 USD",
+        "problem": (
+            "Monitoreo en tiempo real de subestaciones y telemetría de red eléctrica con dispersión geográfica. Requerimiento de integración de protocolos industriales (MQTT/Modbus) hacia servidores centrales."
+        ),
+        "solution": (
+            "Plataforma de procesamiento de eventos en tiempo real con brokers de alta tolerancia a fallos, visualización geográfica en mapas y alertas automáticas de anomalías operativas."
+        ),
+        "tags": ["Telemetría IoT", "Protocolos MQTT / Industrial", "Time-Series Data", "Ciberseguridad SCADA"],
+        "contact_email": "concursos@msc.cfe.mx",
+        "contact_web": "msc.cfe.mx",
+        "linkedin_company_url": "https://msc.cfe.mx",
+        "source_url": "https://msc.cfe.mx",
+        "demand_source_type": "Concurso Abierto de Sistemas y Telemetría CFE",
+        "demand_source_label": "⚡ Micrositio de Concursos CFE",
+        "demand_evidence_url": "https://msc.cfe.mx/",
+        "comparison_points": [
+            "Cumplimiento con estándares de seguridad de infraestructura crítica.",
+            "Latencia menor a 1 segundo en alarmas críticas de subestaciones.",
+            "Interoperabilidad con sistemas legados corporativos SCADA."
+        ],
+        "financial_quote": (
+            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Telemetría e Infraestructura Crítica</b>\n\n"
+            "🏢 <b>Entidad:</b> CFE (Comisión Federal de Electricidad)\n"
+            "💡 <b>Solución:</b> Plataforma de Telemetría IoT + Conectores MQTT + Dashboard\n\n"
+            "💰 <b>1. Costo Estimado de Desarrollo (COGS):</b>\n"
+            "• Ingeniero Especialista IoT / SCADA (120 hrs × $50 USD): $6,000 USD\n"
+            "• Desarrolladores Backend TimeSeries (180 hrs × $30 USD): $5,400 USD\n"
+            "• Infraestructura Cloud de Alta Disponibilidad: $3,200 USD\n"
+            "👉 <b>Costo Base de Implementación:</b> ~$14,600 USD\n\n"
+            "💵 <b>2. Precio de Venta Sugerido:</b>\n"
+            "• <b>Precio Contrato Llave en Mano:</b> <b>$68,000 USD</b> (ó ~$1,220,000 MXN)\n"
+            "• <b>Margen Bruto de Implementación:</b> <b>78.5% de ganancia neta</b> ($53,400 USD)\n\n"
+            "🔄 <b>3. Modelo de Cobro Recurrente (Retainer / Mantenimiento Mensual):</b>\n"
+            "• Monitoreo de telemetría y soporte crítico SLAs 99.99%: <b>$3,200 USD / mes</b>\n"
+            "• Margen mensual recurrente: ~75% ($2,400 USD/mes limpios)"
+        ),
+        "scope_summary": (
+            "⚡ <b>FICHA TÉCNICA Y DE CONCURSO: CFE Telecomunicaciones & TI</b>\n\n"
+            "💼 <b>Sector:</b> Energía & Infraestructura Eléctrica Nacional\n"
+            "💰 <b>Presupuesto Estimado:</b> $50,000 - $95,000 USD\n"
+            "⏱️ <b>Tiempo de Ejecución:</b> 14 a 18 semanas\n\n"
+            "🛡️ <b>Fuente y Verificación Oficial:</b>\n"
+            "• <b>Convocatoria:</b> Concurso Abierto de Sistemas y Telemetría CFE\n"
+            "• <b>Portal Oficial:</b> <code>https://msc.cfe.mx/</code>\n\n"
+            "📌 <b>Requerimiento Técnico Institucional:</b>\n"
+            "Implementación de plataforma centralizada para la ingesta y análisis de señales telemétricas de subestaciones, "
+            "con soporte de protocolos industriales y visualización geoespacial en tiempo real.\n\n"
+            "🛠️ <b>Entregables Técnicos Requeridos (SOW):</b>\n"
+            "1. Broker MQTT distribuido con encriptación TLS 1.3 de grado industrial.\n"
+            "2. Base de datos Time-Series de alta velocidad (TimescaleDB / InfluxDB).\n"
+            "3. Tablero central de supervisión operativa con mapas geográficos interactivos.\n"
+            "4. Sistema proactivo de notificación de alertas ante variaciones de voltaje."
+        )
+    },
+    {
+        "id": "demanda_banobras_fabrica",
+        "company": "Banobras (Banca de Desarrollo)",
+        "sector": "Banca de Desarrollo & Financiamiento de Infraestructura",
+        "priority": "Licitación Plurianual",
+        "status_badge": "Licitación Pública",
+        "budget": "$60,000 - $120,000 USD",
+        "problem": (
+            "Licitación LA-06-G1C-006G1C001 para la contratación de Fábrica de Software: modernización de sistemas de crédito a municipios, integración de pagos SPEI y digitalización de expedientes financieros."
+        ),
+        "solution": (
+            "Servicios administrados de desarrollo de software, testing automatizado (QA), integración con el Banco de México y arquitectura bancaria de alta seguridad con microservicios."
+        ),
+        "tags": ["Fábrica de Software", "Integración Bancaria SPEI", "Testing Automatizado QA", "Banca Digital"],
+        "contact_email": "licitaciones@banobras.gob.mx",
+        "contact_web": "banobras.gob.mx",
+        "linkedin_company_url": "https://www.banobras.gob.mx",
+        "source_url": "https://www.banobras.gob.mx",
+        "demand_source_type": "Licitación Oficial de Fábrica de Software LA-06-G1C-006G1C001",
+        "demand_source_label": "🏛️ Portal Oficial Banobras Transparencia",
+        "demand_evidence_url": "https://www.banobras.gob.mx/",
+        "comparison_points": [
+            "Acreditación de metodologías ágiles y capacidad técnica certificada.",
+            "Protección de datos y cifrado financiero bancario de misión crítica.",
+            "Garantía de soporte y mantenimiento preventivo continuo con SLAs estrictos."
+        ],
+        "financial_quote": (
+            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Fábrica de Software Bancaria</b>\n\n"
+            "🏢 <b>Entidad:</b> Banobras (Banca de Desarrollo)\n"
+            "💡 <b>Solución:</b> Servicios Administrados de Software + Módulos SPEI\n\n"
+            "💰 <b>1. Costo Estimado de Desarrollo (COGS):</b>\n"
+            "• Tech Lead & Arquitecto Financiero (140 hrs × $55 USD): $7,700 USD\n"
+            "• Equipo de Desarrolladores FullStack (240 hrs × $28 USD): $6,720 USD\n"
+            "• Ingeniero de QA y Pruebas Automatizadas: $3,500 USD\n"
+            "👉 <b>Costo Base de Implementación:</b> ~$17,920 USD\n\n"
+            "💵 <b>2. Precio de Venta Sugerido:</b>\n"
+            "• <b>Precio Contrato Llave en Mano:</b> <b>$85,000 USD</b> (ó ~$1,530,000 MXN)\n"
+            "• <b>Margen Bruto de Implementación:</b> <b>78.9% de ganancia neta</b> ($67,080 USD)\n\n"
+            "🔄 <b>3. Modelo de Cobro Recurrente (Retainer / Mantenimiento Mensual):</b>\n"
+            "• Mantenimiento evolutivo de la fábrica de software: <b>$4,500 USD / mes</b>\n"
+            "• Margen mensual recurrente: ~72% ($3,240 USD/mes limpios)"
+        ),
+        "scope_summary": (
+            "🏛️ <b>FICHA TÉCNICA Y DE LICITACIÓN: Banobras</b>\n\n"
+            "💼 <b>Sector:</b> Banca de Desarrollo & Finanzas Públicas\n"
+            "💰 <b>Presupuesto Estimado:</b> $60,000 - $120,000 USD\n"
+            "⏱️ <b>Tiempo de Ejecución:</b> 16 a 24 semanas\n\n"
+            "🛡️ <b>Fuente y Verificación Oficial:</b>\n"
+            "• <b>Convocatoria:</b> Licitación Oficial de Fábrica de Software LA-06-G1C-006G1C001\n"
+            "• <b>Portal Oficial:</b> <code>https://www.banobras.gob.mx/</code>\n\n"
+            "📌 <b>Requerimiento Técnico Institucional:</b>\n"
+            "Contratación de fábrica de software bajo estándares CMMI/Agile para el desarrollo, "
+            "mantenimiento de aplicaciones de crédito institucional e interoperabilidad bancaria con el Banco de México.\n\n"
+            "🛠️ <b>Entregables Técnicos Requeridos (SOW):</b>\n"
+            "1. Módulos de originación y seguimiento de crédito municipal.\n"
+            "2. Conector seguro SPEI con conciliación transaccional en tiempo real.\n"
+            "3. Suite de pruebas automatizadas y aseguramiento de calidad (QA).\n"
+            "4. Repositorio de código documentado con pipelines de CI/CD automatizados."
+        )
+    },
+    {
+        "id": "demanda_walmart_mexico",
+        "company": "Walmart de México & Centroamérica",
+        "sector": "Retail Omnicanal & Comercio Digital",
+        "priority": "Homologación Activa",
+        "status_badge": "Convocatoria Proveedor",
+        "budget": "$20,000 - $35,000 USD",
+        "problem": (
+            "Convocatoria oficial para proveedores de tecnología: requerimiento de conectores EDI y APIs para sincronización de catálogos e inventarios entre sucursales físicas y eCommerce central."
+        ),
+        "solution": (
+            "Middleware con colas de mensajería Redis y microservicios FastAPI para sincronización bidireccional de inventarios POS en tiempo real, eliminando cancelaciones por sobreventa."
+        ),
+        "tags": ["Conectores EDI Retail", "FastAPI / Redis PubSub", "Sincronización POS", "Microservicios Cloud"],
+        "contact_email": "proveedores@walmartmexico.com",
+        "contact_web": "walmartmexico.com",
+        "linkedin_company_url": "https://www.walmartmexico.com",
+        "source_url": "https://www.walmartmexico.com",
+        "demand_source_type": "Portal Institucional de Convocatorias y Proveedores Walmart",
+        "demand_source_label": "🛒 Portal Oficial de Proveedores Walmart",
+        "demand_evidence_url": "https://www.walmartmexico.com/proveedores",
+        "comparison_points": [
+            "Integración certificada con especificaciones EDI de Walmart.",
+            "Manejo de picos masivos durante campañas de retail (Hot Sale / Buen Fin).",
+            "Monitoreo 24/7 y SLAs de disponibilidad del 99.9%."
+        ],
+        "financial_quote": (
+            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Retail Omnicanal</b>\n\n"
+            "🏢 <b>Cliente:</b> Walmart de México & Centroamérica\n"
+            "💡 <b>Solución:</b> Sync Event-Driven POS ↔ Tienda Online con Redis/FastAPI\n\n"
+            "💰 <b>1. Costo Estimado de Desarrollo (COGS):</b>\n"
+            "• Desarrollador Full-Stack / Conectores (90 hrs × $30 USD): $2,700 USD\n"
+            "• Especialista en Bases de Datos / Redis (40 hrs × $35 USD): $1,400 USD\n"
+            "• Servidores en la nube (AWS): ~$200 USD/mes\n"
+            "👉 <b>Costo Base de Implementación:</b> ~$4,300 USD\n\n"
+            "💵 <b>2. Precio de Venta Sugerido:</b>\n"
+            "• <b>Precio Llave en Mano:</b> <b>$24,500 USD</b> (ó ~$440,000 MXN)\n"
+            "• <b>Margen Bruto de Implementación:</b> <b>82.4% de ganancia neta</b> ($20,200 USD)\n\n"
+            "🔄 <b>3. Modelo de Cobro Recurrente (Retainer / SaaS Mensual):</b>\n"
+            "• Monitoreo de colas + Garantía de alta disponibilidad: <b>$1,400 USD / mes</b>\n"
+            "• Margen mensual recurrente: ~75% ($1,050 USD/mes limpios)"
+        ),
+        "scope_summary": (
+            "🛍️ <b>FICHA TÉCNICA Y DE NEGOCIO: Walmart de México & Centroamérica</b>\n\n"
+            "💼 <b>Sector:</b> Retail Omnicanal & Comercio Electrónico\n"
+            "💰 <b>Presupuesto Estimado:</b> $20,000 - $35,000 USD\n"
+            "⏱️ <b>Tiempo de Entrega:</b> 8 a 10 semanas\n\n"
+            "🛡️ <b>Fuente y Verificación Oficial:</b>\n"
+            "• <b>Convocatoria:</b> Portal Institucional de Convocatorias y Proveedores Walmart\n"
+            "• <b>Portal Oficial:</b> <code>https://www.walmartmexico.com/proveedores</code>\n\n"
+            "📌 <b>Requerimiento Técnico Corporativo:</b>\n"
+            "Conexión de terminales punto de venta (POS) y catálogos de proveedores con el sistema central "
+            "para garantizar inventario unificado y respuesta inmediata en compras online.\n\n"
+            "🛠️ <b>Entregables Técnicos Requeridos (SOW):</b>\n"
+            "1. Middleware desacoplado en Python / FastAPI con broker de mensajería (Redis Pub/Sub).\n"
+            "2. Conector con el sistema POS local para emitir eventos de venta en tiempo real.\n"
+            "3. Actualización instantánea de stock vía APIs de catálogo.\n"
+            "4. Panel de alertas operativas en caso de pérdida de conectividad en sucursales."
+        )
+    },
+    {
+        "id": "demanda_infonavit_digital",
+        "company": "Infonavit",
+        "sector": "Crédito Hipotecario & Seguridad Social",
+        "priority": "Convocatoria Abierta",
+        "status_badge": "Licitación TI",
+        "budget": "$30,000 - $55,000 USD",
+        "problem": (
+            "Modernización de la ventanilla digital de consulta de saldos y créditos hipotecarios. Requerimiento de autenticación biométrica y APIs de interoperabilidad con el SAT y bancos participantes."
+        ),
+        "solution": (
+            "Portal transaccional web y móvil de autoservicio con arquitectura serverless, validación criptográfica de identidad y conectores bidireccionales con bases de datos hipotecarias."
+        ),
+        "tags": ["Identidad Digital", "Microservicios Serverless", "Interoperabilidad SAT", "Seguridad de Datos"],
+        "contact_email": "proveeduria@infonavit.org.mx",
+        "contact_web": "portalmx.infonavit.org.mx",
+        "linkedin_company_url": "https://portalmx.infonavit.org.mx",
+        "source_url": "https://portalmx.infonavit.org.mx",
+        "demand_source_type": "Portal de Proveedores y Convocatorias de Tecnología Infonavit",
+        "demand_source_label": "🏠 Portal de Proveedores Infonavit",
+        "demand_evidence_url": "https://portalmx.infonavit.org.mx/",
+        "comparison_points": [
+            "Manejo de millones de consultas concurrentes de trabajadores.",
+            "Blindaje de datos personales y cumplimiento normativo estricto.",
+            "Auditoría en tiempo real de transacciones y folios de crédito."
+        ],
+        "financial_quote": (
+            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Ventanilla Digital Hipotecaria</b>\n\n"
+            "🏢 <b>Entidad:</b> Infonavit\n"
+            "💡 <b>Solución:</b> Portal Autoservicio + Autenticación e.firma/Biometría\n\n"
+            "💰 <b>1. Costo Estimado de Desarrollo (COGS):</b>\n"
+            "• Desarrollador Frontend Seguro (80 hrs × $35 USD): $2,800 USD\n"
+            "• Ingeniero Backend Serverless (120 hrs × $35 USD): $4,200 USD\n"
+            "• Módulo de Cifrado y Ciberseguridad: $2,500 USD\n"
+            "👉 <b>Costo Base de Implementación:</b> ~$9,500 USD\n\n"
+            "💵 <b>2. Precio de Venta Sugerido:</b>\n"
+            "• <b>Precio Llave en Mano:</b> <b>$38,000 USD</b> (ó ~$680,000 MXN)\n"
+            "• <b>Margen Bruto de Implementación:</b> <b>75% de ganancia neta</b> ($28,500 USD)\n\n"
+            "🔄 <b>3. Modelo de Cobro Recurrente (Retainer / Mantenimiento Mensual):</b>\n"
+            "• Monitoreo de disponibilidad y soporte de parches: <b>$1,800 USD / mes</b>\n"
+            "• Margen mensual recurrente: ~70% ($1,260 USD/mes limpios)"
+        ),
+        "scope_summary": (
+            "🏠 <b>FICHA TÉCNICA Y DE CONVOCATORIA: Infonavit</b>\n\n"
+            "💼 <b>Sector:</b> Vivienda, Crédito Hipotecario & Seguridad Social\n"
+            "💰 <b>Presupuesto Estimado:</b> $30,000 - $55,000 USD\n"
+            "⏱️ <b>Tiempo de Entrega:</b> 10 a 14 semanas\n\n"
+            "🛡️ <b>Fuente y Verificación Oficial:</b>\n"
+            "• <b>Convocatoria:</b> Portal de Proveedores y Convocatorias de Tecnología Infonavit\n"
+            "• <b>Portal Oficial:</b> <code>https://portalmx.infonavit.org.mx/</code>\n\n"
+            "📌 <b>Requerimiento Técnico Institucional:</b>\n"
+            "Desarrollo de componentes web seguros y APIs para la gestión automatizada de expedientes de crédito hipotecario, "
+            "con validación directa ante bases de datos oficiales.\n\n"
+            "🛠️ <b>Entregables Técnicos Requeridos (SOW):</b>\n"
+            "1. Portal web progresivo (PWA) responsivo para consulta ciudadana.\n"
+            "2. Conector seguro con webservices del SAT para verificación fiscal de ingresos.\n"
+            "3. Encriptación de extremo a extremo de documentos PDF y contratos.\n"
+            "4. Bitácora inmutable de accesos para auditorías internas."
+        )
+    },
+    {
+        "id": "demanda_traxion_logistica",
+        "company": "Grupo Traxión",
+        "sector": "Supply Chain, Logística & Movilidad Integral",
+        "priority": "Homologación Proveedores",
+        "status_badge": "Registro Proveedores",
+        "budget": "$22,000 - $38,000 USD",
+        "problem": (
+            "Convocatoria corporativa de tecnología logística: necesidad de unificar telemetría GPS de unidades de carga pesada y proveer webhooks directos a clientes corporativos para tracking en vivo."
+        ),
+        "solution": (
+            "Torre de control telemática con tracking satelital, estimación dinámica de tiempos de llegada (ETA) con machine learning y webhooks automáticos para portales de clientes B2B."
+        ),
+        "tags": ["IoT & Telemetría GPS", "Algoritmos ETA / Tráfico", "Webhooks Corporativos", "Portal Autoservicio"],
+        "contact_email": "proveedores@traxion.global",
+        "contact_web": "traxion.global",
+        "linkedin_company_url": "https://traxion.global",
+        "source_url": "https://traxion.global",
+        "demand_source_type": "Portal Corporativo de Proveedores y Cadena de Suministro Traxión",
+        "demand_source_label": "🚛 Plataforma Corporativa Traxión",
+        "demand_evidence_url": "https://traxion.global/es/",
+        "comparison_points": [
+            "Ahorro operativo sustancial al automatizar reportes de estatus.",
+            "Garantía de SLAs y trazabilidad para auditorías de clientes enterprise.",
+            "Compatibilidad con dispositivos telemáticos estándar del mercado."
+        ],
+        "financial_quote": (
+            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Logística & Telemetría IoT</b>\n\n"
+            "🏢 <b>Cliente:</b> Grupo Traxión\n"
+            "💡 <b>Solución:</b> Torre de Control GPS + Algoritmo ETA + Webhooks B2B\n\n"
+            "💰 <b>1. Costo Estimado de Desarrollo (COGS):</b>\n"
+            "• Desarrollador Frontend (Next.js / Mapbox) (80 hrs × $28 USD): $2,240 USD\n"
+            "• Backend & Protocolos GPS (Websockets / MQTT) (100 hrs × $35 USD): $3,500 USD\n"
+            "• Servidor Websockets + Base de Datos TimeSeries: ~$250 USD/mes\n"
+            "👉 <b>Costo Base de Implementación:</b> ~$6,200 USD\n\n"
+            "💵 <b>2. Precio de Venta Sugerido:</b>\n"
+            "• <b>Precio Llave en Mano:</b> <b>$26,000 USD</b> (ó ~$470,000 MXN)\n"
+            "• <b>Margen Bruto de Implementación:</b> <b>76.1% de ganancia neta</b> ($19,800 USD)\n\n"
+            "🔄 <b>3. Modelo de Cobro Recurrente (Retainer / SaaS Mensual):</b>\n"
+            "• Retainer por camión monitoreado: <b>$12 USD / camión / mes</b> (120 camiones = $1,440 USD/mes)\n"
+            "• Margen mensual recurrente: ~80% ($1,150 USD/mes limpios)"
+        ),
+        "scope_summary": (
+            "🚚 <b>FICHA TÉCNICA Y DE NEGOCIO: Grupo Traxión</b>\n\n"
+            "💼 <b>Sector:</b> Cadena de Suministro, Transporte & Carga Terrestre\n"
+            "💰 <b>Presupuesto Estimado:</b> $22,000 - $38,000 USD\n"
+            "⏱️ <b>Tiempo de Entrega:</b> 8 a 10 semanas\n\n"
+            "🛡️ <b>Fuente y Verificación Oficial:</b>\n"
+            "• <b>Convocatoria:</b> Portal Corporativo de Proveedores y Cadena de Suministro Traxión\n"
+            "• <b>Portal Oficial:</b> <code>https://traxion.global/es/</code>\n\n"
+            "📌 <b>Requerimiento Técnico Corporativo:</b>\n"
+            "Manejan flotas de carga en rutas nacionales. Los clientes corporativos exigen visibilidad y webhooks en vivo "
+            "conectados con sus sistemas ERP para monitorear entregas críticas.\n\n"
+            "🛠️ <b>Entregables Técnicos Requeridos (SOW):</b>\n"
+            "1. Conexión telemática mediante websockets con proveedores de GPS de las unidades.\n"
+            "2. Algoritmo de ETA dinámico que ajusta tiempos estimados ante tráfico o desvíos.\n"
+            "3. Portal web privado (Next.js) con login para clientes donde ven sus unidades en mapa en vivo.\n"
+            "4. Webhooks automatizados para notificar 'En ruta', 'En patio de descarga' y 'Entregado con firma digital'."
+        )
+    },
+    {
+        "id": "demanda_openpay_fintech",
+        "company": "Openpay by BBVA",
+        "sector": "Fintech & Pasarelas de Pagos Digitales",
+        "priority": "Integración B2B",
+        "status_badge": "Alianzas B2B",
+        "budget": "$25,000 - $40,000 USD",
+        "problem": (
+            "Convocatoria para consultores e integradores de software: desarrollo de conectores de pasarela de pago para plataformas corporativas, optimización de cobros recurrentes y conciliación con el SAT."
+        ),
+        "solution": (
+            "Middleware transaccional con enrutamiento dinámico de cobros, reintentos inteligentes antifraude y conciliación automatizada de comprobantes fiscales CFDI contra folios bancarios."
+        ),
+        "tags": ["Integración Pasarelas", "Tokenización PCI-DSS", "Conciliación SAT/SPEI", "APIs Financieras"],
+        "contact_email": "desarrollo@openpay.mx",
+        "contact_web": "openpay.mx",
+        "linkedin_company_url": "https://www.openpay.mx",
+        "source_url": "https://www.openpay.mx",
+        "demand_source_type": "Portal Oficial de Integración y Soluciones para Desarrolladores Openpay",
+        "demand_source_label": "💻 Documentación & Integración Openpay",
+        "demand_evidence_url": "https://www.openpay.mx/docs/",
+        "comparison_points": [
+            "Aumento comprobado en la tasa de cobros exitosos.",
+            "Cumplimiento estricto con estándares de seguridad PCI-DSS.",
+            "Automatización completa del cierre contable mensual."
+        ],
+        "financial_quote": (
+            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Fintech & Pasarelas POS</b>\n\n"
+            "🏢 <b>Cliente:</b> Openpay by BBVA\n"
+            "💡 <b>Solución:</b> Router Inteligente Transaccional + Conciliador SAT/SPEI\n\n"
+            "💰 <b>1. Costo Estimado de Desarrollo (COGS):</b>\n"
+            "• Ingeniero Especialista Fintech/PCI (100 hrs × $50 USD): $5,000 USD\n"
+            "• Ingeniero Backend Python/FastAPI (120 hrs × $30 USD): $3,600 USD\n"
+            "• Pruebas de Carga & Certificación PCI: $1,200 USD\n"
+            "👉 <b>Costo Base de Implementación:</b> ~$9,800 USD\n\n"
+            "💵 <b>2. Precio de Venta Sugerido:</b>\n"
+            "• <b>Precio Llave en Mano:</b> <b>$32,000 USD</b> (ó ~$575,000 MXN)\n"
+            "• <b>Margen Bruto de Implementación:</b> <b>69.3% de ganancia neta</b> ($22,200 USD)\n\n"
+            "🔄 <b>3. Modelo de Cobro Recurrente (Retainer / SaaS Mensual):</b>\n"
+            "• Mantenimiento Preventivo + Monitoreo Latencia 24/7: <b>$1,800 USD / mes</b>\n"
+            "• Fee transaccional opcional: 0.1% sobre volumen conciliado con éxito."
+        ),
+        "scope_summary": (
+            "💳 <b>FICHA TÉCNICA Y DE NEGOCIO: Openpay by BBVA</b>\n\n"
+            "💼 <b>Sector:</b> Finanzas Digitales, Pasarelas & SPEI (México)\n"
+            "💰 <b>Presupuesto Estimado:</b> $25,000 - $40,000 USD\n"
+            "⏱️ <b>Tiempo de Entrega:</b> 10 a 14 semanas\n\n"
+            "🛡️ <b>Fuente y Verificación Oficial:</b>\n"
+            "• <b>Convocatoria:</b> Portal Oficial de Integración y Soluciones para Desarrolladores Openpay\n"
+            "• <b>Portal Oficial:</b> <code>https://www.openpay.mx/docs/</code>\n\n"
+            "📌 <b>Requerimiento Técnico Corporativo:</b>\n"
+            "Desarrollo de conectores robustos para procesamiento masivo de cobros recurrentes y conciliación automática "
+            "con los webservices de facturación electrónica del SAT.\n\n"
+            "🛠️ <b>Entregables Técnicos Requeridos (SOW):</b>\n"
+            "1. Enrutador inteligente con lógica de reintentos escalonados entre múltiples adquirientes.\n"
+            "2. Módulo de tokenización segura cumpliendo con normas de seguridad bancaria.\n"
+            "3. Conciliador automático que coteja folios SPEI / CEP contra facturas emitidas.\n"
+            "4. Webhooks de notificación instantánea para los comercios afiliados."
+        )
+    },
+    {
         "id": "demanda_salud_digna",
         "company": "Salud Digna & Red de Laboratorios",
         "sector": "HealthTech & Diagnóstico",
-        "priority": "Alta Intención (Presupuesto Asignado)",
-        "status_badge": "Licitación Q4",
-        "budget": "$15,000 - $28,000 USD",
+        "priority": "Alta Intención",
+        "status_badge": "Licitación Privada",
+        "budget": "$18,000 - $30,000 USD",
         "problem": (
-            "Inasistencia del 32% en estudios diagnósticos y saturación de recepcionistas en WhatsApp y conmutadores. "
-            "Pérdidas operativas de más de $45,000 USD mensuales por citas desaprovechadas."
+            "Convocatoria institucional para modernización digital de clínicas: requerimiento de sistema de interoperabilidad clínica (HL7/FHIR), reducción de inasistencia en estudios y pasarelas de anticipos."
         ),
         "solution": (
-            "Agente de IA Multicanal integrado a expediente clínico electrónico con pre-cobro de anticipos por Stripe/SPEI, "
-            "reprogramación inteligente automática y entrega de resultados por WhatsApp."
+            "Agente de IA Multicanal integrado a expediente clínico electrónico con pre-cobro de anticipos por Stripe/SPEI, reprogramación inteligente automática y entrega de resultados por WhatsApp."
         ),
         "tags": ["Agentes IA Conversacionales", "Pasarelas Stripe/SPEI", "Integración HL7/FHIR", "Automatización 24/7"],
         "contact_email": "licitaciones@salud-digna.org",
         "contact_web": "salud-digna.org",
-        "linkedin_company_url": "https://www.linkedin.com/company/salud-digna",
+        "linkedin_company_url": "https://salud-digna.org",
         "source_url": "https://salud-digna.org",
-        "demand_source_type": "Licitación Privada & Adquisición de Tecnología en Salud",
-        "demand_source_label": "🏛️ Portal Institucional Salud Digna",
+        "demand_source_type": "Convocatoria Institucional de Adquisiciones de Tecnología en Salud",
+        "demand_source_label": "🏥 Portal Institucional Salud Digna",
         "demand_evidence_url": "https://salud-digna.org",
         "comparison_points": [
             "Retorno de inversión (ROI) estimado en 3 meses al recuperar 60% de citas perdidas.",
@@ -67,442 +485,28 @@ _SEED_COMPANIES_POOL: List[Dict[str, Any]] = [
             "• Infraestructura Cloud (AWS ECS + RDS HIPAA): ~$250 USD/mes\n"
             "👉 <b>Costo Base de Implementación:</b> ~$7,200 USD\n\n"
             "💵 <b>2. Precio de Venta Sugerido:</b>\n"
-            "• <b>Precio Llave en Mano:</b> <b>$22,500 USD</b> (ó ~$405,000 MXN)\n"
-            "• <b>Margen Bruto de Implementación:</b> <b>68% de ganancia neta</b> ($15,300 USD)\n\n"
+            "• <b>Precio Llave en Mano:</b> <b>$24,500 USD</b> (ó ~$440,000 MXN)\n"
+            "• <b>Margen Bruto de Implementación:</b> <b>70.6% de ganancia neta</b> ($17,300 USD)\n\n"
             "🔄 <b>3. Modelo de Cobro Recurrente (Retainer / SaaS Mensual):</b>\n"
-            "• Mantenimiento de Agentes + Soporte SLAs 99.9%: <b>$1,200 USD / mes</b>\n"
-            "• Margen mensual recurrente: ~65% ($780 USD/mes limpios por cliente)"
+            "• Mantenimiento de Agentes + Soporte SLAs 99.9%: <b>$1,300 USD / mes</b>\n"
+            "• Margen mensual recurrente: ~65% ($845 USD/mes limpios por cliente)"
         ),
         "scope_summary": (
             "🏥 <b>FICHA TÉCNICA Y DE NEGOCIO: Salud Digna & Red de Laboratorios</b>\n\n"
             "💼 <b>Sector:</b> HealthTech & Servicios Médicos (México / LATAM)\n"
-            "💰 <b>Presupuesto Estimado:</b> $15,000 - $28,000 USD\n"
+            "💰 <b>Presupuesto Estimado:</b> $18,000 - $30,000 USD\n"
             "⏱️ <b>Tiempo de Entrega:</b> 8 a 12 semanas\n\n"
-            "🛡️ <b>Fuente y Verificación de la Demanda:</b>\n"
-            "• <b>Canal de Detección:</b> Licitación Privada & Adquisición de Tecnología en Salud\n"
+            "🛡️ <b>Fuente y Verificación Oficial:</b>\n"
+            "• <b>Convocatoria:</b> Convocatoria Institucional de Adquisiciones de Tecnología en Salud\n"
             "• <b>Portal Oficial:</b> <code>https://salud-digna.org</code>\n\n"
-            "📌 <b>Problema Operativo:</b>\n"
-            "Tienen clínicas en todo el país con 32% de ausentismo en estudios. Cada cancelación sin aviso cuesta $120 USD. "
-            "El personal de recepción pierde 5 horas al día llamando manualmente por teléfono.\n\n"
+            "📌 <b>Requerimiento Técnico Institucional:</b>\n"
+            "Tienen clínicas en todo el país con ausentismo en estudios diagnósticos. "
+            "Requerimiento de agentes automáticos de triaje y pago para confirmación previa de citas.\n\n"
             "🛠️ <b>Entregables Técnicos Requeridos (SOW):</b>\n"
             "1. Bot conversacional oficial en WhatsApp Business Cloud API con flujo de triaje y citas.\n"
             "2. Pasarela de pago para cobro del 30% de anticipo reembolsable (Stripe / Openpay).\n"
             "3. Conexión bidireccional vía REST APIs con el ERP hospitalario para apartar horarios.\n"
-            "4. Dashboard en React para que las coordinadoras vean confirmaciones en tiempo real.\n\n"
-            "🎯 <b>Estrategia de Venta TI:</b>\n"
-            "<i>Véndeles la solución como un sistema de recuperación de ingresos. Un laboratorio recupera la inversión en menos de 90 días solo reduciendo el ausentismo a la mitad.</i>"
-        )
-    },
-    {
-        "id": "demanda_openpay_fintech",
-        "company": "Openpay by BBVA",
-        "sector": "Fintech & Infraestructura de Pagos",
-        "priority": "Urgente",
-        "status_badge": "Compra Activa",
-        "budget": "$20,000 - $35,000 USD",
-        "problem": (
-            "Fricción en cobros recurrentes de suscripciones y transacciones de e-commerce. Rechazos del 18% en tarjetas locales por reglas de antifraude obsoletas "
-            "y alta carga operativa para conciliar cuentas bancarias con el SAT."
-        ),
-        "solution": (
-            "Middleware de pagos con enrutamiento dinámico de transacciones entre adquirientes, reintentos con IA "
-            "y conciliación automatizada con API del SAT y bancos."
-        ),
-        "tags": ["Enrutamiento Dinámico", "Tokenización PCI-DSS", "APIs Bancarias & SPEI", "Prevención de Fraude"],
-        "contact_email": "soporte@openpay.mx",
-        "contact_web": "openpay.mx",
-        "linkedin_company_url": "https://www.linkedin.com/company/openpaymx",
-        "source_url": "https://www.openpay.mx",
-        "demand_source_type": "Integraciones B2B & Pasarelas de Pagos",
-        "demand_source_label": "💻 Portal de Integración B2B Openpay",
-        "demand_evidence_url": "https://www.openpay.mx/docs/",
-        "comparison_points": [
-            "Impacto directo en facturación: eleva la tasa de aprobación de pagos del 82% al 94%.",
-            "Alta exigencia de latencia: respuestas en menos de 200 milisegundos.",
-            "Monitoreo 24/7 con alertas por Slack y Datadog."
-        ],
-        "financial_quote": (
-            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Fintech & Pasarelas POS</b>\n\n"
-            "🏢 <b>Cliente:</b> Openpay by BBVA\n"
-            "💡 <b>Solución:</b> Router Inteligente Transaccional + Conciliador SAT/SPEI\n\n"
-            "💰 <b>1. Costo Estimado de Desarrollo (COGS):</b>\n"
-            "• Ingeniero Especialista Fintech/PCI (100 hrs × $50 USD): $5,000 USD\n"
-            "• Ingeniero Backend Python/FastAPI (120 hrs × $30 USD): $3,600 USD\n"
-            "• Pruebas de Carga & Certificación PCI: $1,200 USD\n"
-            "• Servidores de alta disponibilidad (AWS Multi-AZ): ~$400 USD/mes\n"
-            "👉 <b>Costo Base de Implementación:</b> ~$10,200 USD\n\n"
-            "💵 <b>2. Precio de Venta Sugerido:</b>\n"
-            "• <b>Precio Llave en Mano:</b> <b>$28,000 USD</b> (ó ~$500,000 MXN)\n"
-            "• <b>Margen Bruto de Implementación:</b> <b>63.5% de ganancia neta</b> ($17,800 USD)\n\n"
-            "🔄 <b>3. Modelo de Cobro Recurrente (Retainer / SaaS Mensual):</b>\n"
-            "• Mantenimiento Preventivo + Monitoreo Latencia 24/7: <b>$1,800 USD / mes</b>\n"
-            "• Fee transaccional opcional: 0.1% sobre volumen conciliado con éxito."
-        ),
-        "scope_summary": (
-            "💳 <b>FICHA TÉCNICA Y DE NEGOCIO: Openpay by BBVA</b>\n\n"
-            "💼 <b>Sector:</b> Finanzas Digitales, Pasarelas & SPEI (México)\n"
-            "💰 <b>Presupuesto Estimado:</b> $20,000 - $35,000 USD\n"
-            "⏱️ <b>Tiempo de Entrega:</b> 10 a 14 semanas\n\n"
-            "🛡️ <b>Fuente y Verificación de la Demanda:</b>\n"
-            "• <b>Canal de Detección:</b> Integraciones B2B & Pasarelas de Pagos\n"
-            "• <b>Portal Oficial:</b> <code>https://www.openpay.mx/docs/</code>\n\n"
-            "📌 <b>Problema Operativo:</b>\n"
-            "Procesan 80,000 transacciones mensuales. El 18% falla por declinaciones bancarias genéricas "
-            "y su equipo contable tarda 6 días a fin de mes conciliando estados de cuenta contra el SAT.\n\n"
-            "🛠️ <b>Entregables Técnicos Requeridos (SOW):</b>\n"
-            "1. Enrutador inteligente con lógica de reintentos escalonados entre múltiples adquirientes.\n"
-            "2. Módulo de tokenización segura cumpliendo con normas de seguridad bancaria.\n"
-            "3. Conciliador automático que coteja folios SPEI / CEP contra facturas emitidas.\n"
-            "4. Webhooks de notificación instantánea para los comercios afiliados.\n\n"
-            "🎯 <b>Estrategia de Venta TI:</b>\n"
-            "<i>Véndeles optimización de conversión. Recuperar un 8% adicional de cobros exitosos les representa más de $60,000 USD al año en comisiones netas.</i>"
-        )
-    },
-    {
-        "id": "demanda_walmart_mexico",
-        "company": "Walmart de México & Centroamérica",
-        "sector": "Retail Omnicanal & Comercio Digital",
-        "priority": "Alta Prioridad",
-        "status_badge": "Mercado Activo",
-        "budget": "$18,000 - $30,000 USD",
-        "problem": (
-            "Desconexión entre el catálogo online y los inventarios en sucursales físicas. "
-            "Sobreventa de productos de alta demanda durante temporadas comerciales y cancelaciones forzadas."
-        ),
-        "solution": (
-            "Sistema Event-Driven con colas Redis y microservicios FastAPI para sincronización bidireccional de inventario en tiempo real "
-            "entre terminales punto de venta y tienda web."
-        ),
-        "tags": ["Arquitectura Event-Driven", "FastAPI / Redis", "Conectores ERP/POS", "Microservicios Cloud"],
-        "contact_email": "tecnologia@walmartmexico.com",
-        "contact_web": "walmartmexico.com",
-        "linkedin_company_url": "https://www.linkedin.com/company/walmartmexico",
-        "source_url": "https://www.walmartmexico.com",
-        "demand_source_type": "Portal Institucional de Proveedores & Licitaciones Retail",
-        "demand_source_label": "🏛️ Portal Oficial de Proveedores Walmart",
-        "demand_evidence_url": "https://www.walmartmexico.com/proveedores",
-        "comparison_points": [
-            "Elimina cancelaciones por sobreventa al 100%.",
-            "Manejo de picos de tráfico durante Buen Fin y Hot Sale.",
-            "Despliegue contenerizado en AWS ECS / Kubernetes."
-        ],
-        "financial_quote": (
-            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Retail Omnicanal</b>\n\n"
-            "🏢 <b>Cliente:</b> Walmart de México & Centroamérica\n"
-            "💡 <b>Solución:</b> Sync Event-Driven POS ↔ Tienda Online con Redis/FastAPI\n\n"
-            "💰 <b>1. Costo Estimado de Desarrollo (COGS):</b>\n"
-            "• Desarrollador Full-Stack / Conectores (90 hrs × $30 USD): $2,700 USD\n"
-            "• Especialista en Bases de Datos / Redis (40 hrs × $35 USD): $1,400 USD\n"
-            "• Servidores en la nube (AWS): ~$200 USD/mes\n"
-            "👉 <b>Costo Base de Implementación:</b> ~$4,300 USD\n\n"
-            "💵 <b>2. Precio de Venta Sugerido:</b>\n"
-            "• <b>Precio Llave en Mano:</b> <b>$18,500 USD</b> (ó ~$330,000 MXN)\n"
-            "• <b>Margen Bruto de Implementación:</b> <b>76.7% de ganancia neta</b> ($14,200 USD)\n\n"
-            "🔄 <b>3. Modelo de Cobro Recurrente (Retainer / SaaS Mensual):</b>\n"
-            "• Monitoreo de colas + Garantía de alta disponibilidad: <b>$1,100 USD / mes</b>\n"
-            "• Margen mensual recurrente: ~75% ($825 USD/mes limpios)"
-        ),
-        "scope_summary": (
-            "🛍️ <b>FICHA TÉCNICA Y DE NEGOCIO: Walmart de México & Centroamérica</b>\n\n"
-            "💼 <b>Sector:</b> Retail Omnicanal & Comercio Electrónico (CDMX & Nacional)\n"
-            "💰 <b>Presupuesto Estimado:</b> $18,000 - $30,000 USD\n"
-            "⏱️ <b>Tiempo de Entrega:</b> 8 a 10 semanas\n\n"
-            "🛡️ <b>Fuente y Verificación de la Demanda:</b>\n"
-            "• <b>Canal de Detección:</b> Portal Institucional de Proveedores & Licitaciones Retail\n"
-            "• <b>Evidencia Pública:</b> <code>https://www.walmartmexico.com/proveedores</code>\n\n"
-            "📌 <b>Problema Operativo:</b>\n"
-            "Venden en tienda online y en cientos de sucursales. Cuando un producto se agota en tienda física, "
-            "el sistema web tarda en enterarse, vendiendo stock inexistente y generando reclamaciones.\n\n"
-            "🛠️ <b>Entregables Técnicos Requeridos (SOW):</b>\n"
-            "1. Middleware desacoplado en Python / FastAPI con broker de mensajería (Redis Pub/Sub).\n"
-            "2. Conector con el sistema POS local de sucursales para emitir eventos de venta en tiempo real.\n"
-            "3. Actualización instantánea de stock vía APIs de catálogo.\n"
-            "4. Panel de alertas operativas en caso de pérdida de conectividad en sucursales.\n\n"
-            "🎯 <b>Estrategia de Venta TI:</b>\n"
-            "<i>Evitar cancelaciones en temporadas altas salva miles de dólares en reembolsos y retiene la lealtad del cliente.</i>"
-        )
-    },
-    {
-        "id": "demanda_traxion_logistica",
-        "company": "Grupo Traxión",
-        "sector": "Supply Chain & Movilidad Integral",
-        "priority": "Urgente",
-        "status_badge": "Búsqueda de Proveedor",
-        "budget": "$18,000 - $32,000 USD",
-        "problem": (
-            "Falta de visibilidad unificada en entregas B2B de última milla. Clientes corporativos exigen rastreo en vivo y los operadores manuales "
-            "atienden cientos de llamadas diarias reportando estatus."
-        ),
-        "solution": (
-            "Torre de control telemática con tracking satelital GPS, predicción de demoras por tráfico con machine learning "
-            "y webhooks proactivos hacia los portales de compras de los clientes."
-        ),
-        "tags": ["IoT & Telemetría GPS", "Machine Learning / Tráfico", "Webhooks Clientes", "Portal Autoservicio"],
-        "contact_email": "contacto@traxion.global",
-        "contact_web": "traxion.global",
-        "linkedin_company_url": "https://www.linkedin.com/company/traxion",
-        "source_url": "https://traxion.global",
-        "demand_source_type": "Licitaciones de Logística, Flotilla & Software B2B",
-        "demand_source_label": "🌐 Plataforma Corporativa Traxión",
-        "demand_evidence_url": "https://traxion.global/es/",
-        "comparison_points": [
-            "Ahorro de hasta 6 horas hombre por analista de logística diariamente.",
-            "Mejora satisfacción de clientes enterprise con SLAs garantizados.",
-            "Integrable con dispositivos GPS comerciales (Geotab/Teltonika)."
-        ],
-        "financial_quote": (
-            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Logística & Telemetría IoT</b>\n\n"
-            "🏢 <b>Cliente:</b> Grupo Traxión\n"
-            "💡 <b>Solución:</b> Torre de Control GPS + Algoritmo ETA + Webhooks B2B\n\n"
-            "💰 <b>1. Costo Estimado de Desarrollo (COGS):</b>\n"
-            "• Desarrollador Frontend (Next.js / Mapbox) (80 hrs × $28 USD): $2,240 USD\n"
-            "• Backend & Protocolos GPS (Websockets / MQTT) (100 hrs × $35 USD): $3,500 USD\n"
-            "• Servidor Websockets + Base de Datos TimeSeries: ~$250 USD/mes\n"
-            "👉 <b>Costo Base de Implementación:</b> ~$6,200 USD\n\n"
-            "💵 <b>2. Precio de Venta Sugerido:</b>\n"
-            "• <b>Precio Llave en Mano:</b> <b>$24,000 USD</b> (ó ~$430,000 MXN)\n"
-            "• <b>Margen Bruto de Implementación:</b> <b>74.1% de ganancia neta</b> ($17,800 USD)\n\n"
-            "🔄 <b>3. Modelo de Cobro Recurrente (Retainer / SaaS Mensual):</b>\n"
-            "• Retainer por camión monitoreado: <b>$12 USD / camión / mes</b> (120 camiones = $1,440 USD/mes)\n"
-            "• Margen mensual recurrente: ~80% ($1,150 USD/mes limpios)"
-        ),
-        "scope_summary": (
-            "🚚 <b>FICHA TÉCNICA Y DE NEGOCIO: Grupo Traxión</b>\n\n"
-            "💼 <b>Sector:</b> Cadena de Suministro, Transporte & Carga Terrestre\n"
-            "💰 <b>Presupuesto Estimado:</b> $18,000 - $32,000 USD\n"
-            "⏱️ <b>Tiempo de Entrega:</b> 8 a 10 semanas\n\n"
-            "🛡️ <b>Fuente y Verificación de la Demanda:</b>\n"
-            "• <b>Canal de Detección:</b> Licitaciones de Logística, Flotilla & Software B2B\n"
-            "• <b>Portal Oficial:</b> <code>https://traxion.global/es/</code>\n\n"
-            "📌 <b>Problema Operativo:</b>\n"
-            "Manejan flotas de carga pesada en rutas del país. Los clientes corporativos "
-            "llaman todo el día preguntando por su carga porque no hay enlace automatizado con los GPS.\n\n"
-            "🛠️ <b>Entregables Técnicos Requeridos (SOW):</b>\n"
-            "1. Conexión telemática mediante websockets con proveedores de GPS de las unidades.\n"
-            "2. Algoritmo de ETA dinámico que ajusta tiempos estimados ante tráfico o desvíos.\n"
-            "3. Portal web privado (Next.js) con login para clientes donde ven sus unidades en mapa en vivo.\n"
-            "4. Webhooks automatizados para notificar 'En ruta', 'En patio de descarga' y 'Entregado con firma digital'.\n\n"
-            "🎯 <b>Estrategia de Venta TI:</b>\n"
-            "<i>Véndelo como diferenciador competitivo: hoy las grandes empresas exigen APIs de tracking en tiempo real.</i>"
-        )
-    },
-    {
-        "id": "demanda_kpmg_legal",
-        "company": "KPMG México",
-        "sector": "LegalTech, Auditoría & Fiscal B2B",
-        "priority": "Media-Alta",
-        "status_badge": "Proyecto Q4",
-        "budget": "$12,000 - $20,000 USD",
-        "problem": (
-            "Recepción manual mensual de miles de facturas XML y contratos de proveedores. "
-            "Errores de captura en sistemas contables y riesgo de sanciones por proveedores en listas negras del SAT (Art. 69-B)."
-        ),
-        "solution": (
-            "Pipeline inteligente con modelos de visión y OCR para extracción de conceptos clave, validación inmediata de validez fiscal "
-            "y alta automática en cuentas por pagar."
-        ),
-        "tags": ["Pipeline OCR / IA", "Validación SAT", "Automatización BPA", "Integración SAP/ERP"],
-        "contact_email": "contacto@kpmg.com.mx",
-        "contact_web": "kpmg.com/mx",
-        "linkedin_company_url": "https://www.linkedin.com/company/kpmg-mexico",
-        "source_url": "https://kpmg.com/mx",
-        "demand_source_type": "Alianzas de Soluciones TI, Fiscales & Auditoría",
-        "demand_source_label": "🏛️ Portal de Servicios & Alianzas KPMG",
-        "demand_evidence_url": "https://kpmg.com/mx/es/home/servicios.html",
-        "comparison_points": [
-            "Reducción del ciclo de procesamiento de facturas de 4 días a 10 minutos.",
-            "Protección fiscal automatizada contra facturas apócrifas.",
-            "Auditoría y trazabilidad completa de pagos."
-        ],
-        "financial_quote": (
-            "📊 <b>SIMULACIÓN FINANCIERA & MARGEN TI: Automatización Fiscal & IA</b>\n\n"
-            "🏢 <b>Cliente:</b> KPMG México\n"
-            "💡 <b>Solución:</b> Validador SAT CFDI 4.0 + Extracción OCR Contratos + Conector ERP\n\n"
-            "💰 <b>1. Costo Estimado de Desarrollo (COGS):</b>\n"
-            "• Desarrollador Python OCR / IA (70 hrs × $30 USD): $2,100 USD\n"
-            "• Consultor ERP / Conectores (40 hrs × $40 USD): $1,600 USD\n"
-            "• APIs de OCR / Document AI: ~$100 USD/mes\n"
-            "👉 <b>Costo Base de Implementación:</b> ~$3,900 USD\n\n"
-            "💵 <b>2. Precio de Venta Sugerido:</b>\n"
-            "• <b>Precio Llave en Mano:</b> <b>$15,500 USD</b> (ó ~$280,000 MXN)\n"
-            "• <b>Margen Bruto de Implementación:</b> <b>74.8% de ganancia neta</b> ($11,600 USD)\n\n"
-            "🔄 <b>3. Modelo de Cobro Recurrente (Retainer / SaaS Mensual):</b>\n"
-            "• Mantenimiento y actualización ante cambios de miscelánea fiscal: <b>$800 USD / mes</b>\n"
-            "• Margen mensual recurrente: ~70% ($560 USD/mes limpios)"
-        ),
-        "scope_summary": (
-            "📑 <b>FICHA TÉCNICA Y DE NEGOCIO: KPMG México</b>\n\n"
-            "💼 <b>Sector:</b> LegalTech, Auditoría & Gestión Fiscal B2B\n"
-            "💰 <b>Presupuesto Estimado:</b> $12,000 - $20,000 USD\n"
-            "⏱️ <b>Tiempo de Entrega:</b> 6 a 8 semanas\n\n"
-            "🛡️ <b>Fuente y Verificación de la Demanda:</b>\n"
-            "• <b>Canal de Detección:</b> Alianzas de Soluciones TI, Fiscales & Auditoría\n"
-            "• <b>Portal Oficial:</b> <code>https://kpmg.com/mx/es/home/servicios.html</code>\n\n"
-            "📌 <b>Problema Operativo:</b>\n"
-            "Validación manual de RFCs, sellos digitales y certificados en el portal del SAT "
-            "para miles de proveedores con riesgo de contingencias fiscales.\n\n"
-            "🛠️ <b>Entregables Técnicos Requeridos (SOW):</b>\n"
-            "1. Buzón inteligente que recibe facturas (PDF + XML CFDI 4.0) por correo o webhook.\n"
-            "2. Validador en segundo plano contra los webservices del SAT (vigencia fiscal y lista 69-B).\n"
-            "3. Extracción de contratos y adendas con OCR e IA para verificar que los montos coincidan.\n"
-            "4. Exportador automático para crear pólizas contables en SAP u Oracle ERP.\n\n"
-            "🎯 <b>Estrategia de Venta TI:</b>\n"
-            "<i>Véndeles blindaje fiscal y reducción de horas hombre operativas.</i>"
-        )
-    },
-    {
-        "id": "demanda_clip_fintech",
-        "company": "Clip México",
-        "sector": "Fintech & Terminales Punto de Venta",
-        "priority": "Alta Intención",
-        "status_badge": "Expansión B2B",
-        "budget": "$16,000 - $26,000 USD",
-        "problem": (
-            "Dificultades en PyMEs para conciliar ventas presenciales y catálogo digital. Pérdida de clientes por falta de sincronización con inventarios locales."
-        ),
-        "solution": (
-            "SDK integrado en Python y Node.js para conectar lectores Clip con sistemas ERP y plataformas de e-commerce con confirmación inmediata por webhook."
-        ),
-        "tags": ["SDK Terminales POS", "Microservicios Pagos", "FastAPI / Node", "Integración PyME"],
-        "contact_email": "desarrollo@clip.mx",
-        "contact_web": "clip.mx",
-        "linkedin_company_url": "https://www.linkedin.com/company/clipmx",
-        "source_url": "https://clip.mx",
-        "demand_source_type": "Integraciones API & Soluciones de Cobro B2B",
-        "demand_source_label": "💻 Portal de Desarrolladores Clip",
-        "demand_evidence_url": "https://developer.clip.mx",
-        "comparison_points": ["Aumenta retención de comercios en 25%.", "Facilita adopción con librerías Open Source.", "Cumplimiento PCI."],
-        "financial_quote": "📊 <b>SIMULACIÓN FINANCIERA: Clip SDK Integration</b>\n\n• Costo COGS: $4,800 USD\n• Precio Venta: $19,500 USD\n• Margen Bruto: 75%\n• Recurrente: $950 USD/mes",
-        "scope_summary": (
-            "💳 <b>FICHA TÉCNICA: Clip México</b>\n\n"
-            "🛡️ <b>Fuente y Verificación de la Demanda:</b>\n"
-            "• <b>Canal de Detección:</b> Integraciones API & Soluciones de Cobro B2B\n"
-            "• <b>Portal Oficial:</b> <code>https://developer.clip.mx</code>\n\n"
-            "Desarrollo de SDK para terminales POS, conector con ERPs locales y webhook seguro."
-        )
-    },
-    {
-        "id": "demanda_kavak_automotriz",
-        "company": "Kavak México",
-        "sector": "AutoTech & Logística Automotriz",
-        "priority": "Urgente",
-        "status_badge": "Licitación Abierta",
-        "budget": "$22,000 - $38,000 USD",
-        "problem": (
-            "Inspección mecánica manual tardada en patios de reacondicionamiento. Tiempos muertos de 48 hrs para evaluar daños estéticos y mecánicos."
-        ),
-        "solution": (
-            "Aplicación móvil con modelos de visión por computadora para detección de abolladuras, desgaste de neumáticos y checklist digital automático."
-        ),
-        "tags": ["Visión Artificial", "App Flutter/React Native", "Modelos YOLO", "Automatización Inspección"],
-        "contact_email": "tecnologia@kavak.com",
-        "contact_web": "kavak.com",
-        "linkedin_company_url": "https://www.linkedin.com/company/kavak-com",
-        "source_url": "https://kavak.com",
-        "demand_source_type": "Adquisiciones & Plataforma Tecnológica B2B",
-        "demand_source_label": "🚗 Plataforma Corporativa Kavak",
-        "demand_evidence_url": "https://www.kavak.com/mx",
-        "comparison_points": ["Reduce tiempo de inspección de 48 hrs a 15 min.", "Estandariza calidad en todos los hubs.", "Exportación directa a inventario."],
-        "financial_quote": "📊 <b>SIMULACIÓN FINANCIERA: AutoTech Computer Vision</b>\n\n• Costo COGS: $7,500 USD\n• Precio Venta: $30,000 USD\n• Margen Bruto: 75%\n• Recurrente: $1,500 USD/mes",
-        "scope_summary": (
-            "🚗 <b>FICHA TÉCNICA: Kavak México</b>\n\n"
-            "🛡️ <b>Fuente y Verificación de la Demanda:</b>\n"
-            "• <b>Canal de Detección:</b> Adquisiciones & Plataforma Tecnológica B2B\n"
-            "• <b>Portal Oficial:</b> <code>https://www.kavak.com/mx</code>\n\n"
-            "App de inspección vehicular con Computer Vision (YOLOv8) y sincronización con almacén central."
-        )
-    },
-    {
-        "id": "demanda_justo_foodtech",
-        "company": "Jüsto Supermercado Digital",
-        "sector": "FoodTech & Quick-Commerce",
-        "priority": "Alta Prioridad",
-        "status_badge": "Optimización Activa",
-        "budget": "$14,000 - $24,000 USD",
-        "problem": (
-            "Merma del 8% en productos perecederos por falta de algoritmos predictivos de demanda y rutas de entrega no optimizadas."
-        ),
-        "solution": (
-            "Modelo de Machine Learning para forecasting de demanda de frescos y optimización de rutas de última milla con ventanas horarias dinámicas."
-        ),
-        "tags": ["Machine Learning", "Forecasting Demanda", "Rutas Óptimas", "Logística Fría"],
-        "contact_email": "operaciones@justo.mx",
-        "contact_web": "justo.mx",
-        "linkedin_company_url": "https://www.linkedin.com/company/justo",
-        "source_url": "https://justo.mx",
-        "demand_source_type": "Integraciones de Logística, Abasto & E-commerce",
-        "demand_source_label": "🛒 Portal Operativo Jüsto",
-        "demand_evidence_url": "https://justo.mx",
-        "comparison_points": ["Reducción de merma en 35%.", "Menor gasto de combustible en entregas.", "Alertas automáticas a proveedores."],
-        "financial_quote": "📊 <b>SIMULACIÓN FINANCIERA: FoodTech Forecasting</b>\n\n• Costo COGS: $4,500 USD\n• Precio Venta: $17,500 USD\n• Margen Bruto: 74%\n• Recurrente: $1,000 USD/mes",
-        "scope_summary": (
-            "🥗 <b>FICHA TÉCNICA: Jüsto Supermercado</b>\n\n"
-            "🛡️ <b>Fuente y Verificación de la Demanda:</b>\n"
-            "• <b>Canal de Detección:</b> Integraciones de Logística, Abasto & E-commerce\n"
-            "• <b>Portal Oficial:</b> <code>https://justo.mx</code>\n\n"
-            "Motor predictivo de demanda con Prophet/Scikit-learn y optimizador de despachos."
-        )
-    },
-    {
-        "id": "demanda_bitso_crypto",
-        "company": "Bitso International",
-        "sector": "Fintech & Pagos Transfronterizos B2B",
-        "priority": "Alta Intención",
-        "status_badge": "Convocatoria Proveedor",
-        "budget": "$25,000 - $40,000 USD",
-        "problem": (
-            "Conciliación lenta en liquidaciones transfronterizas entre México y EE.UU. para importadores y exportadores que pagan en stablecoins o SPEI."
-        ),
-        "solution": (
-            "Gateway B2B para tesorerías empresariales con cotización en tiempo real de tipo de cambio, liquidación instantánea SPEI/ACH y reportes fiscales."
-        ),
-        "tags": ["Cross-border Payments", "APIs Financieras", "Stablecoins & SPEI", "Tesorería B2B"],
-        "contact_email": "partners@bitso.com",
-        "contact_web": "bitso.com",
-        "linkedin_company_url": "https://www.linkedin.com/company/bitso",
-        "source_url": "https://bitso.com",
-        "demand_source_type": "Soluciones de Pagos Cross-border & Liquidez B2B",
-        "demand_source_label": "💼 Plataforma B2B Bitso Business",
-        "demand_evidence_url": "https://bitso.com/business",
-        "comparison_points": ["Liquidación en minutos vs 72 hrs bancarias.", "Reducción de comisiones cambiarias.", "Cumplimiento PLD/KYC."],
-        "financial_quote": "📊 <b>SIMULACIÓN FINANCIERA: Cross-border Gateway</b>\n\n• Costo COGS: $8,000 USD\n• Precio Venta: $32,000 USD\n• Margen Bruto: 75%\n• Recurrente: $1,600 USD/mes",
-        "scope_summary": (
-            "🌐 <b>FICHA TÉCNICA: Bitso B2B</b>\n\n"
-            "🛡️ <b>Fuente y Verificación de la Demanda:</b>\n"
-            "• <b>Canal de Detección:</b> Soluciones de Pagos Cross-border & Liquidez B2B\n"
-            "• <b>Portal Oficial:</b> <code>https://bitso.com/business</code>\n\n"
-            "Plataforma de liquidación internacional con API de tesorería y conector SPEI/ACH."
-        )
-    },
-    {
-        "id": "demanda_clara_corporativo",
-        "company": "Clara Gastos Corporativos",
-        "sector": "SaaS B2B & Spend Management",
-        "priority": "Urgente",
-        "status_badge": "Proyecto Q4",
-        "budget": "$15,000 - $25,000 USD",
-        "problem": (
-            "Comprobación manual de viáticos y facturación SAT en empresas medianas. Pérdida de deducibilidad por facturas no emitidas a tiempo."
-        ),
-        "solution": (
-            "Bot inteligente en Slack/WhatsApp que recibe fotos de tickets, extrae datos con OCR y descarga el CFDI directamente del portal SAT."
-        ),
-        "tags": ["OCR Tickets", "Descarga Masiva SAT", "Slack/WhatsApp Bots", "Spend Management"],
-        "contact_email": "ventas@clara.com",
-        "contact_web": "clara.com",
-        "linkedin_company_url": "https://www.linkedin.com/company/claramexico",
-        "source_url": "https://clara.com",
-        "demand_source_type": "Software de Gestión Financiera y Control de Gasto B2B",
-        "demand_source_label": "💳 Plataforma B2B Clara Empresas",
-        "demand_evidence_url": "https://www.clara.com/es-mx",
-        "comparison_points": ["Ahorro del 80% en tiempo de comprobación.", "Cero multas por facturas vencidas.", "Integración ERP."],
-        "financial_quote": "📊 <b>SIMULACIÓN FINANCIERA: Spend Management Bot</b>\n\n• Costo COGS: $4,200 USD\n• Precio Venta: $18,000 USD\n• Margen Bruto: 76.6%\n• Recurrente: $850 USD/mes",
-        "scope_summary": (
-            "💼 <b>FICHA TÉCNICA: Clara Gastos Corporativos</b>\n\n"
-            "🛡️ <b>Fuente y Verificación de la Demanda:</b>\n"
-            "• <b>Canal de Detección:</b> Software de Gestión Financiera y Control de Gasto B2B\n"
-            "• <b>Portal Oficial:</b> <code>https://www.clara.com/es-mx</code>\n\n"
-            "Bot automatizado de comprobación fiscal de gastos y conciliación SAT."
+            "4. Dashboard en React para que las coordinadoras vean confirmaciones en tiempo real."
         )
     }
 ]
@@ -618,6 +622,21 @@ def get_all_b2b_demand_companies(ref_date: Optional[datetime] = None) -> List[Di
 
     companies = get_b2b_companies_by_date(today_str)
     if companies and len(companies) >= 3:
+        valid_companies_names = {s.get("company") for s in _SEED_COMPANIES_POOL}
+        has_obsolete = any(c.get("company") not in valid_companies_names for c in companies)
+        if has_obsolete:
+            day_offset = now.timetuple().tm_yday
+            total_pool = len(_SEED_COMPANIES_POOL)
+            companies = [
+                dict(_SEED_COMPANIES_POOL[(day_offset * 2 + i) % total_pool])
+                for i in range(min(5, total_pool))
+            ]
+            try:
+                save_b2b_companies(companies, today_str)
+            except Exception:
+                pass
+            return companies
+
         # Auto-reparación / Backfill de evidencia si los registros en DB son previos a la migración
         seed_map = {s.get("company"): s for s in _SEED_COMPANIES_POOL}
         seed_id_map = {s.get("id"): s for s in _SEED_COMPANIES_POOL}
