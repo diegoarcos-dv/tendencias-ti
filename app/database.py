@@ -180,6 +180,17 @@ def init_db(db_path: Optional[str] = None) -> None:
         if "onboarding_step" not in cfg_cols and cfg_cols:
             conn.execute("ALTER TABLE configuracion_usuario ADD COLUMN onboarding_step TEXT NOT NULL DEFAULT ''")
 
+        b2b_cols = {
+            col[1]
+            for col in conn.execute("PRAGMA table_info(b2b_empresas_demandantes)").fetchall()
+        }
+        if "demand_source_type" not in b2b_cols and b2b_cols:
+            conn.execute("ALTER TABLE b2b_empresas_demandantes ADD COLUMN demand_source_type TEXT DEFAULT ''")
+        if "demand_source_label" not in b2b_cols and b2b_cols:
+            conn.execute("ALTER TABLE b2b_empresas_demandantes ADD COLUMN demand_source_label TEXT DEFAULT ''")
+        if "demand_evidence_url" not in b2b_cols and b2b_cols:
+            conn.execute("ALTER TABLE b2b_empresas_demandantes ADD COLUMN demand_evidence_url TEXT DEFAULT ''")
+
 
 def _normalize_url(url: str) -> str:
     """Normaliza una URL eliminando fragmentos, trailing slashes y parámetros de rastreo (UTM, ref)."""
@@ -1120,8 +1131,9 @@ def save_b2b_companies(companies: List[Dict[str, Any]], discovered_date: str) ->
                     budget, problem, solution, tags_json, contact_email,
                     contact_web, linkedin_url, linkedin_status, source_url,
                     financial_quote, scope_summary, comparison_points_json,
+                    demand_source_type, demand_source_label, demand_evidence_url,
                     discovered_date, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(company_id) DO UPDATE SET
                     company_name = excluded.company_name,
                     sector = excluded.sector,
@@ -1139,6 +1151,9 @@ def save_b2b_companies(companies: List[Dict[str, Any]], discovered_date: str) ->
                     financial_quote = excluded.financial_quote,
                     scope_summary = excluded.scope_summary,
                     comparison_points_json = excluded.comparison_points_json,
+                    demand_source_type = excluded.demand_source_type,
+                    demand_source_label = excluded.demand_source_label,
+                    demand_evidence_url = excluded.demand_evidence_url,
                     discovered_date = excluded.discovered_date
                 """,
                 (
@@ -1159,6 +1174,9 @@ def save_b2b_companies(companies: List[Dict[str, Any]], discovered_date: str) ->
                     c.get("financial_quote", ""),
                     c.get("scope_summary", ""),
                     comp_json,
+                    c.get("demand_source_type", ""),
+                    c.get("demand_source_label", ""),
+                    c.get("demand_evidence_url", ""),
                     str(discovered_date),
                     now_iso
                 )
@@ -1206,6 +1224,9 @@ def get_b2b_companies_by_date(discovered_date: str) -> List[Dict[str, Any]]:
                 "financial_quote": d.get("financial_quote"),
                 "scope_summary": d.get("scope_summary"),
                 "comparison_points": comp,
+                "demand_source_type": d.get("demand_source_type", ""),
+                "demand_source_label": d.get("demand_source_label", ""),
+                "demand_evidence_url": d.get("demand_evidence_url", ""),
                 "discovered_date": d.get("discovered_date")
             })
         return results

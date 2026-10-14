@@ -29,74 +29,84 @@ async def process_private_action(user_id: str, payload: Dict[str, Any]) -> None:
     if action == "DEMANDA_QUOTE":
         company = get_b2b_demand_by_index(idx)
         text = company.get("financial_quote") or "⚠️ Simulación financiera no disponible."
-        kb = {
-            "inline_keyboard": [
-                [
-                    {
-                        "text": "🏢 Perfil Oficial en LinkedIn",
-                        "url": company.get("linkedin_company_url")
-                        or company.get("linkedin_search_url")
-                        or "https://www.linkedin.com",
-                    }
-                ],
-                [
-                    {
-                        "text": "📋 Ver Alcance & SOW",
-                        "callback_data": f"DEMANDA_SCOPE:{idx}:{ret_idx}",
-                    }
-                ],
-                [
-                    {
-                        "text": "🔙 Volver a la Empresa",
-                        "callback_data": f"NAV_DEMANDA_PAGE:curr:{idx}:{ret_idx}",
-                    },
-                    {"text": "🏠 Menú Principal", "callback_data": f"CATALOG_GOTO:{ret_idx}"},
-                ],
-                [
-                    {"text": "📁 Mis favoritos", "callback_data": "VIEW_FAVS"},
-                    {"text": "⚙️ Configuración", "callback_data": "RESET_CONFIG"},
-                ],
-                [
-                    {"text": "👥 Ir al Grupo TI", "url": group_url}
-                ],
-            ]
-        }
+        evidence_url = company.get("demand_evidence_url")
+        evidence_label = company.get("demand_source_label") or "🏛️ Ver Evidencia Pública de Demanda"
+
+        rows = []
+        if evidence_url and str(evidence_url).strip().startswith("http"):
+            rows.append([{"text": f"{evidence_label} ↗️", "url": str(evidence_url).strip()}])
+        rows.extend([
+            [
+                {
+                    "text": "🏢 Perfil Oficial en LinkedIn",
+                    "url": company.get("linkedin_company_url")
+                    or company.get("linkedin_search_url")
+                    or "https://www.linkedin.com",
+                }
+            ],
+            [
+                {
+                    "text": "📋 Ver Alcance & SOW",
+                    "callback_data": f"DEMANDA_SCOPE:{idx}:{ret_idx}",
+                }
+            ],
+            [
+                {
+                    "text": "🔙 Volver a la Empresa",
+                    "callback_data": f"NAV_DEMANDA_PAGE:curr:{idx}:{ret_idx}",
+                },
+                {"text": "🏠 Menú Principal", "callback_data": f"CATALOG_GOTO:{ret_idx}"},
+            ],
+            [
+                {"text": "📁 Mis favoritos", "callback_data": "VIEW_FAVS"},
+                {"text": "⚙️ Configuración", "callback_data": "RESET_CONFIG"},
+            ],
+            [
+                {"text": "👥 Ir al Grupo TI", "url": group_url}
+            ],
+        ])
+        kb = {"inline_keyboard": rows}
 
     elif action == "DEMANDA_SCOPE":
         company = get_b2b_demand_by_index(idx)
         text = company.get("scope_summary") or "⚠️ Ficha técnica no disponible."
-        kb = {
-            "inline_keyboard": [
-                [
-                    {
-                        "text": "📊 Simular Cotización & Margen",
-                        "callback_data": f"DEMANDA_QUOTE:{idx}:{ret_idx}",
-                    }
-                ],
-                [
-                    {
-                        "text": "🏢 Perfil Oficial en LinkedIn",
-                        "url": company.get("linkedin_company_url")
-                        or company.get("linkedin_search_url")
-                        or "https://www.linkedin.com",
-                    }
-                ],
-                [
-                    {
-                        "text": "🔙 Volver a la Empresa",
-                        "callback_data": f"NAV_DEMANDA_PAGE:curr:{idx}:{ret_idx}",
-                    },
-                    {"text": "🏠 Menú Principal", "callback_data": f"CATALOG_GOTO:{ret_idx}"},
-                ],
-                [
-                    {"text": "📁 Mis favoritos", "callback_data": "VIEW_FAVS"},
-                    {"text": "⚙️ Configuración", "callback_data": "RESET_CONFIG"},
-                ],
-                [
-                    {"text": "👥 Ir al Grupo TI", "url": group_url}
-                ],
-            ]
-        }
+        evidence_url = company.get("demand_evidence_url")
+        evidence_label = company.get("demand_source_label") or "🏛️ Ver Evidencia Pública de Demanda"
+
+        rows = []
+        if evidence_url and str(evidence_url).strip().startswith("http"):
+            rows.append([{"text": f"{evidence_label} ↗️", "url": str(evidence_url).strip()}])
+        rows.extend([
+            [
+                {
+                    "text": "📊 Simular Cotización & Margen",
+                    "callback_data": f"DEMANDA_QUOTE:{idx}:{ret_idx}",
+                }
+            ],
+            [
+                {
+                    "text": "🏢 Perfil Oficial en LinkedIn",
+                    "url": company.get("linkedin_company_url")
+                    or company.get("linkedin_search_url")
+                    or "https://www.linkedin.com",
+                }
+            ],
+            [
+                {
+                    "text": "🔙 Volver a la Empresa",
+                    "callback_data": f"NAV_DEMANDA_PAGE:curr:{idx}:{ret_idx}",
+                },
+                {"text": "🏠 Menú Principal", "callback_data": f"CATALOG_GOTO:{ret_idx}"},
+            ],
+            [
+                {"text": "📁 Mis favoritos", "callback_data": "VIEW_FAVS"},
+                {"text": "⚙️ Configuración", "callback_data": "RESET_CONFIG"},
+            ],
+            [
+                {"text": "👥 Ir al Grupo TI", "url": group_url}
+            ],
+        ])
+        kb = {"inline_keyboard": rows}
 
     elif action == "GET_STACK":
         from app.telegram_bot import handle_get_stack

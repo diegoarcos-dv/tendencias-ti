@@ -327,14 +327,17 @@ def build_demand_keyboard(
     return_index: int = 0,
     company_linkedin_url: Optional[str] = None,
     company_web_url: Optional[str] = None,
-    linkedin_status: str = "active"
+    linkedin_status: str = "active",
+    demand_evidence_url: Optional[str] = None,
+    demand_source_label: Optional[str] = None
 ) -> Dict[str, Any]:
     """Teclado interactivo para Catálogo de Empresas Demandantes B2B:
     - Fila 1: Paginación de empresas
     - Fila 2: Ver Alcance & SOW (Deep-link directo al chat privado de la Rama B)
     - Fila 3: Opción 2 - Simular Cotización & Margen TI (Deep-link directo al chat privado de la Rama B)
-    - Fila 4: Opción C - Perfil Oficial en LinkedIn de la Empresa (con fallback automático a Web Oficial)
-    - Fila 5: Volver a Inicio
+    - Fila 4: 🏛️ Fuente de Demanda & Evidencia Pública Verificable
+    - Fila 5: Opción C - Perfil Oficial en LinkedIn de la Empresa (con fallback automático a Web Oficial)
+    - Fila 6: Volver a Inicio
     """
     total = max(1, total_items)
     idx = current_index % total
@@ -342,7 +345,7 @@ def build_demand_keyboard(
     scope_url = f"https://t.me/{username}?start=scope_{idx}_{return_index}"
     quote_url = f"https://t.me/{username}?start=quote_{idx}_{return_index}"
 
-    # Fila 4: Perfil de LinkedIn o Fallback automático a Sitio Web Oficial si LinkedIn no está disponible
+    # Perfil de LinkedIn o Fallback automático a Sitio Web Oficial si LinkedIn no está disponible
     if linkedin_status == "active" and company_linkedin_url and "linkedin.com" in company_linkedin_url:
         company_btn = {"text": "🏢 Perfil Oficial en LinkedIn", "url": company_linkedin_url}
     else:
@@ -351,27 +354,29 @@ def build_demand_keyboard(
             web_url = f"https://{web_url}"
         company_btn = {"text": "🌐 Sitio Web Oficial", "url": web_url}
 
-    return {
-        "inline_keyboard": [
-            [
-                {"text": "◀️", "callback_data": f"NAV_DEMANDA_PAGE:prev:{idx}:{return_index}"},
-                {"text": f"🏢 Empresa {idx + 1} / {total}", "callback_data": f"DEMANDA_INFO:{idx}"},
-                {"text": "▶️", "callback_data": f"NAV_DEMANDA_PAGE:next:{idx}:{return_index}"}
-            ],
-            [
-                {"text": "📋 Ver Alcance & SOW", "url": scope_url}
-            ],
-            [
-                {"text": "📊 Simular Cotización & Margen TI", "url": quote_url}
-            ],
-            [
-                company_btn
-            ],
-            [
-                {"text": "🏠 Inicio", "callback_data": f"CATALOG_GOTO:{return_index}"}
-            ]
+    rows = [
+        [
+            {"text": "◀️", "callback_data": f"NAV_DEMANDA_PAGE:prev:{idx}:{return_index}"},
+            {"text": f"🏢 Empresa {idx + 1} / {total}", "callback_data": f"DEMANDA_INFO:{idx}"},
+            {"text": "▶️", "callback_data": f"NAV_DEMANDA_PAGE:next:{idx}:{return_index}"}
+        ],
+        [
+            {"text": "📋 Ver Alcance & SOW", "url": scope_url}
+        ],
+        [
+            {"text": "📊 Simular Cotización & Margen TI", "url": quote_url}
         ]
-    }
+    ]
+
+    # Fila de Evidencia Pública Verificable de Demanda
+    if demand_evidence_url and str(demand_evidence_url).strip().startswith("http"):
+        label = demand_source_label or "🏛️ Fuente de Demanda & Evidencia"
+        rows.append([{"text": f"{label} ↗️", "url": str(demand_evidence_url).strip()}])
+
+    rows.append([company_btn])
+    rows.append([{"text": "🏠 Inicio", "callback_data": f"CATALOG_GOTO:{return_index}"}])
+
+    return {"inline_keyboard": rows}
 
 
 def build_events_keyboard(
@@ -1956,7 +1961,9 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
                 return_index=ret_idx,
                 company_linkedin_url=demand_data.get("linkedin_company_url"),
                 company_web_url=demand_data.get("contact_web"),
-                linkedin_status=demand_data.get("linkedin_status", "active")
+                linkedin_status=demand_data.get("linkedin_status", "active"),
+                demand_evidence_url=demand_data.get("demand_evidence_url"),
+                demand_source_label=demand_data.get("demand_source_label")
             )
             res = await edit_telegram_media(chat_id=user_chat_id, message_id=orig_msg_id, photo_path=photo_to_use, reply_markup=kb)
             if res.get("file_id"):
@@ -1996,7 +2003,9 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
                 return_index=ret_idx,
                 company_linkedin_url=demand_data.get("linkedin_company_url"),
                 company_web_url=demand_data.get("contact_web"),
-                linkedin_status=demand_data.get("linkedin_status", "active")
+                linkedin_status=demand_data.get("linkedin_status", "active"),
+                demand_evidence_url=demand_data.get("demand_evidence_url"),
+                demand_source_label=demand_data.get("demand_source_label")
             )
             res = await edit_telegram_media(chat_id=user_chat_id, message_id=orig_msg_id, photo_path=photo_to_use, reply_markup=kb)
             if res.get("file_id"):

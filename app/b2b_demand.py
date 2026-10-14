@@ -48,6 +48,9 @@ _SEED_COMPANIES_POOL: List[Dict[str, Any]] = [
         "contact_web": "salud-digna.org",
         "linkedin_company_url": "https://www.linkedin.com/company/salud-digna",
         "source_url": "https://salud-digna.org",
+        "demand_source_type": "Convocatoria / Licitación Privada de Adquisiciones",
+        "demand_source_label": "🏛️ Empleos y Licitaciones Salud Digna",
+        "demand_evidence_url": "https://www.linkedin.com/company/salud-digna/jobs/",
         "comparison_points": [
             "Retorno de inversión (ROI) estimado en 3 meses al recuperar 60% de citas perdidas.",
             "Requiere certificación de privacidad y encriptación de datos médicos.",
@@ -75,6 +78,9 @@ _SEED_COMPANIES_POOL: List[Dict[str, Any]] = [
             "💼 <b>Sector:</b> HealthTech & Servicios Médicos (México / LATAM)\n"
             "💰 <b>Presupuesto Estimado:</b> $15,000 - $28,000 USD\n"
             "⏱️ <b>Tiempo de Entrega:</b> 8 a 12 semanas\n\n"
+            "🛡️ <b>Fuente y Verificación de la Demanda:</b>\n"
+            "• <b>Canal de Detección:</b> Convocatoria / Licitación Privada de Adquisiciones\n"
+            "• <b>Evidencia Pública:</b> <code>https://www.linkedin.com/company/salud-digna/jobs/</code>\n\n"
             "📌 <b>Problema Operativo:</b>\n"
             "Tienen clínicas en todo el país con 32% de ausentismo en estudios. Cada cancelación sin aviso cuesta $120 USD. "
             "El personal de recepción pierde 5 horas al día llamando manualmente por teléfono.\n\n"
@@ -107,6 +113,9 @@ _SEED_COMPANIES_POOL: List[Dict[str, Any]] = [
         "contact_web": "openpay.mx",
         "linkedin_company_url": "https://www.linkedin.com/company/openpaymx",
         "source_url": "https://www.openpay.mx",
+        "demand_source_type": "Vacantes Activas de Ingeniería & Plataforma",
+        "demand_source_label": "💼 Vacantes de Ingeniería en Openpay",
+        "demand_evidence_url": "https://www.linkedin.com/company/openpaymx/jobs/",
         "comparison_points": [
             "Impacto directo en facturación: eleva la tasa de aprobación de pagos del 82% al 94%.",
             "Alta exigencia de latencia: respuestas en menos de 200 milisegundos.",
@@ -134,6 +143,9 @@ _SEED_COMPANIES_POOL: List[Dict[str, Any]] = [
             "💼 <b>Sector:</b> Finanzas Digitales, Pasarelas & SPEI (México)\n"
             "💰 <b>Presupuesto Estimado:</b> $20,000 - $35,000 USD\n"
             "⏱️ <b>Tiempo de Entrega:</b> 10 a 14 semanas\n\n"
+            "🛡️ <b>Fuente y Verificación de la Demanda:</b>\n"
+            "• <b>Canal de Detección:</b> Vacantes Activas de Ingeniería & Plataforma de Pagos\n"
+            "• <b>Evidencia Pública:</b> <code>https://www.linkedin.com/company/openpaymx/jobs/</code>\n\n"
             "📌 <b>Problema Operativo:</b>\n"
             "Procesan 80,000 transacciones mensuales. El 18% falla por declinaciones bancarias genéricas "
             "y su equipo contable tarda 6 días a fin de mes conciliando estados de cuenta contra el SAT.\n\n"
@@ -166,6 +178,9 @@ _SEED_COMPANIES_POOL: List[Dict[str, Any]] = [
         "contact_web": "walmartmexico.com",
         "linkedin_company_url": "https://www.linkedin.com/company/walmartmexico",
         "source_url": "https://www.walmartmexico.com",
+        "demand_source_type": "Portal Institucional de Proveedores & Licitaciones Retail",
+        "demand_source_label": "🏛️ Portal Oficial de Proveedores Walmart",
+        "demand_evidence_url": "https://www.walmartmexico.com/proveedores",
         "comparison_points": [
             "Elimina cancelaciones por sobreventa al 100%.",
             "Manejo de picos de tráfico durante Buen Fin y Hot Sale.",
@@ -192,6 +207,9 @@ _SEED_COMPANIES_POOL: List[Dict[str, Any]] = [
             "💼 <b>Sector:</b> Retail Omnicanal & Comercio Electrónico (CDMX & Nacional)\n"
             "💰 <b>Presupuesto Estimado:</b> $18,000 - $30,000 USD\n"
             "⏱️ <b>Tiempo de Entrega:</b> 8 a 10 semanas\n\n"
+            "🛡️ <b>Fuente y Verificación de la Demanda:</b>\n"
+            "• <b>Canal de Detección:</b> Portal Institucional de Proveedores & Licitaciones Retail\n"
+            "• <b>Evidencia Pública:</b> <code>https://www.walmartmexico.com/proveedores</code>\n\n"
             "📌 <b>Problema Operativo:</b>\n"
             "Venden en tienda online y en cientos de sucursales. Cuando un producto se agota en tienda física, "
             "el sistema web tarda en enterarse, vendiendo stock inexistente y generando reclamaciones.\n\n"
@@ -224,6 +242,9 @@ _SEED_COMPANIES_POOL: List[Dict[str, Any]] = [
         "contact_web": "traxion.global",
         "linkedin_company_url": "https://www.linkedin.com/company/traxion",
         "source_url": "https://traxion.global",
+        "demand_source_type": "Requerimientos de Telemetría & Adquisiciones",
+        "demand_source_label": "🚚 Talento & Proveedores Traxión",
+        "demand_evidence_url": "https://traxion.global/es/talento-traxion/",
         "comparison_points": [
             "Ahorro de hasta 6 horas hombre por analista de logística diariamente.",
             "Mejora satisfacción de clientes enterprise con SLAs garantizados.",
@@ -250,6 +271,9 @@ _SEED_COMPANIES_POOL: List[Dict[str, Any]] = [
             "💼 <b>Sector:</b> Cadena de Suministro, Transporte & Carga Terrestre\n"
             "💰 <b>Presupuesto Estimado:</b> $18,000 - $32,000 USD\n"
             "⏱️ <b>Tiempo de Entrega:</b> 8 a 10 semanas\n\n"
+            "🛡️ <b>Fuente y Verificación de la Demanda:</b>\n"
+            "• <b>Canal de Detección:</b> Requerimientos de Telemetría & Adquisiciones\n"
+            "• <b>Evidencia Pública:</b> <code>https://traxion.global/es/talento-traxion/</code>\n\n"
             "📌 <b>Problema Operativo:</b>\n"
             "Manejan flotas de carga pesada en rutas del país. Los clientes corporativos "
             "llaman todo el día preguntando por su carga porque no hay enlace automatizado con los GPS.\n\n"
@@ -282,6 +306,9 @@ _SEED_COMPANIES_POOL: List[Dict[str, Any]] = [
         "contact_web": "kpmg.com/mx",
         "linkedin_company_url": "https://www.linkedin.com/company/kpmg-mexico",
         "source_url": "https://kpmg.com/mx",
+        "demand_source_type": "Requerimientos de Auditoría Fiscal Digital & Talento",
+        "demand_source_label": "📑 Vacantes de Auditoría TI en KPMG",
+        "demand_evidence_url": "https://www.linkedin.com/company/kpmg-mexico/jobs/",
         "comparison_points": [
             "Reducción del ciclo de procesamiento de facturas de 4 días a 10 minutos.",
             "Protección fiscal automatizada contra facturas apócrifas.",
@@ -308,6 +335,9 @@ _SEED_COMPANIES_POOL: List[Dict[str, Any]] = [
             "💼 <b>Sector:</b> LegalTech, Auditoría & Gestión Fiscal B2B\n"
             "💰 <b>Presupuesto Estimado:</b> $12,000 - $20,000 USD\n"
             "⏱️ <b>Tiempo de Entrega:</b> 6 a 8 semanas\n\n"
+            "🛡️ <b>Fuente y Verificación de la Demanda:</b>\n"
+            "• <b>Canal de Detección:</b> Requerimientos de Auditoría Fiscal Digital & Talento\n"
+            "• <b>Evidencia Pública:</b> <code>https://www.linkedin.com/company/kpmg-mexico/jobs/</code>\n\n"
             "📌 <b>Problema Operativo:</b>\n"
             "Validación manual de RFCs, sellos digitales y certificados en el portal del SAT "
             "para miles de proveedores con riesgo de contingencias fiscales.\n\n"
@@ -338,9 +368,18 @@ _SEED_COMPANIES_POOL: List[Dict[str, Any]] = [
         "contact_web": "clip.mx",
         "linkedin_company_url": "https://www.linkedin.com/company/clipmx",
         "source_url": "https://clip.mx",
+        "demand_source_type": "Vacantes de Ingeniería de Software & Terminales POS",
+        "demand_source_label": "💼 Empleos de Software en Clip",
+        "demand_evidence_url": "https://www.clip.mx/empleos",
         "comparison_points": ["Aumenta retención de comercios en 25%.", "Facilita adopción con librerías Open Source.", "Cumplimiento PCI."],
         "financial_quote": "📊 <b>SIMULACIÓN FINANCIERA: Clip SDK Integration</b>\n\n• Costo COGS: $4,800 USD\n• Precio Venta: $19,500 USD\n• Margen Bruto: 75%\n• Recurrente: $950 USD/mes",
-        "scope_summary": "💳 <b>FICHA TÉCNICA: Clip México</b>\n\nDesarrollo de SDK para terminales POS, conector con ERPs locales y webhook seguro."
+        "scope_summary": (
+            "💳 <b>FICHA TÉCNICA: Clip México</b>\n\n"
+            "🛡️ <b>Fuente y Verificación de la Demanda:</b>\n"
+            "• <b>Canal de Detección:</b> Vacantes de Ingeniería de Software & Terminales POS\n"
+            "• <b>Evidencia Pública:</b> <code>https://www.clip.mx/empleos</code>\n\n"
+            "Desarrollo de SDK para terminales POS, conector con ERPs locales y webhook seguro."
+        )
     },
     {
         "id": "demanda_kavak_automotriz",
@@ -360,9 +399,18 @@ _SEED_COMPANIES_POOL: List[Dict[str, Any]] = [
         "contact_web": "kavak.com",
         "linkedin_company_url": "https://www.linkedin.com/company/kavak-com",
         "source_url": "https://kavak.com",
+        "demand_source_type": "Requerimientos de AutoTech & Computer Vision",
+        "demand_source_label": "🚗 Portal de Talento TI en Kavak",
+        "demand_evidence_url": "https://www.kavak.com/mx/trabaja-con-nosotros",
         "comparison_points": ["Reduce tiempo de inspección de 48 hrs a 15 min.", "Estandariza calidad en todos los hubs.", "Exportación directa a inventario."],
         "financial_quote": "📊 <b>SIMULACIÓN FINANCIERA: AutoTech Computer Vision</b>\n\n• Costo COGS: $7,500 USD\n• Precio Venta: $30,000 USD\n• Margen Bruto: 75%\n• Recurrente: $1,500 USD/mes",
-        "scope_summary": "🚗 <b>FICHA TÉCNICA: Kavak México</b>\n\nApp de inspección vehicular con Computer Vision (YOLOv8) y sincronización con almacén central."
+        "scope_summary": (
+            "🚗 <b>FICHA TÉCNICA: Kavak México</b>\n\n"
+            "🛡️ <b>Fuente y Verificación de la Demanda:</b>\n"
+            "• <b>Canal de Detección:</b> Requerimientos de AutoTech & Computer Vision\n"
+            "• <b>Evidencia Pública:</b> <code>https://www.kavak.com/mx/trabaja-con-nosotros</code>\n\n"
+            "App de inspección vehicular con Computer Vision (YOLOv8) y sincronización con almacén central."
+        )
     },
     {
         "id": "demanda_justo_foodtech",
@@ -382,9 +430,18 @@ _SEED_COMPANIES_POOL: List[Dict[str, Any]] = [
         "contact_web": "justo.mx",
         "linkedin_company_url": "https://www.linkedin.com/company/justo",
         "source_url": "https://justo.mx",
+        "demand_source_type": "Contratación de Ingeniería & Forecasting",
+        "demand_source_label": "🥗 Vacantes de Tecnología en Jüsto",
+        "demand_evidence_url": "https://www.linkedin.com/company/justo/jobs/",
         "comparison_points": ["Reducción de merma en 35%.", "Menor gasto de combustible en entregas.", "Alertas automáticas a proveedores."],
         "financial_quote": "📊 <b>SIMULACIÓN FINANCIERA: FoodTech Forecasting</b>\n\n• Costo COGS: $4,500 USD\n• Precio Venta: $17,500 USD\n• Margen Bruto: 74%\n• Recurrente: $1,000 USD/mes",
-        "scope_summary": "🥗 <b>FICHA TÉCNICA: Jüsto Supermercado</b>\n\nMotor predictivo de demanda con Prophet/Scikit-learn y optimizador de despachos."
+        "scope_summary": (
+            "🥗 <b>FICHA TÉCNICA: Jüsto Supermercado</b>\n\n"
+            "🛡️ <b>Fuente y Verificación de la Demanda:</b>\n"
+            "• <b>Canal de Detección:</b> Contratación de Ingeniería & Forecasting\n"
+            "• <b>Evidencia Pública:</b> <code>https://www.linkedin.com/company/justo/jobs/</code>\n\n"
+            "Motor predictivo de demanda con Prophet/Scikit-learn y optimizador de despachos."
+        )
     },
     {
         "id": "demanda_bitso_crypto",
@@ -404,9 +461,18 @@ _SEED_COMPANIES_POOL: List[Dict[str, Any]] = [
         "contact_web": "bitso.com",
         "linkedin_company_url": "https://www.linkedin.com/company/bitso",
         "source_url": "https://bitso.com",
+        "demand_source_type": "Bolsa de Empleo & Requerimientos de Infraestructura Crypto",
+        "demand_source_label": "🌐 Portal Global de Vacantes Bitso",
+        "demand_evidence_url": "https://bitso.com/careers",
         "comparison_points": ["Liquidación en minutos vs 72 hrs bancarias.", "Reducción de comisiones cambiarias.", "Cumplimiento PLD/KYC."],
         "financial_quote": "📊 <b>SIMULACIÓN FINANCIERA: Cross-border Gateway</b>\n\n• Costo COGS: $8,000 USD\n• Precio Venta: $32,000 USD\n• Margen Bruto: 75%\n• Recurrente: $1,600 USD/mes",
-        "scope_summary": "🌐 <b>FICHA TÉCNICA: Bitso B2B</b>\n\nPlataforma de liquidación internacional con API de tesorería y conector SPEI/ACH."
+        "scope_summary": (
+            "🌐 <b>FICHA TÉCNICA: Bitso B2B</b>\n\n"
+            "🛡️ <b>Fuente y Verificación de la Demanda:</b>\n"
+            "• <b>Canal de Detección:</b> Bolsa de Empleo & Requerimientos de Infraestructura Crypto\n"
+            "• <b>Evidencia Pública:</b> <code>https://bitso.com/careers</code>\n\n"
+            "Plataforma de liquidación internacional con API de tesorería y conector SPEI/ACH."
+        )
     },
     {
         "id": "demanda_clara_corporativo",
@@ -426,9 +492,18 @@ _SEED_COMPANIES_POOL: List[Dict[str, Any]] = [
         "contact_web": "clara.com",
         "linkedin_company_url": "https://www.linkedin.com/company/claramexico",
         "source_url": "https://clara.com",
+        "demand_source_type": "Expansión Tecnológica & Empleos de Software",
+        "demand_source_label": "💼 Vacantes de Software en Clara",
+        "demand_evidence_url": "https://www.clara.com/es-mx/carreras",
         "comparison_points": ["Ahorro del 80% en tiempo de comprobación.", "Cero multas por facturas vencidas.", "Integración ERP."],
         "financial_quote": "📊 <b>SIMULACIÓN FINANCIERA: Spend Management Bot</b>\n\n• Costo COGS: $4,200 USD\n• Precio Venta: $18,000 USD\n• Margen Bruto: 76.6%\n• Recurrente: $850 USD/mes",
-        "scope_summary": "💼 <b>FICHA TÉCNICA: Clara Gastos Corporativos</b>\n\nBot automatizado de comprobación fiscal de gastos y conciliación SAT."
+        "scope_summary": (
+            "💼 <b>FICHA TÉCNICA: Clara Gastos Corporativos</b>\n\n"
+            "🛡️ <b>Fuente y Verificación de la Demanda:</b>\n"
+            "• <b>Canal de Detección:</b> Expansión Tecnológica & Empleos de Software\n"
+            "• <b>Evidencia Pública:</b> <code>https://www.clara.com/es-mx/carreras</code>\n\n"
+            "Bot automatizado de comprobación fiscal de gastos y conciliación SAT."
+        )
     }
 ]
 
@@ -618,6 +693,9 @@ def get_b2b_demand_by_index(index: int = 0, ref_date: Optional[datetime] = None)
         "linkedin_status": item.get("linkedin_status", "active"),
         "financial_quote": item.get("financial_quote", ""),
         "scope_summary": item.get("scope_summary", ""),
+        "demand_source_type": item.get("demand_source_type", ""),
+        "demand_source_label": item.get("demand_source_label", ""),
+        "demand_evidence_url": item.get("demand_evidence_url", ""),
         "current_index": idx,
         "total_items": total
     }
