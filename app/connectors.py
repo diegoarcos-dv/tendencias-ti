@@ -30,10 +30,17 @@ _NON_TECH_BLACKLIST_TERMS = (
     "ejecutan", "fosa", "narcotráfico", "narco", "comandante", "fiscalía", "fgr",
     "policía", "policia", "gn", "marina", "sedena", "secuestro", "crimen",
     "delincuencia", "violencia", "robo", "asalto", "presunto líder", "líder criminal",
-    # Deportes y fútbol
+    # Deportes, fútbol, partidos y eventos masivos
     "futbol", "fútbol", "partido", "champions", "liga mx", "gol", "goles",
     "liverpool", "madrid", "barcelona", "américa", "chivas", "cruz azul", "concacaf",
     "estadio", "delantero", "director técnico", "jornada 1", "jornada 2", "penal",
+    "al-nassr", "diriyah", "west ham", "qpr", "espanyol", "málaga", "malaga",
+    "arsenal", "chelsea", "manchester", "juventus", "inter", "milan", "psg",
+    "bayern", "dortmund", "pumas", "tigres", "rayados", "toluca", "pachuca",
+    "atlas", "santos laguna", "león", "leon", "necaxa", "mazatlán", "mazatlan",
+    "premier league", "laliga", "serie a", "bundesliga", "copa del rey",
+    "box", "boxeo", "canelo", "pitbull cruz", "ufc", "fórmula 1", "formula 1", "f1",
+    "checo pérez", "checo perez", "gp de", " vs ", " v/s ",
     # Farándula, espectáculos y virales
     "falleció", "fallece", "muere", "muerto", "muerta", "luto", "concierto",
     "boletos", "cantante", "actriz", "actor", "boda", "divorcio", "horóscopo",

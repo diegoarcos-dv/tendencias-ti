@@ -157,7 +157,14 @@ def select_top_trend(
         return affinity_score + industry_bonus + tool_bonus + normalized_traction
 
     sorted_trends = sorted(fresh_trends, key=calculate_tool_score, reverse=True)
-    top_1 = sorted_trends[0]
+    valid_candidates = [
+        item for item in sorted_trends
+        if item.business_relevant or item.source in ("product_hunt", "reddit")
+    ]
+    if not valid_candidates:
+        logger.warning("[Scoring Engine] Ninguna tendencia fresca cumple con los criterios de relevancia tecnológica.")
+        return None
+    top_1 = valid_candidates[0]
 
     # Resolución perezosa (on-demand) de la URL real solo para la tendencia ganadora seleccionada
     if top_1.source == "product_hunt" and top_1.raw_data.get("redirect_url"):

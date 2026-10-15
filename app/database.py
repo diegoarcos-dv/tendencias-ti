@@ -480,12 +480,24 @@ def mark_as_favorite(trend_id: int, message_id: Optional[int] = None, user_id: O
         if not row:
             return False
 
+        # Obtener título limpio preferente desde card_data si existe
+        clean_title = row["title"]
+        if "card_data" in row.keys() and row["card_data"]:
+            try:
+                cd = json.loads(row["card_data"]) if isinstance(row["card_data"], str) else row["card_data"]
+                if cd and isinstance(cd, dict) and cd.get("title") and len(str(cd.get("title")).strip()) >= 3:
+                    if " vs " in clean_title.lower() or "demanda" in clean_title.lower() or len(clean_title) < 4:
+                        clean_title = str(cd.get("title")).strip()
+            except Exception:
+                pass
+
         conn.execute(
             """
             INSERT INTO tendencias_guardadas
                 (user_id, url, url_hash, title, source, category, score, llm_analysis, saved_at, is_favorite, message_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
             ON CONFLICT(user_id, url_hash) DO UPDATE SET
+                title = excluded.title,
                 message_id = COALESCE(excluded.message_id, tendencias_guardadas.message_id),
                 saved_at = excluded.saved_at,
                 is_favorite = 1
@@ -494,7 +506,7 @@ def mark_as_favorite(trend_id: int, message_id: Optional[int] = None, user_id: O
                 uid,
                 row["url"],
                 row["url_hash"],
-                row["title"],
+                clean_title,
                 row["source"],
                 row["category"],
                 row["score"],
