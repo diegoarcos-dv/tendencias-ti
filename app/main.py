@@ -401,6 +401,21 @@ async def run_group_pipeline(chat_id: Optional[str] = None) -> Dict[str, Any]:
 
     duration = (datetime.now() - start_time).total_seconds()
     logger.info(f"[Pipeline Grupo] Éxito: Catálogo ({len(saved_catalog)} tendencias) enviado a {target_chat} en {duration:.2f}s")
+
+    # Observabilidad Proactiva: Notificación del Pulso Operativo Diario y Heartbeat al Administrador (Opción 1)
+    try:
+        from app.alerts import send_daily_health_report, send_heartbeat_ping
+        top_name = str(first_item.get("trend").title if hasattr(first_item.get("trend"), "title") else "Solución B2B")
+        asyncio.create_task(send_daily_health_report(
+            execution_time_s=duration,
+            items_count=len(saved_catalog),
+            top_title=top_name,
+            pipeline_type="Catálogo Grupo TI"
+        ))
+        asyncio.create_task(send_heartbeat_ping())
+    except Exception as e_pulse:
+        logger.warning(f"[Pipeline Grupo] Advertencia despachando pulso diario: {e_pulse}")
+
     return {
         "status": "success",
         "chat_type": "group",
@@ -680,6 +695,17 @@ async def run_individual_pipeline(chat_id: Optional[str] = None, ignore_daily_li
         }
     except Exception as e:
         logger.exception(f"[Pipeline Individual] Error inesperado en pipeline para chat {target_chat}: {e}")
+        try:
+            from app.alerts import send_admin_alert
+            asyncio.create_task(send_admin_alert(
+                component="Pipeline Individual",
+                error_msg=str(e),
+                context=f"Chat {target_chat}",
+                action_taken="Mensaje informativo enviado al usuario y fallback seguro.",
+                severity="ALTA"
+            ))
+        except Exception:
+            pass
         try:
             from app.telegram_notifier import send_telegram_message
             err_msg = (
@@ -979,6 +1005,13 @@ async def health_check() -> Dict[str, Any]:
         "ollama_model": settings.OLLAMA_MODEL,
         "telegram_configured": bool(settings.TELEGRAM_BOT_TOKEN and settings.TELEGRAM_CHAT_ID),
     }
+
+
+@app.get("/health/deep", tags=["Salud"])
+async def deep_health_check() -> Dict[str, Any]:
+    """Sonda Sintética Activa (SRE): prueba en tiempo real SQLite, Ollama, Chromium y Telegram API."""
+    from app.alerts import check_system_health
+    return await check_system_health()
 
 
 @app.get("/api/v1/context", tags=["Contexto de Negocio"], dependencies=[Depends(verify_api_key)])

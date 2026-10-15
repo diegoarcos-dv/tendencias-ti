@@ -68,7 +68,9 @@ class Settings:
     CARD_TTL_DAYS: int = int(os.getenv("CARD_TTL_DAYS", "7"))
     MAX_TREND_AGE_HOURS: int = int(os.getenv("MAX_TREND_AGE_HOURS", "48"))
     
-    # Seguridad de APIs (api-security-best-practices)
+    # Seguridad y Monitoreo Proactivo
+    TELEGRAM_ADMIN_CHAT_ID: str = os.getenv("TELEGRAM_ADMIN_CHAT_ID") or os.getenv("TELEGRAM_CHAT_ID", "7228153924")
+    HEARTBEAT_SNITCH_URL: str = os.getenv("HEARTBEAT_SNITCH_URL", "")
     API_SECRET_KEY: str = os.getenv("API_SECRET_KEY", "tendencias_b2b_secret_key_2026")
     TELEGRAM_WEBHOOK_SECRET: str = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")
 

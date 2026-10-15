@@ -2704,6 +2704,55 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
                 await handle_deep_dive(chat_id=user_chat_id)
         elif text.startswith("/nuevo_evento") or text.startswith("/agregar_evento") or text.startswith("/eventonuevo"):
             await handle_new_event_command(chat_id=user_chat_id, raw_command=text)
+        elif text.startswith("/salud") or text.startswith("/estado") or text.startswith("/health"):
+            from app.alerts import check_system_health
+            res = await check_system_health()
+            status_emoji = "🟢" if res.get("overall_status") == "healthy" else "🟡"
+            
+            db = res.get("database", {})
+            db_lat = db.get("latency_ms", "?")
+            db_icon = "✅" if db.get("status") == "healthy" else "❌"
+            
+            ol = res.get("ollama", {})
+            ol_lat = ol.get("latency_ms", "-")
+            ol_icon = "✅" if ol.get("status") == "healthy" else "⚠️"
+            ol_note = f" ({ol.get('model', '')} - {ol_lat}ms)" if ol.get("status") == "healthy" else " (fallback activo)"
+            
+            cr = res.get("chromium", {})
+            cr_icon = "✅" if cr.get("status") == "healthy" else "⚠️"
+            cr_note = " (conectado)" if cr.get("status") == "healthy" else " (reiniciando)"
+            
+            tg = res.get("telegram", {})
+            tg_lat = tg.get("latency_ms", "?")
+            tg_icon = "✅" if tg.get("status") == "healthy" else "❌"
+            tg_user = tg.get("bot_username", "bot")
+
+            msg = (
+                f"{status_emoji} <b>DIAGNÓSTICO DEL SISTEMA EN TIEMPO REAL</b>\n\n"
+                f"<b>Estado General:</b> <code>{res.get('overall_status', 'OK').upper()}</code>\n"
+                f"<b>Hora UTC:</b> <code>{res.get('timestamp', '')[:19]}</code>\n\n"
+                f"<b>Componentes vitales:</b>\n"
+                f"• <b>Base de Datos (SQLite):</b> {db_icon} <code>{db.get('status')}</code> ({db_lat}ms)\n"
+                f"• <b>Motor IA (Ollama):</b> {ol_icon} <code>{ol.get('status')}</code>{ol_note}\n"
+                f"• <b>Motor Visual (Chromium):</b> {cr_icon} <code>{cr.get('status')}</code>{cr_note}\n"
+                f"• <b>API Telegram:</b> {tg_icon} <code>@{tg_user}</code> ({tg_lat}ms)\n\n"
+                f"<i>Sonda de observabilidad proactiva activa y reportando.</i>"
+            )
+            await send_telegram_message(text=msg, chat_id=user_chat_id)
+        elif text.startswith("/alerta_prueba") or text.startswith("/test_alert"):
+            from app.alerts import send_admin_alert
+            ok = await send_admin_alert(
+                component="Sonda de Alerta Activa (/alerta_prueba)",
+                error_msg="Esta es una prueba de alerta proactiva solicitada manualmente. El canal de notificación inmediata a Telegram está 100% operativo.",
+                context=f"Disparado por chat: {user_chat_id}",
+                action_taken="Verificación de entrega exitosa.",
+                severity="INFO",
+                chat_id=user_chat_id
+            )
+            if ok:
+                await send_telegram_message(text="✅ <b>Alerta de prueba enviada con éxito.</b>", chat_id=user_chat_id)
+            else:
+                await send_telegram_message(text="⚠️ <b>Error:</b> No se pudo despachar la alerta de prueba. Verifica la configuración.", chat_id=user_chat_id)
         elif text.startswith("/start") or text.startswith("/help") or text.startswith("/ayuda"):
             welcome = (
                 "👋 <b>Bienvenido al Agente de Inteligencia Comercial B2B</b>\n\n"
@@ -2715,7 +2764,8 @@ async def process_telegram_update(update: Dict[str, Any]) -> None:
                 "• <code>/nuevo_evento</code> : Registrar un nuevo evento de TI, IA o Enterprise en CDMX.\n"
                 "• <code>/favoritos</code> : Listar todas tus tecnologías guardadas con citas a sus tarjetas originales.\n"
                 "• <code>/grafica</code> : Visualizar la gráfica de tracción semanal.\n"
-                "• <code>/profundizar</code> : Generar reporte denso sobre la última tecnología.\n\n"
+                "• <code>/profundizar</code> : Generar reporte denso sobre la última tecnología.\n"
+                "• <code>/salud</code> : Diagnóstico proactivo en tiempo real de DB, Ollama, Chromium y Telegram.\n\n"
                 "<i>También puedes interactuar directamente usando los botones debajo de cada tarjeta.</i>"
             )
             await send_telegram_message(text=welcome, chat_id=user_chat_id)
