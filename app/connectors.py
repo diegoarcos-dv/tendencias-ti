@@ -496,6 +496,7 @@ class RedditB2BConnector:
 
     def fetch_trends(self, limit_per_sub: int = 4, industry: Optional[str] = None) -> List[TrendItem]:
         import time
+        import concurrent.futures
         items: List[TrendItem] = []
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
@@ -503,10 +504,11 @@ class RedditB2BConnector:
 
         target_subreddits = get_subreddits_for_industry(industry) if industry else self.subreddits
 
-        for sub in target_subreddits:
+        def _fetch_sub(sub: str) -> List[TrendItem]:
+            sub_items: List[TrendItem] = []
             url = f"https://www.reddit.com/r/{sub}/hot.json?limit={limit_per_sub}"
             try:
-                response = requests.get(url, headers=headers, timeout=5)
+                response = requests.get(url, headers=headers, timeout=3.5)
                 if response.status_code == 200:
                     payload = response.json()
                     children = payload.get("data", {}).get("children", [])
@@ -515,7 +517,6 @@ class RedditB2BConnector:
                         if data.get("stickied", False):
                             continue
 
-                        # Filtro de actualidad temporal (Reddit)
                         created_utc = data.get("created_utc")
                         if created_utc is not None:
                             try:
@@ -528,7 +529,6 @@ class RedditB2BConnector:
                         selftext = data.get("selftext", "")
                         score = float(data.get("score", 0))
 
-                        # REGLA 1: Concatenar obligatoriamente https://www.reddit.com con permalink
                         permalink_raw = str(data.get("permalink", "")).strip()
                         if permalink_raw:
                             if permalink_raw.startswith("http"):
@@ -551,9 +551,19 @@ class RedditB2BConnector:
                             metric_score=score,
                             raw_data={"subreddit": sub, "ups": score}
                         ).evaluate_relevance()
-                        items.append(item)
+                        sub_items.append(item)
             except Exception as e:
                 logger.debug(f"Reddit r/{sub} request failed ({e})")
+            return sub_items
+
+        # Ejecución paralela de subreddits para reducir latencia de 8s a ~1.5s
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(target_subreddits)) as executor:
+            futures = [executor.submit(_fetch_sub, sub) for sub in target_subreddits]
+            for fut in concurrent.futures.as_completed(futures):
+                try:
+                    items.extend(fut.result())
+                except Exception:
+                    pass
 
         # Si Reddit bloqueó requests (403/429) por políticas anti-scraping sin OAuth,
         # consultamos fuente B2B de respaldo de alta fidelidad (Hacker News B2B / SaaS)
@@ -565,13 +575,14 @@ class RedditB2BConnector:
 
     def _fetch_b2b_tech_fallback(self, limit: int = 5, industry: Optional[str] = None) -> List[TrendItem]:
         """Conector de Alta Fidelidad B2B: TechCrunch Enterprise RSS y Hacker News (Y Combinator) API oficial."""
+        import concurrent.futures
         items: List[TrendItem] = []
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
         
         # 1. TechCrunch Enterprise RSS Feed (Noticias oficiales de software empresarial y SaaS B2B)
         try:
             tc_url = "https://techcrunch.com/category/enterprise/feed/"
-            r_tc = requests.get(tc_url, headers=headers, timeout=6)
+            r_tc = requests.get(tc_url, headers=headers, timeout=4)
             if r_tc.status_code == 200:
                 root_tc = ET.fromstring(r_tc.content)
                 for entry in root_tc.findall(".//item")[:limit]:
@@ -596,16 +607,17 @@ class RedditB2BConnector:
         except Exception as e_tc:
             logger.debug(f"TechCrunch RSS omitido: {e_tc}")
 
-        # 2. Hacker News (Y Combinator) API oficial Firebase (resiliente, pública y sin bloqueos de rate-limit)
+        # 2. Hacker News (Y Combinator) API oficial Firebase en paralelo (resiliente, pública y rápida)
         if len(items) < limit:
             try:
-                hn_res = requests.get("https://hacker-news.firebaseio.com/v0/topstories.json", timeout=4)
+                hn_res = requests.get("https://hacker-news.firebaseio.com/v0/topstories.json", timeout=3)
                 if hn_res.status_code == 200:
                     needed = limit - len(items)
                     story_ids = hn_res.json()[:needed]
-                    for sid in story_ids:
+
+                    def _fetch_hn_item(sid: int) -> Optional[TrendItem]:
                         try:
-                            s_res = requests.get(f"https://hacker-news.firebaseio.com/v0/item/{sid}.json", timeout=3)
+                            s_res = requests.get(f"https://hacker-news.firebaseio.com/v0/item/{sid}.json", timeout=2.5)
                             if s_res.status_code == 200:
                                 sdata = s_res.json()
                                 stitle = sdata.get("title") or ""
@@ -613,7 +625,7 @@ class RedditB2BConnector:
                                 scomments = f"https://news.ycombinator.com/item?id={sid}"
                                 sscore = float(sdata.get("score") or 140.0)
                                 cat = industry if industry else "TI & Startups"
-                                item = TrendItem(
+                                return TrendItem(
                                     title=stitle,
                                     source="reddit",
                                     category=cat,
@@ -625,9 +637,15 @@ class RedditB2BConnector:
                                     source_label="⚡ Hacker News (Y Combinator Oficial)",
                                     audit_url=scomments
                                 ).evaluate_relevance()
-                                items.append(item)
                         except Exception:
-                            continue
+                            pass
+                        return None
+
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=min(5, len(story_ids))) as hn_exec:
+                        results = list(hn_exec.map(_fetch_hn_item, story_ids))
+                        for r in results:
+                            if r is not None:
+                                items.append(r)
             except Exception as e_hn:
                 logger.debug(f"Hacker News API omitido: {e_hn}")
 

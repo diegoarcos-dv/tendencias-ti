@@ -228,125 +228,103 @@ async def create_png_card(
     # ------------------------------------------------------------------ #
     # Renderizado con Playwright (Hot Browser Singleton)                    #
     # ------------------------------------------------------------------ #
-    async with get_render_page() as page:
+    # 2. Limpieza de Arreglos (Capa Lógica):
+    data['stack_sugerido'] = [
+        tech.strip() if isinstance(tech, str) else str(tech.get('name', '')).strip()
+        for tech in data.get('stack_sugerido', [])
+        if tech and (tech.strip() if isinstance(tech, str) else str(tech.get('name', '')).strip())
+    ]
 
+    # Limpieza de stack_list evitando cadenas vacías o nulas
+    cleaned_stack = []
+    for item in data.get("stack_list", []):
+        if isinstance(item, dict):
+            item_name = str(item.get("name", "")).strip()
+            if item_name and not any(d in item_name.lower() for d in ["capacidad o módulo", "tecnología concreta", "tecnología o herramienta", "módulo técnico"]):
+                cleaned_stack.append(item)
+        elif isinstance(item, str) and item.strip():
+            if not any(d in item.lower() for d in ["capacidad o módulo", "tecnología concreta", "tecnología o herramienta", "módulo técnico"]):
+                cleaned_stack.append({"name": item.strip(), "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"})
+
+    # Si stack_list quedó vacío pero hay elementos válidos en stack_sugerido, regenerarlo
+    if not cleaned_stack and data['stack_sugerido']:
+        colors = ["violet", "mint", "mint", "neutral"]
+        classes = ["new", "scaling", "scaling", "stable"]
+        labels = ["Nuevo", "Escalando", "Escalando", "Consolidado"]
+        for i, tech in enumerate(data['stack_sugerido'][:4]):
+            tname = tech.strip() if isinstance(tech, str) else str(tech.get('name', '')).strip()
+            if tname and not any(d in tname.lower() for d in ["capacidad o módulo", "tecnología concreta", "tecnología o herramienta", "módulo técnico"]):
+                cleaned_stack.append({
+                    "name": tname[:36],
+                    "icon_color": colors[i] if i < len(colors) else "neutral",
+                    "tag_class": classes[i] if i < len(classes) else "stable",
+                    "tag_label": labels[i] if i < len(labels) else "Consolidado"
+                })
+
+    data['stack_list'] = cleaned_stack
+    stack_html = _build_stack_html(cleaned_stack) if cleaned_stack else ""
+
+    render_payload = {
+        "sector": data.get("sector", "Tecnología · B2B"),
+        "title": data.get("title", "Innovación Tecnológica"),
+        "impact_level": str(data.get("impact_level", "high")).lower(),
+        "impact_label": data.get("impact_label", "Alto impacto comercial"),
+        "metric_label": data.get("metric_label", "Métrica de Tracción"),
+        "metric_value": str(data.get("metric_value", "—")),
+        "delta_direction": str(data.get("delta_direction", "up")).lower(),
+        "delta_value": str(data.get("delta_value", "+25%")),
+        "summary": data.get("summary", "Oportunidad de mercado detectada."),
+        "target_industry": str(data.get("target_industry", "E-Commerce & SaaS B2B")),
+        "problem_solved": str(data.get("problem_solved", "Automatización de procesos operativos")),
+        "has_stack": bool(cleaned_stack),
+        "stack_html": stack_html,
+        "stack_count": len(cleaned_stack),
+        "footer_date": footer_date,
+    }
+
+    # ------------------------------------------------------------------ #
+    # Renderizado con Playwright (Hot Browser Singleton)                    #
+    # ------------------------------------------------------------------ #
+    async with get_render_page() as page:
         # domcontentloaded es suficiente: hemos eliminado todas las peticiones externas
         await page.set_content(html_patched, wait_until="domcontentloaded")
 
-        # --- Campo por campo: sector, title, impact, metrics, delta, summary ---
-        await page.locator('[data-field="sector"]').evaluate(
-            "(el, v) => el.textContent = v",
-            data.get("sector", "Tecnología · B2B"),
-        )
-        await page.locator('[data-field="title"]').evaluate(
-            "(el, v) => el.textContent = v",
-            data.get("title", "Innovación Tecnológica"),
-        )
+        # Inyección atómica en una sola llamada JS consolidada (reduce latencia CDP de 1.7s a <0.3s)
+        await page.evaluate("""(d) => {
+            const setField = (sel, val, isHtml = false) => {
+                const el = document.querySelector(sel);
+                if (el) {
+                    if (isHtml) el.innerHTML = val;
+                    else el.textContent = val;
+                }
+            };
+            setField('[data-field="sector"]', d.sector);
+            setField('[data-field="title"]', d.title);
 
-        impact_level = str(data.get("impact_level", "high")).lower()
-        await page.locator('[data-field="impact-level"]').evaluate(
-            "(el, lvl) => el.className = `impact-pill ${lvl}`",
-            impact_level,
-        )
-        await page.locator('[data-field="impact-label"]').evaluate(
-            "(el, v) => el.textContent = v",
-            data.get("impact_label", "Alto impacto comercial"),
-        )
+            const impEl = document.querySelector('[data-field="impact-level"]');
+            if (impEl) impEl.className = `impact-pill ${d.impact_level}`;
+            setField('[data-field="impact-label"]', d.impact_label);
 
-        await page.locator('[data-field="metric-label"]').evaluate(
-            "(el, v) => el.textContent = v",
-            data.get("metric_label", "Métrica de Tracción"),
-        )
-        await page.locator('[data-field="metric-value"]').evaluate(
-            "(el, v) => el.textContent = v",
-            str(data.get("metric_value", "—")),
-        )
+            setField('[data-field="metric-label"]', d.metric_label);
+            setField('[data-field="metric-value"]', d.metric_value);
 
-        delta_direction = str(data.get("delta_direction", "up")).lower()
-        await page.locator('[data-field="delta-direction"]').evaluate(
-            "(el, dir) => el.className = `delta-pill ${dir}`",
-            delta_direction,
-        )
-        await page.locator('[data-field="delta-value"]').evaluate(
-            "(el, v) => el.textContent = v",
-            str(data.get("delta_value", "+25%")),
-        )
+            const deltaEl = document.querySelector('[data-field="delta-direction"]');
+            if (deltaEl) deltaEl.className = `delta-pill ${d.delta_direction}`;
+            setField('[data-field="delta-value"]', d.delta_value);
 
-        # summary acepta HTML con etiquetas <strong>
-        await page.locator('[data-field="summary"]').evaluate(
-            "(el, v) => el.innerHTML = v",
-            data.get("summary", "Oportunidad de mercado detectada."),
-        )
+            setField('[data-field="summary"]', d.summary, true);
+            setField('[data-field="target-industry"]', d.target_industry);
+            setField('[data-field="problem-solved"]', d.problem_solved);
 
-        # Inyección de contexto de negocio: Industria que la busca y Problema que resuelve
-        if await page.locator('[data-field="target-industry"]').count() > 0:
-            await page.locator('[data-field="target-industry"]').evaluate(
-                "(el, v) => el.textContent = v",
-                str(data.get("target_industry", "E-Commerce & SaaS B2B")),
-            )
-        if await page.locator('[data-field="problem-solved"]').count() > 0:
-            await page.locator('[data-field="problem-solved"]').evaluate(
-                "(el, v) => el.textContent = v",
-                str(data.get("problem_solved", "Automatización de procesos operativos")),
-            )
-
-        # 2. Limpieza de Arreglos (Capa Lógica):
-        data['stack_sugerido'] = [
-            tech.strip() if isinstance(tech, str) else str(tech.get('name', '')).strip()
-            for tech in data.get('stack_sugerido', [])
-            if tech and (tech.strip() if isinstance(tech, str) else str(tech.get('name', '')).strip())
-        ]
-
-        # Limpieza de stack_list evitando cadenas vacías o nulas
-        cleaned_stack = []
-        for item in data.get("stack_list", []):
-            if isinstance(item, dict):
-                item_name = str(item.get("name", "")).strip()
-                if item_name and not any(d in item_name.lower() for d in ["capacidad o módulo", "tecnología concreta", "tecnología o herramienta", "módulo técnico"]):
-                    cleaned_stack.append(item)
-            elif isinstance(item, str) and item.strip():
-                if not any(d in item.lower() for d in ["capacidad o módulo", "tecnología concreta", "tecnología o herramienta", "módulo técnico"]):
-                    cleaned_stack.append({"name": item.strip(), "icon_color": "violet", "tag_class": "new", "tag_label": "Nuevo"})
-
-        # Si stack_list quedó vacío pero hay elementos válidos en stack_sugerido, regenerarlo
-        if not cleaned_stack and data['stack_sugerido']:
-            colors = ["violet", "mint", "mint", "neutral"]
-            classes = ["new", "scaling", "scaling", "stable"]
-            labels = ["Nuevo", "Escalando", "Escalando", "Consolidado"]
-            for i, tech in enumerate(data['stack_sugerido'][:4]):
-                tname = tech.strip() if isinstance(tech, str) else str(tech.get('name', '')).strip()
-                if tname and not any(d in tname.lower() for d in ["capacidad o módulo", "tecnología concreta", "tecnología o herramienta", "módulo técnico"]):
-                    cleaned_stack.append({
-                        "name": tname[:36],
-                        "icon_color": colors[i] if i < len(colors) else "neutral",
-                        "tag_class": classes[i] if i < len(classes) else "stable",
-                        "tag_label": labels[i] if i < len(labels) else "Consolidado"
-                    })
-
-        data['stack_list'] = cleaned_stack
-
-        # 3. Ocultamiento Dinámico (Capa UI / Playwright):
-        # Si la lista de tecnologías resultante está vacía tras la limpieza, oculta completamente
-        # el contenedor de la sección del stack (display: none) para evitar una caja vacía o viñetas en blanco.
-        if cleaned_stack:
-            stack_html = _build_stack_html(cleaned_stack)
-            await page.locator('[data-field="stack-list"]').evaluate(
-                "(el, v) => el.innerHTML = v",
-                stack_html,
-            )
-            if await page.locator('.stack-count').count() > 0:
-                await page.locator('.stack-count').evaluate(
-                    "(el, count) => el.textContent = `${count} componentes`",
-                    len(cleaned_stack)
-                )
-        else:
-            if await page.locator('.stack-panel').count() > 0:
-                await page.locator('.stack-panel').evaluate("(el) => el.style.display = 'none'")
-
-        await page.locator('[data-field="footer-date"]').evaluate(
-            "(el, v) => el.textContent = v",
-            footer_date,
-        )
+            if (d.has_stack) {
+                setField('[data-field="stack-list"]', d.stack_html, true);
+                setField('.stack-count', `${d.stack_count} componentes`);
+            } else {
+                const p = document.querySelector('.stack-panel');
+                if (p) p.style.display = 'none';
+            }
+            setField('[data-field="footer-date"]', d.footer_date);
+        }""", render_payload)
 
         # Captura del elemento .card exacto (no pantalla completa)
         await page.locator(".card").screenshot(path=str(target_file))
@@ -536,21 +514,20 @@ async def create_b2b_demand_png_card(
     async with get_render_page() as page:
         await page.set_content(html_patched, wait_until="domcontentloaded")
 
-        if data:
-            for field, val in data.items():
-                selector = f'[data-field="{field}"]'
-                if await page.locator(selector).count() > 0:
-                    if "<" in str(val) and ">" in str(val):
-                        await page.locator(selector).evaluate("(el, v) => el.innerHTML = v", str(val))
-                    else:
-                        await page.locator(selector).evaluate("(el, v) => el.textContent = v", str(val))
-
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
-        if await page.locator('[data-field="footer-date"]').count() > 0:
-            await page.locator('[data-field="footer-date"]').evaluate(
-                "(el, v) => el.textContent = v",
-                f"Actualizado hoy, {now_str}"
-            )
+        merged_data = dict(data or {})
+        merged_data.setdefault("footer-date", f"Actualizado hoy, {now_str}")
+
+        await page.evaluate("""(fields) => {
+            for (const [key, val] of Object.entries(fields)) {
+                const el = document.querySelector(`[data-field="${key}"]`);
+                if (el) {
+                    const s = String(val);
+                    if (s.includes('<') && s.includes('>')) el.innerHTML = s;
+                    else el.textContent = s;
+                }
+            }
+        }""", merged_data)
 
         await page.locator(".card").screenshot(path=str(target_file))
 
@@ -573,21 +550,20 @@ async def create_events_cdmx_png_card(
     async with get_render_page() as page:
         await page.set_content(html_patched, wait_until="domcontentloaded")
 
-        if data:
-            for field, val in data.items():
-                selector = f'[data-field="{field}"]'
-                if await page.locator(selector).count() > 0:
-                    if "<" in str(val) and ">" in str(val):
-                        await page.locator(selector).evaluate("(el, v) => el.innerHTML = v", str(val))
-                    else:
-                        await page.locator(selector).evaluate("(el, v) => el.textContent = v", str(val))
-
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
-        if await page.locator('[data-field="footer-date"]').count() > 0:
-            await page.locator('[data-field="footer-date"]').evaluate(
-                "(el, v) => el.textContent = v",
-                f"Actualizado hoy, {now_str}"
-            )
+        merged_data = dict(data or {})
+        merged_data.setdefault("footer-date", f"Actualizado hoy, {now_str}")
+
+        await page.evaluate("""(fields) => {
+            for (const [key, val] of Object.entries(fields)) {
+                const el = document.querySelector(`[data-field="${key}"]`);
+                if (el) {
+                    const s = String(val);
+                    if (s.includes('<') && s.includes('>')) el.innerHTML = s;
+                    else el.textContent = s;
+                }
+            }
+        }""", merged_data)
 
         await page.locator(".card").screenshot(path=str(target_file))
 

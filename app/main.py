@@ -273,7 +273,7 @@ async def run_group_pipeline(chat_id: Optional[str] = None) -> Dict[str, Any]:
     logger.info(f"[Pipeline Grupo] INICIO Catálogo Interactivo [{start_time.strftime('%H:%M:%S')}] -> Chat: {target_chat}")
     logger.info("=" * 60)
 
-    # 1. Ingesta multi-vertical para el grupo corporativo cubriendo diversos sectores estratégicos
+    # 1. Ingesta multi-vertical concurrente en paralelo (asyncio.gather) para el grupo corporativo
     group_verticals = [
         ("Inteligencia Artificial", "tech"),
         ("Ciberseguridad", "tech"),
@@ -282,24 +282,27 @@ async def run_group_pipeline(chat_id: Optional[str] = None) -> Dict[str, Any]:
         ("E-Commerce", "retail"),
     ]
 
-    catalog_trends = []
-    for vert_name, vert_cat in group_verticals:
+    async def _fetch_vertical(vert_name: str, vert_cat: str) -> Optional[TrendItem]:
         try:
-            vert_trends = fetch_all_trends(
+            vert_trends = await asyncio.to_thread(
+                fetch_all_trends,
                 zone="Global",
                 industry=vert_name,
                 categoria_api=vert_cat,
                 industria_exacta=vert_name
             )
-            top_v = select_top_trend(vert_trends, industry=vert_name)
-            if top_v and top_v not in catalog_trends:
-                catalog_trends.append(top_v)
+            return select_top_trend(vert_trends, industry=vert_name)
         except Exception as ex_v:
             logger.warning(f"[Pipeline Grupo] Error al buscar vertical '{vert_name}': {ex_v}")
+            return None
+
+    vert_results = await asyncio.gather(*[_fetch_vertical(vn, vc) for vn, vc in group_verticals])
+    catalog_trends = [t for t in vert_results if t is not None]
 
     # Si alguna vertical no arrojó resultados, completamos con el catálogo general de TI
     if len(catalog_trends) < 3:
-        all_trends = fetch_all_trends(
+        all_trends = await asyncio.to_thread(
+            fetch_all_trends,
             zone="Global",
             industry="TI & Software B2B",
             categoria_api="tech",
@@ -314,51 +317,70 @@ async def run_group_pipeline(chat_id: Optional[str] = None) -> Dict[str, Any]:
         logger.error("[Pipeline Grupo] No hay tendencias frescas disponibles para el catálogo.")
         return {"status": "error", "message": "No fresh trends available"}
 
-    # 2. Análisis con Gemma, persistencia y pre-renderizado del lote completo
-    saved_catalog = []
-    first_png = None
-    for idx, trend_item in enumerate(catalog_trends):
+    # 2. Análisis prioritario del candidato 1 (envío veloz sin bloqueos)
+    first_item = catalog_trends[0]
+    first_trend_dict = {**first_item.model_dump(), "geo_region": "Global"}
+    first_card_data = await generate_trend_card_data(
+        trend_data=first_trend_dict,
+        zona_preferida="Global",
+        user_industry=first_item.category or "TI & Software B2B",
+        business_context_text=business_context.raw_content,
+        index=0
+    )
+    first_t_id = save_trend(trend_data=first_item.model_dump(), card_data=first_card_data)
+    first_png = settings.BASE_DIR / f"temp_trend_{first_t_id}.png"
+    await create_png_card(data=first_card_data, output_path=first_png)
+
+    saved_catalog = [{"id": first_t_id, "trend": first_item, "card_data": first_card_data, "png": first_png}]
+
+    # Para los candidatos secundarios (1..N), estructuramos con fast-path
+    from app.llm_service import _build_fallback_trend_data
+    for idx, trend_item in enumerate(catalog_trends[1:], start=1):
         trend_dict = {**trend_item.model_dump(), "geo_region": "Global"}
-        card_data = await generate_trend_card_data(
-            trend_data=trend_dict,
-            zona_preferida="Global",
-            user_industry=trend_item.category or "TI & Software B2B",
-            business_context_text=business_context.raw_content,
-            index=idx
-        )
-        t_id = save_trend(trend_data=trend_item.model_dump(), card_data=card_data)
+        sec_card_data = _build_fallback_trend_data(trend_dict, index=idx)
+        t_id = save_trend(trend_data=trend_item.model_dump(), card_data=sec_card_data)
         trend_png = settings.BASE_DIR / f"temp_trend_{t_id}.png"
-        await create_png_card(data=card_data, output_path=trend_png)
-        if idx == 0:
-            first_png = trend_png
-        saved_catalog.append({"id": t_id, "trend": trend_item, "card_data": card_data, "png": trend_png})
+        saved_catalog.append({"id": t_id, "trend": trend_item, "card_data": sec_card_data, "png": trend_png})
 
-    # Pre-renderizar tarjetas auxiliares (Demanda B2B, Eventos CDMX, Gráfica) para navegación instantánea
-    try:
-        from app.b2b_demand import discover_daily_b2b_demand, get_b2b_demand_by_index
-        from app.events_cdmx import get_events_cdmx_by_index
-        from app.visual_engine import create_b2b_demand_png_card, create_events_cdmx_png_card, create_chart_png_card
+    # Guardar en memoria para navegación interactiva fluida
+    from app.telegram_bot import set_cached_catalog_trends
+    set_cached_catalog_trends(saved_catalog)
 
-        from datetime import timezone
-        today_str = datetime.now(timezone.utc).strftime("%Y%m%d")
-
-        # Prospección activa de empresas del día (Opción C)
+    # Pre-renderizado secundario asíncrono en segundo plano (no retrasa el envío inicial)
+    async def _prerender_group_aux(items: list):
         try:
-            await discover_daily_b2b_demand()
-        except Exception as ex_disc:
-            logger.warning(f"[Pipeline Grupo] Advertencia al prospectar empresas B2B diarias: {ex_disc}")
+            for it in items:
+                p = it["png"]
+                if not p.exists():
+                    await create_png_card(data=it["card_data"], output_path=p)
+            from app.b2b_demand import discover_daily_b2b_demand, get_b2b_demand_by_index
+            from app.events_cdmx import get_events_cdmx_by_index
+            from app.visual_engine import create_b2b_demand_png_card, create_events_cdmx_png_card, create_chart_png_card
+            from datetime import timezone
+            today_str = datetime.now(timezone.utc).strftime("%Y%m%d")
 
-        demand_png = settings.BASE_DIR / f"temp_demand_0_{today_str}.png"
-        await create_b2b_demand_png_card(output_path=demand_png, data=get_b2b_demand_by_index(0))
+            try:
+                await discover_daily_b2b_demand()
+            except Exception:
+                pass
 
-        events_png = settings.BASE_DIR / f"temp_events_0_{today_str}.png"
-        await create_events_cdmx_png_card(output_path=events_png, data=get_events_cdmx_by_index(0))
+            dem_png = settings.BASE_DIR / f"temp_demand_0_{today_str}.png"
+            if not dem_png.exists():
+                await create_b2b_demand_png_card(output_path=dem_png, data=get_b2b_demand_by_index(0))
 
-        chart_png = settings.BASE_DIR / "temp_chart.png"
-        await create_chart_png_card(output_path=chart_png)
-        logger.info("[Pipeline Grupo] Catálogos auxiliares (Empresas Demandantes, Agenda Eventos Enterprise, Gráfica) pre-renderizados con éxito.")
-    except Exception as ex_aux:
-        logger.warning(f"[Pipeline Grupo] Advertencia al pre-renderizar catálogos auxiliares: {ex_aux}")
+            ev_png = settings.BASE_DIR / f"temp_events_0_{today_str}.png"
+            if not ev_png.exists():
+                await create_events_cdmx_png_card(output_path=ev_png, data=get_events_cdmx_by_index(0))
+
+            chart_png = settings.BASE_DIR / "temp_chart.png"
+            if not chart_png.exists():
+                await create_chart_png_card(output_path=chart_png)
+            logger.info("[Pipeline Grupo] Catálogos auxiliares pre-renderizados en segundo plano con éxito.")
+        except Exception as ex_aux:
+            logger.warning(f"[Pipeline Grupo] Advertencia en pre-renderizado secundario: {ex_aux}")
+
+    if len(saved_catalog) > 1:
+        asyncio.create_task(_prerender_group_aux(saved_catalog[1:]))
 
     # 3. Envío al grupo del primer elemento configurado con el Catálogo Interactivo
     first_item = saved_catalog[0]
@@ -787,19 +809,24 @@ async def prewarm_auxiliary_cards() -> None:
         except Exception as ex_dem:
             logger.warning(f"[Pre-warm] Advertencia en pre-descubrimiento B2B: {ex_dem}")
 
-        # 3. Pre-renderizar las empresas demandantes del catálogo diario
-        for idx in range(5):
-            dem_png = settings.BASE_DIR / f"temp_demand_{idx}_{today_str}.png"
+        # 3. Pre-renderizar las empresas demandantes del catálogo diario concurrentemente
+        async def _render_dem(d_idx: int):
+            dem_png = settings.BASE_DIR / f"temp_demand_{d_idx}_{today_str}.png"
             if not dem_png.exists():
-                await create_b2b_demand_png_card(output_path=dem_png, data=get_b2b_demand_by_index(idx))
+                await create_b2b_demand_png_card(output_path=dem_png, data=get_b2b_demand_by_index(d_idx))
 
-        # 4. Pre-renderizar todos los eventos CDMX del catálogo
+        await asyncio.gather(*[_render_dem(i) for i in range(5)])
+
+        # 4. Pre-renderizar todos los eventos CDMX del catálogo concurrentemente
         from app.events_cdmx import get_events_cdmx_by_index, get_all_events_cdmx
         total_evts = len(get_all_events_cdmx())
-        for idx in range(total_evts):
-            ev_png = settings.BASE_DIR / f"temp_events_{idx}_{today_str}.png"
+
+        async def _render_evt(e_idx: int):
+            ev_png = settings.BASE_DIR / f"temp_events_{e_idx}_{today_str}.png"
             if not ev_png.exists():
-                await create_events_cdmx_png_card(output_path=ev_png, data=get_events_cdmx_by_index(idx))
+                await create_events_cdmx_png_card(output_path=ev_png, data=get_events_cdmx_by_index(e_idx))
+
+        await asyncio.gather(*[_render_evt(i) for i in range(total_evts)])
 
         # 5. Pre-renderizar gráfica
         chart_png = settings.BASE_DIR / "temp_chart.png"
