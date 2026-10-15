@@ -133,8 +133,8 @@ def select_top_trend(
 
     def calculate_tool_score(item: TrendItem) -> float:
         # Relevancia estricta con el contexto de negocio (api-security-best-practices: Data Provenance & Trust)
-        # Si un ítem no es relevante y no proviene de fuentes nativas de software, penalización masiva
-        affinity_score = 6000.0 if item.business_relevant else (-50000.0 if item.source == "google_trends" else 0.0)
+        # Si un ítem no es relevante para B2B/TI, penalización severa para que NUNCA gane sobre herramientas B2B reales
+        affinity_score = 6000.0 if item.business_relevant else (-50000.0 if item.source == "google_trends" else -15000.0)
 
         # Afinidad con la industria personalizada del usuario
         industry_bonus = 0.0
@@ -159,10 +159,10 @@ def select_top_trend(
     sorted_trends = sorted(fresh_trends, key=calculate_tool_score, reverse=True)
     valid_candidates = [
         item for item in sorted_trends
-        if item.business_relevant or item.source in ("product_hunt", "reddit")
+        if item.business_relevant or calculate_tool_score(item) > 0
     ]
     if not valid_candidates:
-        logger.warning("[Scoring Engine] Ninguna tendencia fresca cumple con los criterios de relevancia tecnológica.")
+        logger.warning("[Scoring Engine] Ninguna tendencia fresca cumple con los criterios de relevancia tecnológica B2B.")
         return None
     top_1 = valid_candidates[0]
 
@@ -203,7 +203,7 @@ def select_top_trends(
         fresh_trends = trends
 
     def calculate_tool_score(item: TrendItem) -> float:
-        affinity_score = 6000.0 if item.business_relevant else (-50000.0 if item.source == "google_trends" else 0.0)
+        affinity_score = 6000.0 if item.business_relevant else (-50000.0 if item.source == "google_trends" else -15000.0)
         industry_bonus = 0.0
         if industry and industry.lower() not in ("global", "ti & software b2b"):
             ind_words = [w.lower() for w in industry.replace("&", " ").split() if len(w) > 3]
@@ -225,8 +225,8 @@ def select_top_trends(
     chosen: List[TrendItem] = []
     seen_titles: set = set()
     for item in sorted_trends:
-        # Bloquear cualquier ítem no relevante de Google Trends
-        if not item.business_relevant and item.source not in ("product_hunt", "reddit"):
+        # Bloquear cualquier ítem no relevante o con penalización negativa
+        if not item.business_relevant and calculate_tool_score(item) <= 0:
             continue
 
         norm_t = item.title.strip().lower()

@@ -44,7 +44,11 @@ _NON_TECH_BLACKLIST_TERMS = (
     # Farándula, espectáculos y virales
     "falleció", "fallece", "muere", "muerto", "muerta", "luto", "concierto",
     "boletos", "cantante", "actriz", "actor", "boda", "divorcio", "horóscopo",
-    "horoscopo", "lotería", "loteria", "sorteo", "día de muertos", "dia de muertos"
+    "horoscopo", "lotería", "loteria", "sorteo", "día de muertos", "dia de muertos",
+    # Multimedia de consumidor, filtros, cine personal, videojuegos y virales
+    "lut", "luts", "cinemalut", "cinematography", "color grading", "filmmaker",
+    "video editor", "presets", "lightroom", "wallpaper", "videogame", "gameplay",
+    "gaming", "vlog", "vlogger"
 )
 
 # Caché en memoria de tendencias para respuesta < 1ms en consultas repetidas de la misma industria/zona

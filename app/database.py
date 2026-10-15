@@ -486,8 +486,15 @@ def mark_as_favorite(trend_id: int, message_id: Optional[int] = None, user_id: O
             try:
                 cd = json.loads(row["card_data"]) if isinstance(row["card_data"], str) else row["card_data"]
                 if cd and isinstance(cd, dict) and cd.get("title") and len(str(cd.get("title")).strip()) >= 3:
-                    if " vs " in clean_title.lower() or "demanda" in clean_title.lower() or len(clean_title) < 4:
-                        clean_title = str(cd.get("title")).strip()
+                    card_title = str(cd.get("title")).strip()
+                    from app.context_reader import business_context
+                    if (
+                        " vs " in clean_title.lower()
+                        or "demanda" in clean_title.lower()
+                        or len(clean_title) < 4
+                        or not business_context.is_relevant_to_business(clean_title)
+                    ):
+                        clean_title = card_title
             except Exception:
                 pass
 
