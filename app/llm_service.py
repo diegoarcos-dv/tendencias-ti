@@ -80,8 +80,9 @@ async def warmup_ollama(model: Optional[str] = None) -> bool:
         if tags_resp.status_code == 200:
             available = [m["name"] for m in tags_resp.json().get("models", [])]
             if selected_model not in available:
-                gemma = [m for m in available if "gemma" in m]
-                model_to_use = gemma[0] if gemma else (available[0] if available else selected_model)
+                # Priorizar llama si está configurado, o cualquier modelo disponible
+                llamas = [m for m in available if "llama" in m]
+                model_to_use = llamas[0] if llamas else (available[0] if available else selected_model)
         
         warmup_payload = {
             "model": model_to_use,
@@ -304,8 +305,8 @@ async def generate_trend_card_data(
         if tags_resp.status_code == 200:
             available_models = [m["name"] for m in tags_resp.json().get("models", [])]
             if selected_model not in available_models:
-                gemma_models = [m for m in available_models if "gemma" in m]
-                model_to_use = gemma_models[0] if gemma_models else (available_models[0] if available_models else selected_model)
+                llamas = [m for m in available_models if "llama" in m]
+                model_to_use = llamas[0] if llamas else (available_models[0] if available_models else selected_model)
     except Exception:
         pass
 
@@ -1343,7 +1344,21 @@ async def generate_deep_dive_report(
     if not stack_names:
         stack_names = "APIs RESTful, Webhooks, Cloud Native, Microservicios"
 
-    # Inyectar reglas de negocio desde tendencias.txt
+    # Inyectar directrices modulares desde data/prompts/ y contexto de negocio
+    prompts_dir = settings.DATA_DIR / "prompts"
+    behavior_md = ""
+    security_md = ""
+    if prompts_dir.exists():
+        try:
+            bg_file = prompts_dir / "BEHAVIOR_GUIDELINES.md"
+            if bg_file.exists():
+                behavior_md = bg_file.read_text(encoding="utf-8").strip()
+            sec_file = prompts_dir / "SECURITY_GUARDRAILS.md"
+            if sec_file.exists():
+                security_md = sec_file.read_text(encoding="utf-8").strip()
+        except Exception:
+            pass
+
     context_path = settings.DATA_DIR / "tendencias.txt"
     business_rules_text = ""
     if context_path.exists():
@@ -1357,6 +1372,13 @@ async def generate_deep_dive_report(
     system_prompt = (
         "Eres un Consultor Estratégico Senior de Inteligencia Comercial B2B dirigiéndote a un Director de Negocios y Tecnología.\n"
         "Tu misión es elaborar un reporte ejecutivo de análisis profundo, consultivo y de alto nivel sobre una oportunidad o solución tecnológica identificada en el mercado.\n\n"
+    )
+    if behavior_md:
+        system_prompt += f"{behavior_md}\n\n"
+    if security_md:
+        system_prompt += f"{security_md}\n\n"
+
+    system_prompt += (
         "REGLAS INQUEBRANTABLES DE ENMASCARAMIENTO Y ESTILO CONSULTIVO:\n"
         "1. PROHIBICIÓN ABSOLUTA DE JERGA TÉCNICA INTERNA Y FUENTES RAW:\n"
         "   - ESTÁ ESTRICTAMENTE PROHIBIDO mencionar nombres de archivos internos (ej. 'tendencias.txt', '.txt', '.csv', '.json'), nombres de APIs o fuentes crudas (ej. 'google_trends', 'Reddit', 'Product Hunt', 'RSS'), o jerga de desarrollo interno (ej. 'ingesta', 'score algorítmico', 'datos crudos', 'scraping').\n"
@@ -1923,8 +1945,8 @@ async def _classify_user_input_impl(
         if tags_resp.status_code == 200:
             available_models = [m["name"] for m in tags_resp.json().get("models", [])]
             if selected_model not in available_models and available_models:
-                gemma_models = [m for m in available_models if "gemma" in m]
-                selected_model = gemma_models[0] if gemma_models else available_models[0]
+                llamas = [m for m in available_models if "llama" in m]
+                selected_model = llamas[0] if llamas else available_models[0]
     except Exception:
         pass
 

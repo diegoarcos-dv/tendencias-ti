@@ -54,7 +54,7 @@ class Settings:
 
     # Ollama
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "gemma3:1b")
+    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
 
     # Telegram
     TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
