@@ -155,6 +155,22 @@ def init_db(db_path: Optional[str] = None) -> None:
 
             CREATE INDEX IF NOT EXISTS idx_eventos_is_active
                 ON eventos_empresariales (is_active, id DESC);
+
+            CREATE TABLE IF NOT EXISTS telemetria_interacciones (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id     TEXT    NOT NULL,
+                chat_id     TEXT    NOT NULL,
+                action_type TEXT    NOT NULL,
+                industry    TEXT    NOT NULL DEFAULT '',
+                details     TEXT    DEFAULT '',
+                created_at  TEXT    NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_telemetria_action_ind
+                ON telemetria_interacciones (action_type, industry);
+
+            CREATE INDEX IF NOT EXISTS idx_telemetria_created_at
+                ON telemetria_interacciones (created_at);
         """)
 
         # Migración ligera: asegurar columnas nuevas si la tabla ya existía previamente
@@ -1422,6 +1438,205 @@ def delete_enterprise_event(event_id: str) -> bool:
         )
         conn.commit()
         return cur.rowcount > 0
+
+
+# ============================================================================
+# Telemetría de Interacción de Usuarios & Retroalimentación de Demanda
+# ============================================================================
+
+def record_interaction_telemetry(
+    user_id: str,
+    chat_id: str,
+    action_type: str,
+    industry: str,
+    details: str = "",
+    db_path: Optional[Union[str, Path]] = None
+) -> bool:
+    """Registra una interacción de usuario en el búfer de telemetría de SQLite.
+    
+    action_type puede ser:
+    - 'DEMANDA_QUOTE': Usuario simuló una cotización financiera / SOW.
+    - 'DEMANDA_SCOPE': Usuario consultó la ficha técnica oficial.
+    - 'INDUSTRY_SEARCH': Usuario configuró o consultó una industria específica.
+    - 'FAVORITE_SAVED': Usuario guardó una tendencia en favoritos.
+    """
+    if not user_id or not action_type:
+        return False
+
+    resolved_path = Path(db_path) if db_path else None
+    now_iso = datetime.now(timezone.utc).isoformat()
+    clean_industry = str(industry or "").strip()
+    clean_details = str(details or "").strip()
+
+    try:
+        with _get_connection(resolved_path) as conn:
+            conn.execute(
+                """
+                INSERT INTO telemetria_interacciones (
+                    user_id, chat_id, action_type, industry, details, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (str(user_id), str(chat_id), action_type, clean_industry, clean_details, now_iso)
+            )
+            conn.commit()
+            return True
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"[Telemetría] Error al registrar interacción: {e}")
+        return False
+
+
+def get_top_demanded_feedback(
+    min_unique_users: int = 2,
+    days_lookback: int = 30,
+    limit: int = 10,
+    db_path: Optional[Union[str, Path]] = None
+) -> List[Dict[str, Any]]:
+    """Agrega las industrias o temas con mayor tracción real entre usuarios únicos.
+    
+    Aplica protección Anti-Spam: Solo califica si al menos `min_unique_users` distintos
+    han interactuado con la industria.
+    """
+    resolved_path = Path(db_path) if db_path else None
+    since_date = (datetime.now(timezone.utc) - timedelta(days=days_lookback)).isoformat()
+
+    query = """
+        SELECT
+            industry,
+            COUNT(DISTINCT user_id) as unique_users,
+            COUNT(id) as total_interactions,
+            MAX(created_at) as last_interaction
+        FROM telemetria_interacciones
+        WHERE created_at >= ?
+          AND industry != ''
+          AND industry NOT IN ('TI & Software B2B', 'Global', 'general')
+        GROUP BY industry
+        HAVING COUNT(DISTINCT user_id) >= ?
+        ORDER BY unique_users DESC, total_interactions DESC
+        LIMIT ?
+    """
+
+    results: List[Dict[str, Any]] = []
+    try:
+        with _get_connection(resolved_path) as conn:
+            rows = conn.execute(query, (since_date, min_unique_users, limit)).fetchall()
+            for r in rows:
+                results.append({
+                    "industry": r["industry"],
+                    "unique_users": int(r["unique_users"]),
+                    "total_interactions": int(r["total_interactions"]),
+                    "last_interaction": r["last_interaction"]
+                })
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"[Telemetría] Error agregando feedback: {e}")
+
+    return results
+
+
+def append_strategy_to_business_context(
+    category_title: str,
+    bullets: List[str],
+    author: str = "Admin",
+    context_path: Optional[Union[str, Path]] = None,
+    context_reader: Optional[Any] = None
+) -> Dict[str, Any]:
+    """Anexa de forma segura y atómica una nueva línea estratégica a tendencias.txt.
+    
+    Aplica api-security-best-practices:
+    - Validación perimetral contra inyecciones y lista negra de nota roja/deportes.
+    - Idempotencia: evita agregar títulos duplicados.
+    - Recarga en memoria en caliente (0 downtime).
+    """
+    clean_title = category_title.strip().lstrip("#").strip()
+    if not clean_title or not bullets:
+        return {"success": False, "error": "Título y viñetas obligatorias."}
+
+    # 1. Blindaje de Seguridad Perimetral (Anti-Data Poisoning)
+    full_text_to_check = f"{clean_title} " + " ".join(bullets)
+    text_lower = full_text_to_check.lower()
+
+    # Importar listas de seguridad dinámicamente para evitar dependencias circulares
+    try:
+        from app.connectors import _NON_TECH_BLACKLIST_TERMS
+        if any(term in text_lower for term in _NON_TECH_BLACKLIST_TERMS):
+            return {
+                "success": False,
+                "error": "RECHAZADO_POR_SEGURIDAD: Contenido incompatible con el perfil tecnológico (deportes, nota roja o farándula)."
+            }
+    except Exception:
+        pass
+
+    try:
+        from app.security import _PROMPT_INJECTION_PATTERNS
+        for pattern in _PROMPT_INJECTION_PATTERNS:
+            if pattern.search(full_text_to_check):
+                return {
+                    "success": False,
+                    "error": "RECHAZADO_POR_SEGURIDAD: Intento de inyección de prompt neutralizado."
+                }
+    except Exception:
+        pass
+
+    # 2. Resolver archivo de contexto
+    target_path = Path(context_path) if context_path else (settings.BASE_DIR / "data" / "tendencias.txt")
+    if not target_path.exists():
+        # Fallback a raíz
+        target_path = settings.BASE_DIR / "data" / "tendencias.txt"
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        if not target_path.exists():
+            target_path.write_text("# FUENTE DE VERDAD DEL NEGOCIO\n\n", encoding="utf-8")
+
+    current_text = target_path.read_text(encoding="utf-8")
+    
+    # 3. Idempotencia: evitar duplicados exactos
+    if clean_title.lower() in current_text.lower():
+        return {
+            "success": True,
+            "message": "La categoría ya se encuentra registrada en la fuente de verdad.",
+            "category": clean_title,
+            "already_existed": True
+        }
+
+    # 4. Formatear bloque Markdown
+    formatted_block = f"\n\n## {clean_title}\n"
+    for b in bullets:
+        clean_b = b.strip().lstrip("-* ").strip()
+        if clean_b:
+            formatted_block += f"- {clean_b}\n"
+
+    # 5. Escritura atómica
+    try:
+        with open(target_path, "a", encoding="utf-8") as f:
+            f.write(formatted_block)
+    except Exception as e:
+        return {"success": False, "error": f"Error de escritura I/O: {e}"}
+
+    # 6. Recarga en memoria en caliente (Hot Reload)
+    reloaded_keywords = 0
+    if context_reader is not None:
+        context_reader.load_context()
+        reloaded_keywords = len(context_reader.keywords)
+    else:
+        try:
+            from app.context_reader import business_context
+            business_context.load_context()
+            reloaded_keywords = len(business_context.keywords)
+        except Exception:
+            pass
+
+    import logging
+    logging.getLogger(__name__).info(
+        f"[Retroalimentación Negocio] Nueva línea '{clean_title}' anexada exitosamente por {author}. Palabras clave activas: {reloaded_keywords}"
+    )
+
+    return {
+        "success": True,
+        "category": clean_title,
+        "bullets_added": len(bullets),
+        "reloaded_keywords": reloaded_keywords
+    }
+
 
 
 

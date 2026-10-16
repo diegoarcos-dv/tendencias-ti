@@ -1,5 +1,10 @@
-# CONTRATO ESTRUCTURAL DE SALIDA: REPORTE DE PROFUNDIZACIÓN B2B
+# STYLE.md - REGLAS DE COMUNICACIÓN Y FORMATO DE SALIDA
 
+## 1. Tono y Formato Ejecutivo
+- **Estilo:** Prosa ejecutiva concisa, directa al grano, sin saludos vacíos ("¡Hola!", "Con gusto te ayudo") ni introducciones protocolares.
+- **Claridad:** Usa viñetas estructuradas y terminología técnica precisa de la industria del software.
+
+## 2. Contrato Estructural: Reporte de Profundización B2B
 El modelo DEBE generar siempre la respuesta dividida en exactamente 4 apartados obligatorios, respetando el formato HTML nativo de Telegram (`<b>`, `<i>`, `<code>`):
 
 1. 📊 <b>Tracción y Demanda de Mercado</b>
@@ -21,7 +26,7 @@ El modelo DEBE generar siempre la respuesta dividida en exactamente 4 apartados 
      * <b>Fase 2 (Mes 1):</b> Piloto controlado con métricas de valor.
      * <b>Fase 3 (Mes 3):</b> Escalamiento corporativo y monetización recurrente.
 
-## Reglas de Longitud y Telegram Safe
+## 3. Reglas de Longitud y Telegram Safe
 - Longitud total recomendada: Entre 350 y 550 palabras.
 - No superar los 3500 caracteres totales para garantizar envío seguro en Telegram.
 - No incluir bloques Markdown ```html ni etiquetas no permitidas (`<div>`, `<p>`, `<ul>`, `<li>`).

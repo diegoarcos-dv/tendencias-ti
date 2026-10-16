@@ -1350,12 +1350,21 @@ async def generate_deep_dive_report(
     security_md = ""
     if prompts_dir.exists():
         try:
-            bg_file = prompts_dir / "BEHAVIOR_GUIDELINES.md"
-            if bg_file.exists():
-                behavior_md = bg_file.read_text(encoding="utf-8").strip()
-            sec_file = prompts_dir / "SECURITY_GUARDRAILS.md"
-            if sec_file.exists():
-                security_md = sec_file.read_text(encoding="utf-8").strip()
+            # SoulSpec: Cargar IDENTITY.md, SOUL.md y STYLE.md
+            behavior_parts = []
+            for fname in ["IDENTITY.md", "SOUL.md", "STYLE.md", "BEHAVIOR_GUIDELINES.md", "OUTPUT_STRUCTURE.md"]:
+                fpath = prompts_dir / fname
+                if fpath.exists():
+                    behavior_parts.append(fpath.read_text(encoding="utf-8").strip())
+            behavior_md = "\n\n".join(behavior_parts)
+
+            # SoulSpec: Cargar RULES.md (Instrucciones Operativas y Blindaje)
+            rules_parts = []
+            for fname in ["RULES.md", "SECURITY_GUARDRAILS.md"]:
+                fpath = prompts_dir / fname
+                if fpath.exists():
+                    rules_parts.append(fpath.read_text(encoding="utf-8").strip())
+            security_md = "\n\n".join(rules_parts)
         except Exception:
             pass
 
